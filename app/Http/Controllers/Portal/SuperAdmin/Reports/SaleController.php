@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal\SuperAdmin\Reports;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\Developer;
 
 class SaleController extends Controller
 {
@@ -14,7 +15,9 @@ class SaleController extends Controller
 
     public function createProject()
     {
-        return inertia('SuperAdmin/Dashboard/CreateSale/Project');
+        $developers = Developer::get();
+
+        return inertia('SuperAdmin/Dashboard/CreateSale/Project', ['developers' => $developers]);
     }
 
     public function createRental()

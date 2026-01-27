@@ -7,10 +7,10 @@ interface CustomTextFieldProps {
     params?: AutocompleteRenderInputParams;
     type?: string;
     value: string;
-    placeholder: string;
+    placeholder?: string;
     name: string;
     error?: string | null;
-    handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    handleChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export default function StyledTextField({

@@ -2,7 +2,6 @@ import { ReactNode } from "react";
 import {
     Box,
     Grid,
-    Divider,
     Container,
     Typography,
     IconButton,
@@ -20,6 +19,9 @@ import BuyerInformationIcon from "../../../../assets/icons/buyer-information-gra
 import LrPortalBg from "../../../../assets/lr-portal-bg-mainv3.png";
 import { ShareRounded, ContentCopyRounded, Android } from "@mui/icons-material";
 import { truncate } from "../../../helpers/truncateText";
+import StyledButton from "../../../components/utils/StyledButton";
+import NoteAddIcon from "@mui/icons-material/NoteAdd";
+import { Link } from "@inertiajs/react";
 
 function Dashboard() {
     return (
@@ -52,15 +54,35 @@ function Dashboard() {
                         Record your sale, manage and track statistics, access
                         tools and more.
                     </Typography>
-                    <Chip
-                        sx={{ mt: 1 }}
-                        variant="outlined"
-                        size="small"
-                        icon={<Android />}
-                        color="success"
-                        label="Download the LR app now!"
-                        onClick={() => {}}
-                    />
+                    <Box
+                        sx={{
+                            mt: 1,
+                            display: "flex",
+                            justifyContent: "start",
+                            alignItems: "center",
+                            gap: 2,
+                        }}
+                    >
+                        <StyledButton
+                            variant="contained"
+                            size="small"
+                            color="error"
+                            sx={{ borderRadius: 0 }}
+                            startIcon={<NoteAddIcon />}
+                            LinkComponent={Link}
+                            href="/superadmin/dashboard/create-sale"
+                        >
+                            Create Sale
+                        </StyledButton>
+                        <Chip
+                            variant="outlined"
+                            size="small"
+                            icon={<Android />}
+                            color="success"
+                            label="Download the LR app now!"
+                            onClick={() => {}}
+                        />
+                    </Box>
                 </Box>
             </Box>
             <Container sx={{ py: 3 }} maxWidth="lg">

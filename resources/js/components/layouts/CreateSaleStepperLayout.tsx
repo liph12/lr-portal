@@ -7,11 +7,13 @@ import { Box } from "@mui/material";
 import EastIcon from "@mui/icons-material/East";
 import WestIcon from "@mui/icons-material/West";
 import StyledButton from "../utils/StyledButton";
+import CreateProjectSaleStepperContent from "../utils/CreateProjectSaleStepperContent";
+import { SalesSource } from "../../types/app-data-types";
 
 export default function CreateSaleStepperLayout({
-    children,
+    salesSources,
 }: {
-    children: ReactNode;
+    salesSources: SalesSource[];
 }) {
     const { createSaleCompletedSteps } = useAppProvider();
     const [activeStep, setActiveStep] = useState<number>(0);
@@ -43,7 +45,12 @@ export default function CreateSaleStepperLayout({
                 activeStep={activeStep}
                 steps={useCreateSaleSteps}
             />
-            {children}
+            <Box sx={{ height: "45vh", py: 3 }}>
+                <CreateProjectSaleStepperContent
+                    step={activeStep}
+                    salesSources={salesSources}
+                />
+            </Box>
             <Box sx={{ display: "flex", justifyContent: "center", mt: 5 }}>
                 <StyledButton
                     type="submit"

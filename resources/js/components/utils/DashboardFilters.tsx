@@ -1,8 +1,9 @@
 import StyledButton from "./StyledButton";
 import StyledTextField from "./StyledTextField";
+import StyledTextFieldPrimary from "./StyledTextFieldPrimary";
 import StyledAutocomplete from "./StyledAutocomplete";
 import KeyboardTabIcon from "@mui/icons-material/KeyboardTab";
-import { Box, Divider, Container, Stack } from "@mui/material";
+import { Box, Divider, Container, Stack, TextField } from "@mui/material";
 
 export default function DashboardFilters() {
     return (
@@ -24,19 +25,22 @@ export default function DashboardFilters() {
                 </Box>
                 <Divider />
                 <Container sx={{ py: 3 }}>
-                    <Stack gap={2}>
+                    {/* <Stack gap={2}>
                         <StyledAutocomplete
                             options={["Current Year", "Last Year"]}
                             value="Current Year"
                             renderInput={(params) => (
-                                <StyledTextField {...params} />
+                                <StyledTextFieldPrimary {...params} />
                             )}
                         />
                         <StyledAutocomplete
                             options={["Agent", "Team", "Sub-Team", "Area"]}
                             value="Agents"
                             renderInput={(params) => (
-                                <StyledTextField {...params} label="Group by" />
+                                <StyledTextFieldPrimary
+                                    {...params}
+                                    label="Group by"
+                                />
                             )}
                         />
                         <StyledAutocomplete
@@ -47,10 +51,13 @@ export default function DashboardFilters() {
                             ]}
                             value="All teams"
                             renderInput={(params) => (
-                                <StyledTextField {...params} label="Team" />
+                                <StyledTextFieldPrimary
+                                    {...params}
+                                    label="Team"
+                                />
                             )}
                         />
-                    </Stack>
+                    </Stack> */}
                 </Container>
             </Box>
         </>

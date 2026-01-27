@@ -1,6 +1,6 @@
 import { Autocomplete, AutocompleteProps } from "@mui/material";
 
-type Option = string;
+type Option = { id: number | string; label: string };
 
 type StyledAutocompleteProps = AutocompleteProps<
     Option,
