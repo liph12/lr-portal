@@ -38,7 +38,14 @@ class UserSeeder extends Seeder
             'password' => Hash::make('12345'),
         ]);
 
+        $superadmin_1 = User::create([
+            'name' => 'Joseph Amores',
+            'email' => 'kokoyflores112@gmail.com',
+            'password' => Hash::make('12345'),
+        ]);
+
         $superadmin->roles()->sync([Role::where('name', 'superadmin')->value('id')]);
+        $superadmin_1->roles()->sync([Role::where('name', 'superadmin')->value('id')]);
         $admin->roles()->sync([Role::where('name', 'admin')->value('id')]);
         $staff->roles()->sync([Role::where('name', 'staff')->value('id')]);
         $sec->roles()->sync([Role::where('name', 'secretary')->value('id')]);

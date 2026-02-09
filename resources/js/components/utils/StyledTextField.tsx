@@ -6,7 +6,7 @@ interface CustomTextFieldProps {
     props?: TextFieldProps;
     params?: AutocompleteRenderInputParams;
     type?: string;
-    value: string;
+    value?: string;
     placeholder?: string;
     name: string;
     error?: string | null;

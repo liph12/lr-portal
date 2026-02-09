@@ -8,6 +8,7 @@ import {
 import { useMediaQuery } from "@mui/material";
 import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
 import { CreateSaleCompletedSteps } from "../types";
+import "../../css/app.css";
 
 interface AppContextType {
     desktop: boolean;
