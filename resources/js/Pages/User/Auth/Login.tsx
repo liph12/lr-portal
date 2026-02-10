@@ -1,7 +1,5 @@
-import { Box, Stack, Typography, Button } from "@mui/material";
+import { Box, Stack, Typography, Button, TextField } from "@mui/material";
 import { Form } from "@inertiajs/react";
-
-import StyledTextField from "../../../components/utils/StyledTextField";
 import StyledButton from "../../../components/utils/StyledButton";
 
 export default function Login() {
@@ -31,11 +29,11 @@ export default function Login() {
                     p: 6,
                     textAlign: "center",
                     flexShrink: 0,
-                    background: "rgba(255, 255, 255, 0.1)", // para opacity or glass type background
-                    backdropFilter: "blur(15px)", // frosted glass blur effect
-                    WebkitBackdropFilter: "blur(15px)", 
-                    border: "1px solid rgba(255, 255, 255, 0.2)", // subtle border
-                    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)", // soft shadow
+                    background: "rgba(255, 255, 255, 0.1)", // glass effect
+                    backdropFilter: "blur(15px)",
+                    WebkitBackdropFilter: "blur(15px)",
+                    border: "1px solid rgba(255, 255, 255, 0.6)", // visible border
+                    boxShadow: 1, // subtle paper shadow
                 }}
             >
                 {/* LR-LOGO DETAIL */}
@@ -58,15 +56,16 @@ export default function Login() {
                 <Typography
                     variant="h5"
                     fontWeight={600}
-                    sx={{ mb: 1, color: "#000", fontFamily: "Inter, sans-serif" }}
+                    sx={{
+                        mb: 1,
+                        color: "#000",
+                        fontFamily: "Inter, sans-serif",
+                    }}
                 >
                     Welcome back!
                 </Typography>
 
-                <Typography
-                    variant="body2"
-                    sx={{ mb: 4, color: "#000" }}
-                >
+                <Typography variant="body2" sx={{ mb: 4, color: "#000" }}>
                     Sign in to your account
                 </Typography>
 
@@ -80,17 +79,38 @@ export default function Login() {
                                 </Typography>
                             )}
 
-                            <StyledTextField
-                                placeholder="Email address"
+                            {/* EMAIL FIELD */}
+                            <TextField
                                 name="email"
+                                placeholder="Email address"
+                                fullWidth
+                                variant="outlined"
+                                InputProps={{
+                                    style: {
+                                        backgroundColor: "#fff", // white background
+                                        border: "1px solid rgba(0,0,0,0.4)", // visible border
+                                        borderRadius: 4,
+                                    },
+                                }}
                             />
 
-                            <StyledTextField
+                            {/* PASSWORD FIELD */}
+                            <TextField
+                                name="password"
                                 type="password"
                                 placeholder="Password"
-                                name="password"
+                                fullWidth
+                                variant="outlined"
+                                InputProps={{
+                                    style: {
+                                        backgroundColor: "#fff", // white background
+                                        border: "1px solid rgba(0,0,0,0.4)", // visible border
+                                        borderRadius: 4,
+                                    },
+                                }}
                             />
 
+                            {/* SIGN IN BUTTON */}
                             <StyledButton
                                 type="submit"
                                 variant="contained"
@@ -104,31 +124,46 @@ export default function Login() {
                 </Form>
             </Box>
 
-            {/* =====================================================
-                RIGHT SIDE — HERO / MOCKUP IMAGE (NO BACKGROUND)
-               ===================================================== */}
+            {/*FOR THE LAPTOP AND PHONE BACKGROUND*/}
             <Box
-                sx={{
-                    width: 800,
-                    maxWidth: "100%",
-                    flexShrink: 0,
-                    textAlign: "center",
-                    p: 0,
-                    borderRadius: 0,
-                    background: "transparent",
-                    boxShadow: "none",
-                }}
-            >
-                <img
-                    src="/assets/lr-laptop.png"
-                    alt="Hero Mockup"
-                    style={{
-                        width: "100%",
-                        height: "auto",
-                        display: "block",
-                    }}
-                />
-            </Box>
+    sx={{
+        width: 800,
+        maxWidth: "100%",
+        flexShrink: 0,
+        textAlign: "center",
+        p: 0,
+        borderRadius: 0,
+        background: "transparent",
+        boxShadow: "none",
+        overflow: "hidden",
+
+        img: {
+            width: "100%",
+            height: "auto",
+            display: "block",
+
+            
+            animation: "introLaptop 1.2s ease-out forwards",
+            opacity: 0,
+        },
+
+        "@keyframes introLaptop": {
+            "0%": {
+                opacity: 0,
+                transform: "translateY(40px) scale(0.95)",
+            },
+            "100%": {
+                opacity: 1,
+                transform: "translateY(0) scale(1)",
+            },
+        },
+    }}
+>
+    <img
+        src="/assets/lr-laptop.png"
+        alt="Hero Mockup"
+    />
+</Box>
         </Box>
     );
 }
