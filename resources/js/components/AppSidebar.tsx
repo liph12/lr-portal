@@ -12,6 +12,8 @@ import { Link } from "@inertiajs/react";
 import useSidebarRoutes from "../hooks/useSidebarRoutes";
 import UserOnlineAvatar from "./utils/user/UserOnlineAvatar";
 import { User } from "./utils/user/UserOnlineAvatar";
+import { router } from "@inertiajs/react";
+import StyledButton from "./utils/StyledButton";
 
 const users: User[] = [
     {
@@ -35,6 +37,8 @@ const users: User[] = [
 export default function AppSidebar() {
     const routes = useSidebarRoutes();
 
+    const handleLogout = () => router.post("/logout");
+
     return (
         <Box
             sx={{
@@ -42,9 +46,11 @@ export default function AppSidebar() {
                 height: "100vh",
                 backgroundColor: "#222",
                 borderLeft: "0.5px solid #333",
-                position: "relative",
+                display: "flex",
+                flexDirection: "column",
             }}
         >
+            {/* Menu */}
             <Box sx={{ my: 2 }}>
                 {routes.map((r, k) => {
                     const ADMINISTRATOR_GROUP = k === 0;
@@ -68,6 +74,7 @@ export default function AppSidebar() {
                                     Staff
                                 </Typography>
                             )}
+
                             <Link
                                 href={r.path}
                                 style={{ textDecoration: "none" }}
@@ -103,40 +110,32 @@ export default function AppSidebar() {
                     );
                 })}
             </Box>
-            <Box
-                sx={{
-                    position: "absolute",
-                    bottom: 0,
-                    height: "45vh",
-                    width: "100%",
-                }}
-            >
-                <Divider sx={{ mb: 1, backgroundColor: "#777" }} />
-                <Box>
-                    <Stack
-                        direction="row"
-                        justifyContent="space-around"
-                        alignItems="center"
-                    >
-                        <Box sx={{ flex: 1 }}>
-                            <Typography
-                                sx={{ color: "#999", px: 2, mb: 1 }}
-                                variant="caption"
-                            >
-                                Online users (2)
-                            </Typography>
-                        </Box>
-                        {/* <Stack direction="row">
-                            <IconButton size="small">
-                                <SearchRounded
-                                    fontSize="small"
-                                    sx={{ color: "#999" }}
-                                />
-                            </IconButton>
-                        </Stack> */}
-                    </Stack>
-                </Box>
-                <Box sx={{ height: "100%", overflowY: "auto" }}>
+
+            {/* Logout */}
+            <Box sx={{ px: 2 }}>
+                <StyledButton
+                    onClick={handleLogout}
+                    variant="contained"
+                    size="small"
+                    fullWidth
+                    color="error"
+                >
+                    Logout
+                </StyledButton>
+            </Box>
+
+            {/* Bottom section */}
+            <Box sx={{ mt: 5 }}>
+                <Divider sx={{ my: 1, backgroundColor: "#777" }} />
+
+                <Typography
+                    sx={{ color: "#999", px: 2, mb: 1 }}
+                    variant="caption"
+                >
+                    Online users (2)
+                </Typography>
+
+                <Box sx={{ maxHeight: "45vh", overflowY: "auto" }}>
                     {users.map((u) => (
                         <UserOnlineAvatar
                             key={u.id}
