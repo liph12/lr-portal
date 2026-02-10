@@ -35,10 +35,22 @@ export default function Login() {
                     WebkitBackdropFilter: "blur(15px)",
                     border: "1px solid rgba(255, 255, 255, 0.6)",
                     boxShadow: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center", // center all content horizontally
                 }}
             >
                 {/* LR LOGO */}
-                <Box sx={{ mb: 3 }}>
+                <Box
+                    sx={{
+                        mb: 3,
+                        display: "flex",
+                        justifyContent: "center", // horizontally center
+                        alignItems: "center",     // vertically center
+                        width: "100%",
+                        height: 120,              // ✅ height for centering logo
+                    }}
+                >
                     <img
                         src="/assets/lr-logo.svg"
                         alt="Leuterio Realty"
