@@ -41,7 +41,7 @@ class UserSeeder extends Seeder
         $superadmin_1 = User::create([
             'name' => 'Joseph Amores',
             'email' => 'kokoyflores112@gmail.com',
-            'password' => Hash::make('12345'),
+            'password' => Hash::make('123456'),
         ]);
 
         $superadmin->roles()->sync([Role::where('name', 'superadmin')->value('id')]);
