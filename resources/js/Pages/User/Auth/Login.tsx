@@ -1,4 +1,4 @@
-import { Box, Stack, Typography, Button, TextField } from "@mui/material";
+import { Box, Stack, Typography, TextField } from "@mui/material";
 import { Form } from "@inertiajs/react";
 import StyledButton from "../../../components/utils/StyledButton";
 
@@ -8,59 +8,51 @@ export default function Login() {
         <Box
             sx={{
                 display: "flex",
-                height: "100vh",
+                minHeight: "100vh",
                 width: "100%",
                 justifyContent: "center",
                 alignItems: "center",
-                gap: 6,
+                gap: { xs: 0, md: 6 },
+                flexDirection: { xs: "column", md: "row" }, // 📱 stack on mobile
                 backgroundImage: "url(/assets/login-background.png)",
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 backgroundRepeat: "no-repeat",
+                px: { xs: 2, md: 0 }, // mobile padding
             }}
         >
-            {/* =====================================================
-                LEFT SIDE — LOGIN CARD (GLASS EFFECT)
-               ===================================================== */}
+            {/* LEFT SIDE — LOGIN CARD */}
             <Box
                 sx={{
-                    width: 400,
+                    width: { xs: "100%", sm: 380, md: 400 },
+                    maxWidth: "100%",
                     borderRadius: 2,
-                    p: 6,
+                    p: { xs: 4, md: 6 }, // smaller padding on mobile
                     textAlign: "center",
-                    flexShrink: 0,
-                    background: "rgba(255, 255, 255, 0.1)", // glass effect
+                    background: "rgba(255, 255, 255, 0.1)",
                     backdropFilter: "blur(15px)",
                     WebkitBackdropFilter: "blur(15px)",
-                    border: "1px solid rgba(255, 255, 255, 0.6)", // visible border
-                    boxShadow: 1, // subtle paper shadow
+                    border: "1px solid rgba(255, 255, 255, 0.6)",
+                    boxShadow: 1,
                 }}
             >
-                {/* LR-LOGO DETAIL */}
-                <Box
-                    sx={{
-                        mb: 3,
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                    }}
-                >
+                {/* LR LOGO */}
+                <Box sx={{ mb: 3 }}>
                     <img
                         src="/assets/lr-logo.svg"
                         alt="Leuterio Realty"
-                        style={{ width: 200, height: "auto" }}
+                        style={{
+                            width: 180,
+                            maxWidth: "100%",
+                            height: "auto",
+                        }}
                     />
                 </Box>
 
-                {/* TITLE */}
                 <Typography
                     variant="h5"
                     fontWeight={600}
-                    sx={{
-                        mb: 1,
-                        color: "#000",
-                        fontFamily: "Inter, sans-serif",
-                    }}
+                    sx={{ mb: 1, color: "#000" }}
                 >
                     Welcome back!
                 </Typography>
@@ -79,7 +71,6 @@ export default function Login() {
                                 </Typography>
                             )}
 
-                            {/* EMAIL FIELD */}
                             <TextField
                                 name="email"
                                 placeholder="Email address"
@@ -87,14 +78,13 @@ export default function Login() {
                                 variant="outlined"
                                 InputProps={{
                                     style: {
-                                        backgroundColor: "#fff", // white background
-                                        border: "1px solid rgba(0,0,0,0.4)", // visible border
+                                        backgroundColor: "#fff",
+                                        border: "1px solid rgba(0,0,0,0.4)",
                                         borderRadius: 4,
                                     },
                                 }}
                             />
 
-                            {/* PASSWORD FIELD */}
                             <TextField
                                 name="password"
                                 type="password"
@@ -103,14 +93,13 @@ export default function Login() {
                                 variant="outlined"
                                 InputProps={{
                                     style: {
-                                        backgroundColor: "#fff", // white background
-                                        border: "1px solid rgba(0,0,0,0.4)", // visible border
+                                        backgroundColor: "#fff",
+                                        border: "1px solid rgba(0,0,0,0.4)",
                                         borderRadius: 4,
                                     },
                                 }}
                             />
 
-                            {/* SIGN IN BUTTON */}
                             <StyledButton
                                 type="submit"
                                 variant="contained"
@@ -124,46 +113,36 @@ export default function Login() {
                 </Form>
             </Box>
 
-            {/*FOR THE LAPTOP AND PHONE BACKGROUND*/}
+            {/* RIGHT SIDE — HERO IMAGE (HIDDEN ON MOBILE) */}
             <Box
-    sx={{
-        width: 800,
-        maxWidth: "100%",
-        flexShrink: 0,
-        textAlign: "center",
-        p: 0,
-        borderRadius: 0,
-        background: "transparent",
-        boxShadow: "none",
-        overflow: "hidden",
+                sx={{
+                    width: 800,
+                    display: { xs: "none", md: "block" }, // 🚫 hide on mobile
+                    textAlign: "center",
+                    overflow: "hidden",
 
-        img: {
-            width: "100%",
-            height: "auto",
-            display: "block",
+                    img: {
+                        width: "100%",
+                        height: "auto",
+                        display: "block",
+                        animation: "introLaptop 1.2s ease-out forwards",
+                        opacity: 0,
+                    },
 
-            
-            animation: "introLaptop 1.2s ease-out forwards",
-            opacity: 0,
-        },
-
-        "@keyframes introLaptop": {
-            "0%": {
-                opacity: 0,
-                transform: "translateY(40px) scale(0.95)",
-            },
-            "100%": {
-                opacity: 1,
-                transform: "translateY(0) scale(1)",
-            },
-        },
-    }}
->
-    <img
-        src="/assets/lr-laptop.png"
-        alt="Hero Mockup"
-    />
-</Box>
+                    "@keyframes introLaptop": {
+                        "0%": {
+                            opacity: 0,
+                            transform: "translateY(40px) scale(0.95)",
+                        },
+                        "100%": {
+                            opacity: 1,
+                            transform: "translateY(0) scale(1)",
+                        },
+                    },
+                }}
+            >
+                <img src="/assets/lr-laptop.png" alt="Hero Mockup" />
+            </Box>
         </Box>
     );
 }
