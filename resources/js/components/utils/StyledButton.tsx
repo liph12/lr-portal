@@ -6,7 +6,7 @@ export default function StyledButton({ children, ...props }: ButtonProps) {
             {...props}
             sx={{
                 textTransform: "none",
-                borderRadius: 2,
+                borderRadius: 0,
                 ...(props.sx || {}),
             }}
             disableElevation
