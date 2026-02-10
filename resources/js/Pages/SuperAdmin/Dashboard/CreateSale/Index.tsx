@@ -15,6 +15,7 @@ import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import DashboardCardOverview from "../../../../components/cards/DashboardCardOverview";
 import StyledButton from "../../../../components/utils/StyledButton";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
+import Add from "@mui/icons-material/Add";
 import { Link } from "@inertiajs/react";
 
 function CreateSale() {
@@ -67,7 +68,7 @@ function CreateSale() {
                                 size="small"
                                 variant="text"
                                 color="inherit"
-                                endIcon={<ArrowForwardRoundedIcon />}
+                                endIcon={<Add />}
                                 LinkComponent={Link}
                                 href="/superadmin/dashboard/create-sale/project"
                                 sx={{
@@ -118,7 +119,7 @@ function CreateSale() {
                                 size="small"
                                 variant="text"
                                 color="inherit"
-                                endIcon={<ArrowForwardRoundedIcon />}
+                                endIcon={<Add />}
                                 LinkComponent={Link}
                                 href="/superadmin/dashboard/create-sale/rental"
                                 sx={{
@@ -169,7 +170,7 @@ function CreateSale() {
                                 size="small"
                                 variant="text"
                                 color="inherit"
-                                endIcon={<ArrowForwardRoundedIcon />}
+                                endIcon={<Add />}
                                 LinkComponent={Link}
                                 href="/superadmin/dashboard/create-sale/brokerage"
                                 sx={{

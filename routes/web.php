@@ -6,6 +6,7 @@ use App\Http\Controllers\UserController;
 Route::middleware('guest')->group(function(){
 
     Route::get('/login', [UserController::class, 'login']);
+    Route::get('/register', [UserController::class, 'register']);
     Route::post('/login-attempt', [UserController::class, 'loginAttempt']);
     
 });

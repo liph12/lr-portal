@@ -20,6 +20,11 @@ class UserController extends Controller
         return inertia('User/Auth/Login');
     }
 
+    public function register()
+    {
+        return inertia('User/Auth/Register');
+    }
+
     public function loginAttempt(Request $request)
     {
         $data = $request->only('email', 'password');
