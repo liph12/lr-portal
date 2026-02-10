@@ -1,7 +1,6 @@
 import { Box, Stack, Typography, TextField } from "@mui/material";
 import { Form } from "@inertiajs/react";
 import StyledButton from "../../../components/utils/StyledButton";
-import StyledTextField from "../../../components/utils/StyledTextField";
 
 export default function Login() {
     return (
@@ -84,15 +83,33 @@ export default function Login() {
                                 </Typography>
                             )}
 
-                            <StyledTextField
+                            <TextField
                                 name="email"
                                 placeholder="Email address"
+                                fullWidth
+                                variant="outlined"
+                                InputProps={{
+                                    style: {
+                                        backgroundColor: "#fff",
+                                        border: "1px solid rgba(0,0,0,0.4)",
+                                        borderRadius: 4,
+                                    },
+                                }}
                             />
 
-                            <StyledTextField
+                            <TextField
                                 name="password"
                                 type="password"
                                 placeholder="Password"
+                                fullWidth
+                                variant="outlined"
+                                InputProps={{
+                                    style: {
+                                        backgroundColor: "#fff",
+                                        border: "1px solid rgba(0,0,0,0.4)",
+                                        borderRadius: 4,
+                                    },
+                                }}
                             />
 
                             <StyledButton
