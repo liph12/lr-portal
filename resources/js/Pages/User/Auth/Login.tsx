@@ -81,7 +81,6 @@ export default function Login() {
                             <StyledTextField
                                 name="email"
                                 placeholder="Email address"
-                             
                             />
 
                             {/* PASSWORD */}
@@ -89,7 +88,6 @@ export default function Login() {
                                 name="password"
                                 type="password"
                                 placeholder="Password"
-                                
                             />
 
                             <StyledButton
