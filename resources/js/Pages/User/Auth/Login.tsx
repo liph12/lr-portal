@@ -1,6 +1,7 @@
 import { Box, Stack, Typography, TextField } from "@mui/material";
 import { Form } from "@inertiajs/react";
 import StyledButton from "../../../components/utils/StyledButton";
+import StyledTextField from "../../../components/utils/StyledTextField";
 
 export default function Login() {
     return (
@@ -45,9 +46,9 @@ export default function Login() {
                         mb: 3,
                         display: "flex",
                         justifyContent: "center", // horizontally center
-                        alignItems: "center",     // vertically center
+                        alignItems: "center", // vertically center
                         width: "100%",
-                        height: 120,              // ✅ height for centering logo
+                        height: 120, // ✅ height for centering logo
                     }}
                 >
                     <img
@@ -83,33 +84,15 @@ export default function Login() {
                                 </Typography>
                             )}
 
-                            <TextField
+                            <StyledTextField
                                 name="email"
                                 placeholder="Email address"
-                                fullWidth
-                                variant="outlined"
-                                InputProps={{
-                                    style: {
-                                        backgroundColor: "#fff",
-                                        border: "1px solid rgba(0,0,0,0.4)",
-                                        borderRadius: 4,
-                                    },
-                                }}
                             />
 
-                            <TextField
+                            <StyledTextField
                                 name="password"
                                 type="password"
                                 placeholder="Password"
-                                fullWidth
-                                variant="outlined"
-                                InputProps={{
-                                    style: {
-                                        backgroundColor: "#fff",
-                                        border: "1px solid rgba(0,0,0,0.4)",
-                                        borderRadius: 4,
-                                    },
-                                }}
                             />
 
                             <StyledButton
