@@ -3,9 +3,13 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 
+Route::get('/', function () {
+    return redirect('/login');
+});
+
 Route::middleware('guest')->group(function(){
 
-    Route::get('/login', [UserController::class, 'login']);
+    Route::get('/login', [UserController::class, 'login']) ->name('login');
     Route::get('/register', [UserController::class, 'register']);
     Route::post('/login-attempt', [UserController::class, 'loginAttempt']);
     

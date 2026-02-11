@@ -1,10 +1,10 @@
-import { Box, Stack, Typography, TextField } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import { Form } from "@inertiajs/react";
 import StyledButton from "../../../components/utils/StyledButton";
+import StyledTextField from "../../../components/utils/StyledTextField";
 
 export default function Login() {
     return (
-        // 🌐 FULL SCREEN WRAPPER — background image
         <Box
             sx={{
                 display: "flex",
@@ -13,12 +13,12 @@ export default function Login() {
                 justifyContent: "center",
                 alignItems: "center",
                 gap: { xs: 0, md: 6 },
-                flexDirection: { xs: "column", md: "row" }, // 📱 stack on mobile
+                flexDirection: { xs: "column", md: "row" },
                 backgroundImage: "url(/assets/login-background.png)",
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 backgroundRepeat: "no-repeat",
-                px: { xs: 2, md: 0 }, // mobile padding
+                px: { xs: 2, md: 0 },
             }}
         >
             {/* LEFT SIDE — LOGIN CARD */}
@@ -27,27 +27,22 @@ export default function Login() {
                     width: { xs: "100%", sm: 380, md: 400 },
                     maxWidth: "100%",
                     borderRadius: 2,
-                    p: { xs: 4, md: 6 }, // smaller padding on mobile
+                    p: { xs: 4, md: 6 },
                     textAlign: "center",
                     background: "rgba(255, 255, 255, 0.1)",
                     backdropFilter: "blur(15px)",
                     WebkitBackdropFilter: "blur(15px)",
                     border: "1px solid rgba(255, 255, 255, 0.6)",
                     boxShadow: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center", // center all content horizontally
                 }}
             >
-                {/* LR LOGO */}
+                {/* LOGO */}
                 <Box
                     sx={{
                         mb: 3,
                         display: "flex",
-                        justifyContent: "center", // horizontally center
-                        alignItems: "center",     // vertically center
+                        justifyContent: "center",
                         width: "100%",
-                        height: 120,              // ✅ height for centering logo
                     }}
                 >
                     <img
@@ -73,7 +68,6 @@ export default function Login() {
                     Sign in to your account
                 </Typography>
 
-                {/* LOGIN FORM */}
                 <Form action="/login-attempt" method="post">
                     {({ processing, errors }) => (
                         <Stack gap={2}>
@@ -83,33 +77,19 @@ export default function Login() {
                                 </Typography>
                             )}
 
-                            <TextField
+                            {/* EMAIL */}
+                            <StyledTextField
                                 name="email"
                                 placeholder="Email address"
-                                fullWidth
-                                variant="outlined"
-                                InputProps={{
-                                    style: {
-                                        backgroundColor: "#fff",
-                                        border: "1px solid rgba(0,0,0,0.4)",
-                                        borderRadius: 4,
-                                    },
-                                }}
+                             
                             />
 
-                            <TextField
+                            {/* PASSWORD */}
+                            <StyledTextField
                                 name="password"
                                 type="password"
                                 placeholder="Password"
-                                fullWidth
-                                variant="outlined"
-                                InputProps={{
-                                    style: {
-                                        backgroundColor: "#fff",
-                                        border: "1px solid rgba(0,0,0,0.4)",
-                                        borderRadius: 4,
-                                    },
-                                }}
+                                
                             />
 
                             <StyledButton
@@ -125,11 +105,11 @@ export default function Login() {
                 </Form>
             </Box>
 
-            {/* RIGHT SIDE — HERO IMAGE (HIDDEN ON MOBILE) */}
+            {/* RIGHT SIDE — HERO IMAGE */}
             <Box
                 sx={{
                     width: 800,
-                    display: { xs: "none", md: "block" }, // 🚫 hide on mobile
+                    display: { xs: "none", md: "block" },
                     textAlign: "center",
                     overflow: "hidden",
 
