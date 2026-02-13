@@ -14,7 +14,7 @@ export default function Login() {
                 alignItems: "center",
                 gap: { xs: 0, md: 6 },
                 flexDirection: { xs: "column", md: "row" },
-                backgroundImage: "url(/assets/login-background.png)",
+                backgroundImage: "url(/assets/background.png)",
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 backgroundRepeat: "no-repeat",

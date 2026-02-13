@@ -33,7 +33,7 @@ export default function Register() {
                 flexDirection: "column",
                 justifyContent: "center",
                 alignItems: "center",
-                backgroundImage: "url(/assets/login-background.png)",
+                backgroundImage: "url(/assets/background.png)",
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 backgroundRepeat: "no-repeat",
