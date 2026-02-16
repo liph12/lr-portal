@@ -32,7 +32,12 @@ class UserController extends Controller
 
     public function CreateAccount()
     {
-        return inertia('User/Auth/CreateAccount');
+        return inertia('User/Auth/Stepper/CreateAccount');
+    }
+
+     public function createPassword()
+    {
+        return inertia('User/Auth/CreatePassword');
     }
 
     public function loginAttempt(Request $request)

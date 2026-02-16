@@ -1,265 +1,238 @@
-import { useState } from "react";
-import Grid from "@mui/material/Grid";
-import {
-  Box,
-  Typography,
-  TextField,
-  Stepper,
-  Step,
-  StepLabel,
-  MenuItem,
-  Link,
-} from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
+import { Form, Link } from "@inertiajs/react";
 import StyledButton from "../../../components/utils/StyledButton";
+import StyledTextField from "../../../components/utils/StyledTextField";
 
-/* ================= STEPS ================= */
-const steps = [
-  "Basic Information",
-  "Contacts & Socials",
-  "Complete Address",
-  "Personal Background",
-];
-
-/* ================= CUSTOM STEP ICON ================= */
-function CustomStepIcon(props: any) {
-  const { active, icon } = props;
-  return (
-    <Box
-      sx={{
-        width: 26,
-        height: 26,
-        borderRadius: "50%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: active ? "#d32f2f" : "#c4c4c4",
-        color: "#fff",
-        fontSize: 12,
-        fontWeight: 600,
-      }}
-    >
-      {icon}
-    </Box>
-  );
-}
-
-/* ================= COMPONENT ================= */
-export default function CreateAccount() {
-  const [activeStep, setActiveStep] = useState(0);
-
-  return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        backgroundColor: "#f5f5f5",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        px: { xs: 2, md: 4 },
-        py: 4,
-      }}
-    >
-      {/* ===== CARD / DIVISION ===== */}
-      <Box
-        sx={{
-          width: "100%",
-          maxWidth: 1000,
-          maxHeight: "90vh",
-          backgroundColor: "#fff",
-          borderRadius: 3,
-          boxShadow: 6,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        {/* ===== HEADER ===== */}
+export default function Verification() {
+    return (
         <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          px={{ xs: 3, md: 6 }}
-          py={3}
-          borderBottom="1px solid #e0e0e0"
+            sx={{
+                minHeight: "100vh",
+                width: "100%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundImage: "url(/assets/background.png)",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+                px: { xs: 2, sm: 3 },
+                position: "relative",
+            }}
         >
-          <Box component="img" src="/assets/lr-logo.svg" sx={{ height: 50 }} />
-          <Typography fontSize={14}>
-            Already have an account?{" "}
-            <Link href="/login" underline="always" sx={{ color: "#d32f2f" }}>
-              Sign in here
-            </Link>
-          </Typography>
-        </Box>
-
-        {/* ===== SCROLLABLE CONTENT (STEP + FORM) ===== */}
-        <Box
-          sx={{
-            px: { xs: 3, md: 6 },
-            py: 4,
-            overflowY: "auto",
-            flexGrow: 1,
-          }}
-        >
-          {/* ===== TITLE ===== */}
-          <Box textAlign="center" mb={5}>
-            <Typography variant="h4" fontWeight={600}>
-              Create Account
-            </Typography>
-          </Box>
-
-          {/* ===== STEPPER ===== */}
-          <Box mb={6}>
-            <Stepper
-              activeStep={activeStep}
-              alternativeLabel
-              sx={{
-                "& .MuiStepConnector-line": {
-                  borderColor: "#e0e0e0",
-                  borderTopWidth: 1,
-                },
-              }}
+            {/* LOGO */}
+            <Box
+                sx={{
+                    position: "absolute",
+                    top: { xs: 12, sm: 16 },
+                    left: { xs: 12, sm: 16 },
+                }}
             >
-              {steps.map((label, index) => (
-                <Step key={label}>
-                  <StepLabel StepIconComponent={CustomStepIcon}>
-                    <Typography
-                      fontSize={14}
-                      fontWeight={activeStep === index ? 600 : 400}
-                      color={activeStep === index ? "#000" : "#9e9e9e"}
+                <Box
+                    component="img"
+                    src="/assets/lr-logo.svg"
+                    alt="LR Logo"
+                    sx={{ width: { xs: 120, sm: 160 }, height: "auto" }}
+                />
+            </Box>
+
+            {/* SIGN IN LINK */}
+            <Box
+                sx={{
+                    position: "absolute",
+                    top: { xs: 12, sm: 16 },
+                    right: { xs: 12, sm: 16 },
+                }}
+            >
+                <Typography variant="body2">
+                    Already have an account?{" "}
+                    <Link href="/login" style={{ textDecoration: "none" }}>
+                        <Typography
+                            component="span"
+                            sx={{
+                                fontWeight: 600,
+                                color: "primary.main",
+                                transition: "0.3s",
+                                "&:hover": {
+                                    color: "secondary.main",
+                                    textDecoration: "underline",
+                                },
+                            }}
+                        >
+                            Sign in here
+                        </Typography>
+                    </Link>
+                </Typography>
+            </Box>
+
+            <Typography
+                variant="h4"
+                fontWeight={700}
+                sx={{
+                    mb: { xs: 3, sm: 4 },
+                    textAlign: "center",
+                    color: "#000",
+                    fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
+                    lineHeight: 1.2,
+                }}
+            >
+                Email Verification
+            </Typography>
+
+            {/* MAIN CONTENT */}
+            <Box
+                sx={{
+                    display: "flex",
+                    gap: { xs: 0, md: 6 },
+                    flexDirection: { xs: "column", md: "row" },
+                    alignItems: "center",
+                    width: "100%",
+                    justifyContent: "center",
+                }}
+            >
+                {/* VERIFICATION CARD */}
+                <Box
+                    sx={{
+                        width: { xs: "100%", sm: 400, md: 450 },
+                        borderRadius: 2,
+                        p: { xs: 3, sm: 4, md: 6 },
+                        background: "rgba(255, 255, 255, 0.1)",
+                        backdropFilter: "blur(15px)",
+                        WebkitBackdropFilter: "blur(15px)",
+                        border: "1px solid rgba(255, 255, 255, 0.6)",
+                    }}
+                >
+                    {/* SPONSOR SECTION */}
+                    <Box
+                        sx={{
+                            mb: 3,
+                            p: { xs: 2, sm: 3 },
+                            borderRadius: 2,
+                            background: "rgba(25, 118, 210, 0.08)",
+                            border: "1px solid rgba(25, 118, 210, 0.3)",
+                            borderLeft: "6px solid",
+                            borderLeftColor: "primary.main",
+                        }}
                     >
-                      {label}
+                        <Typography
+                            variant="overline"
+                            sx={{
+                                fontWeight: 700,
+                                color: "primary.main",
+                                letterSpacing: 1,
+                                fontSize: { xs: 10, sm: 12 },
+                            }}
+                        >
+                            SPONSOR
+                        </Typography>
+
+                        <Typography
+                            sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                                fontWeight: 700,
+                                fontSize: { xs: 14, sm: 18 },
+                                mt: 0.5,
+                            }}
+                        >
+                            <Box
+                                component="img"
+                                src="/assets/ph_flag.png"
+                                alt="Philippine Flag"
+                                sx={{
+                                    width: { xs: 20, sm: 30 },
+                                    height: { xs: 10, sm: 15 },
+                                    objectFit: "cover",
+                                    borderRadius: 0.5,
+                                }}
+                            />
+                            Philip M. Libres
+                        </Typography>
+
+                        <Typography
+                            sx={{ mt: 1, fontSize: { xs: 12, sm: 14 } }}
+                        >
+                            ✉ libresphilip14@gmail.com
+                        </Typography>
+
+                        <Typography
+                            sx={{ mt: 0.5, fontSize: { xs: 12, sm: 14 } }}
+                        >
+                            📞 09677705320
+                        </Typography>
+                    </Box>
+
+                    {/* VERIFICATION TEXT */}
+                    <Typography
+                        sx={{
+                            fontWeight: 700,
+                            fontSize: { xs: "1.1rem", sm: "1.25rem" },
+                            mb: 1,
+                        }}
+                    >
+                        Enter Verification Code
                     </Typography>
-                  </StepLabel>
-                </Step>
-              ))}
-            </Stepper>
-          </Box>
 
-          {/* ===== FORM ===== */}
-          <Grid container spacing={4}>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Typography fontSize={14} mb={1}>
-                First Name <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <TextField
-                fullWidth
-                placeholder="First Name"
-                sx={{ backgroundColor: "#ededed", borderRadius: 1, "& fieldset": { border: "none" } }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Typography fontSize={14} mb={1}>
-                Middle Name <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <TextField
-                fullWidth
-                placeholder="Middle Name"
-                sx={{ backgroundColor: "#ededed", borderRadius: 1, "& fieldset": { border: "none" } }}
-              />
-            </Grid>
+                    <Typography
+                        sx={{
+                            fontWeight: 500,
+                            fontSize: "0.85rem",
+                            mb: 2,
+                        }}
+                    >
+                        Please enter the verification code sent to your email.
+                    </Typography>
 
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Typography fontSize={14} mb={1}>
-                Last Name <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <TextField
-                fullWidth
-                placeholder="Last Name"
-                sx={{ backgroundColor: "#ededed", borderRadius: 1, "& fieldset": { border: "none" } }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Typography fontSize={14} mb={1}>
-                Sex <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <TextField
-                select
-                fullWidth
-                defaultValue=""
-                sx={{ backgroundColor: "#ededed", borderRadius: 1, "& fieldset": { border: "none" } }}
-              >
-                <MenuItem value="">Select Sex</MenuItem>
-                <MenuItem value="male">Male</MenuItem>
-                <MenuItem value="female">Female</MenuItem>
-              </TextField>
-            </Grid>
+                    {/* FORM */}
+                    <Form action="/createaccount" method="get">
+                        <Stack gap={2}>
+                            <StyledTextField
+                                name="verification_code"
+                                placeholder="Verification Code"
+                            />
 
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Typography fontSize={14} mb={1}>
-                Date of Birth <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <TextField
-                type="date"
-                fullWidth
-                sx={{ backgroundColor: "#ededed", borderRadius: 1, "& fieldset": { border: "none" } }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Typography fontSize={14} mb={1}>
-                Marital Status <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <TextField
-                select
-                fullWidth
-                defaultValue=""
-                sx={{ backgroundColor: "#ededed", borderRadius: 1, "& fieldset": { border: "none" } }}
-              >
-                <MenuItem value="">Select Status</MenuItem>
-                <MenuItem value="single">Single</MenuItem>
-                <MenuItem value="married">Married</MenuItem>
-              </TextField>
-            </Grid>
+                            <StyledButton
+                                type="submit"
+                                variant="contained"
+                                sx={{ mt: 1 }}
+                            >
+                                Proceed
+                            </StyledButton>
+                        </Stack>
+                    </Form>
+                </Box>
 
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Typography fontSize={14} mb={1}>
-                Citizenship <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <TextField
-                fullWidth
-                placeholder="Citizenship"
-                sx={{ backgroundColor: "#ededed", borderRadius: 1, "& fieldset": { border: "none" } }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Typography fontSize={14} mb={1}>
-                Nationality <span style={{ color: "red" }}>*</span>
-              </Typography>
-              <TextField
-                fullWidth
-                placeholder="Nationality"
-                sx={{ backgroundColor: "#ededed", borderRadius: 1, "& fieldset": { border: "none" } }}
-              />
-            </Grid>
-          </Grid>
+                {/* HERO IMAGE */}
+                <Box
+                    sx={{
+                        width: 800,
+                        display: { xs: "none", md: "block" },
+                        textAlign: "center",
+                        overflow: "hidden",
+                        img: {
+                            width: "100%",
+                            height: "auto",
+                            display: "block",
+                            animation: "introLaptop 1.2s ease-out forwards",
+                            opacity: 0,
+                        },
+                        "@keyframes introLaptop": {
+                            "0%": {
+                                opacity: 0,
+                                transform: "translateY(40px) scale(0.95)",
+                            },
+                            "100%": {
+                                opacity: 1,
+                                transform: "translateY(0) scale(1)",
+                            },
+                        },
+                    }}
+                >
+                    <img src="/assets/lr-laptop.png" alt="Hero Mockup" />
+                </Box>
+            </Box>
         </Box>
-
-        {/* ===== BUTTONS (STICKY AT BOTTOM) ===== */}
-        <Box
-          px={{ xs: 3, md: 6 }}
-          py={3}
-          borderTop="1px solid #e0e0e0"
-          display="flex"
-          justifyContent="center"
-          gap={3}
-        >
-          <StyledButton
-            variant="outlined"
-            disabled={activeStep === 0}
-            onClick={() => setActiveStep((prev) => prev - 1)}
-            sx={{ px: 5, borderColor: "#cfcfcf", color: "#777" }}
-          >
-            ← BACK
-          </StyledButton>
-
-          <StyledButton
-            variant="contained"
-            onClick={() => setActiveStep((prev) => prev + 1)}
-            sx={{ px: 5, backgroundColor: "#d32f2f", "&:hover": { backgroundColor: "#b71c1c" } }}
-          >
-            NEXT →
-          </StyledButton>
-        </Box>
-      </Box>
-    </Box>
-  );
+    );
 }
