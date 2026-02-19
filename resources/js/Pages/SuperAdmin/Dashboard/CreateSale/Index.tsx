@@ -1,20 +1,10 @@
 import { ReactNode } from "react";
 import DashboardLayout from "../../../../components/layouts/DashboardLayout";
-import {
-    Container,
-    Box,
-    Grid,
-    Avatar,
-    Typography,
-    Button,
-} from "@mui/material";
+import { Container, Box, Grid, Avatar, Typography } from "@mui/material";
 import FhDevelopersLogo from "../../../../../assets/fh-logo-dark.png";
 import RentphLogo from "../../../../../assets/rentph-logo.png";
 import LrLogo from "../../../../../assets/lr-logo.svg";
-import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
-import DashboardCardOverview from "../../../../components/cards/DashboardCardOverview";
 import StyledButton from "../../../../components/utils/StyledButton";
-import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import Add from "@mui/icons-material/Add";
 import { Link } from "@inertiajs/react";
 

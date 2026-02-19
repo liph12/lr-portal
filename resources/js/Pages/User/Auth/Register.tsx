@@ -259,7 +259,7 @@ export default function Register() {
                                                 checked={termsChecked}
                                                 onChange={(e) => {
                                                     setTermsChecked(
-                                                        e.target.checked,
+                                                        e.target.checked
                                                     );
                                                     if (e.target.checked) {
                                                         setTermsError(false);
