@@ -1,29 +1,9 @@
-import { useState } from "react";
-import {
-    Box,
-    Stack,
-    Typography,
-    FormControlLabel,
-    Checkbox,
-    FormControl,
-    FormHelperText,
-} from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import { Form, Link } from "@inertiajs/react";
-import EmailIcon from "@mui/icons-material/Email";
 import StyledButton from "../../../components/utils/StyledButton";
 import StyledTextField from "../../../components/utils/StyledTextField";
 
-export default function Register() {
-    const [termsChecked, setTermsChecked] = useState(false);
-    const [termsError, setTermsError] = useState(false);
-
-    const handleSubmit = (e) => {
-        if (!termsChecked) {
-            e.preventDefault();
-            setTermsError(true);
-        }
-    };
-
+export default function Verification() {
     return (
         <Box
             sx={{
@@ -57,7 +37,7 @@ export default function Register() {
                 />
             </Box>
 
-            {/* SIGN IN LINK - TOP RIGHT */}
+            {/* SIGN IN LINK */}
             <Box
                 sx={{
                     position: "absolute",
@@ -93,11 +73,11 @@ export default function Register() {
                     mb: { xs: 3, sm: 4 },
                     textAlign: "center",
                     color: "#000",
-                    fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" }, // responsive font size
-                    lineHeight: 1.2, // optional for better mobile readability
+                    fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
+                    lineHeight: 1.2,
                 }}
             >
-                Sign up as a Salesperson
+                Email Verification
             </Typography>
 
             {/* MAIN CONTENT */}
@@ -111,7 +91,7 @@ export default function Register() {
                     justifyContent: "center",
                 }}
             >
-                {/* REGISTER CARD */}
+                {/* VERIFICATION CARD */}
                 <Box
                     sx={{
                         width: { xs: "100%", sm: 400, md: 450 },
@@ -123,7 +103,7 @@ export default function Register() {
                         border: "1px solid rgba(255, 255, 255, 0.6)",
                     }}
                 >
-                    {/* SPONSOR SECTION (HIGHLIGHTED & RESPONSIVE) */}
+                    {/* SPONSOR SECTION */}
                     <Box
                         sx={{
                             mb: 3,
@@ -184,111 +164,43 @@ export default function Register() {
                         </Typography>
                     </Box>
 
-                    {/* CREATE ACCOUNT */}
+                    {/* VERIFICATION TEXT */}
                     <Typography
                         sx={{
                             fontWeight: 700,
                             fontSize: { xs: "1.1rem", sm: "1.25rem" },
-                            mb: 2,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1.5,
+                            mb: 1,
                         }}
                     >
-                        Create Account
+                        Enter Verification Code
                     </Typography>
 
-                    {/* NATIONAL */}
-                    <Box
+                    <Typography
                         sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1.5,
+                            fontWeight: 500,
+                            fontSize: "0.85rem",
                             mb: 2,
                         }}
                     >
-                        <Box
-                            component="img"
-                            src="/assets/profile.png"
-                            alt="National Logo"
-                            sx={{
-                                width: 28,
-                                height: 28,
-                                objectFit: "cover",
-                                borderRadius: 0.5,
-                            }}
-                        />
+                        Please enter the verification code sent to your email.
+                    </Typography>
 
-                        <Typography
-                            sx={{
-                                fontWeight: 500,
-                                fontSize: { xs: "1.1rem", sm: "1.25rem" },
-                            }}
-                        >
-                            National
-                        </Typography>
-                    </Box>
+                    {/* FORM */}
+                    <Form action="/createaccount" method="get">
+                        <Stack gap={2}>
+                            <StyledTextField
+                                name="verification_code"
+                                placeholder="Verification Code"
+                            />
 
-                    <Form
-                        action="/register-attempt"
-                        method="post"
-                        onSubmit={handleSubmit}
-                    >
-                        {({ processing }) => (
-                            <Stack gap={2}>
-                                <StyledTextField
-                                    name="email"
-                                    placeholder="Email Address"
-                                    props={{
-                                        InputProps: {
-                                            startAdornment: (
-                                                <Box sx={{ mr: 1 }}>
-                                                    <EmailIcon
-                                                        sx={{ fontSize: 20 }}
-                                                    />
-                                                </Box>
-                                            ),
-                                        },
-                                    }}
-                                />
-
-                                <FormControl error={termsError}>
-                                    <FormControlLabel
-                                        control={
-                                            <Checkbox
-                                                checked={termsChecked}
-                                                onChange={(e) => {
-                                                    setTermsChecked(
-                                                        e.target.checked
-                                                    );
-                                                    if (e.target.checked) {
-                                                        setTermsError(false);
-                                                    }
-                                                }}
-                                                name="terms"
-                                            />
-                                        }
-                                        label="I agree to the terms and condition of LR Contract and the website."
-                                    />
-                                    {termsError && (
-                                        <FormHelperText>
-                                            You must agree to the terms and
-                                            conditions.
-                                        </FormHelperText>
-                                    )}
-                                </FormControl>
-
-                                <StyledButton
-                                    type="submit"
-                                    variant="contained"
-                                    loading={processing}
-                                    disabled={!termsChecked || processing}
-                                    sx={{ mt: 1 }}
-                                >
-                                    Proceed
-                                </StyledButton>
-                            </Stack>
-                        )}
+                            <StyledButton
+                                type="submit"
+                                variant="contained"
+                                sx={{ mt: 1 }}
+                            >
+                                Proceed
+                            </StyledButton>
+                        </Stack>
                     </Form>
                 </Box>
 

@@ -11,6 +11,19 @@ Route::middleware('guest')->group(function(){
 
     Route::get('/login', [UserController::class, 'login']) ->name('login');
     Route::get('/register', [UserController::class, 'register']);
+     Route::get('/verify', [UserController::class, 'verify'])->name('verify');
+     Route::get('/createaccount', [UserController::class, 'createAccount'])
+    ->name('create.account');
+    Route::get('/createpassword', [UserController::class, 'createPassword'])
+    ->name('create.password');
+
+    
+    
+
+
+
+    
+    
     Route::post('/login-attempt', [UserController::class, 'loginAttempt']);
     
 });

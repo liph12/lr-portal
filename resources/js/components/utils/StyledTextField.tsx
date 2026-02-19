@@ -41,7 +41,7 @@ export default function StyledTextField({
                     onChange={handleChange}
                     type={type}
                     placeholder={placeholder}
-                    name={name}
+                    name={name} 
                     value={value}
                     sx={{
                         "& .MuiOutlinedInput-root": {
