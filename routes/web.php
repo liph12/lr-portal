@@ -28,7 +28,10 @@ Route::middleware('auth')->group(function(){
 
         require base_path('routes/superadmin/superadmin-dashboard.php');
         require base_path('routes/superadmin/superadmin-management.php');
-
+        require base_path('routes/superadmin/superadmin-accounting.php');
+        require base_path('routes/superadmin/superadmin-documentation.php');
+        require base_path('routes/superadmin/superadmin-humanresource.php');
+        require base_path('routes/superadmin/superadmin-inbox.php'); 
     });
 
     Route::prefix('admin')->middleware('role:admin')->group(function(){
