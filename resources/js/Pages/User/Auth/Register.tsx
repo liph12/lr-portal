@@ -233,6 +233,9 @@ export default function Register() {
                         action="/register-attempt"
                         method="post"
                         onSubmit={handleSubmit}
+                        onSuccess={() => {
+                            window.location.href = "/verify";
+                        }}
                     >
                         {({ processing }) => (
                             <Stack gap={2}>

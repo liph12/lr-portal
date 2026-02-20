@@ -29,7 +29,7 @@ class UserController extends Controller
     {
         return inertia('User/Auth/Verify');
     }
-
+  
     public function CreateAccount()
     {
         return inertia('User/Auth/Stepper/CreateAccount');
