@@ -21,7 +21,7 @@ export default function CreatePassword() {
 
     useEffect(() => {
         setIsPasswordValid(
-            password.length >= 6 && password === confirmPassword,
+            password.length >= 6 && password === confirmPassword
         );
     }, [password, confirmPassword]);
 

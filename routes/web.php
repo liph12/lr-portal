@@ -11,21 +11,13 @@ Route::middleware('guest')->group(function(){
 
     Route::get('/login', [UserController::class, 'login']) ->name('login');
     Route::get('/register', [UserController::class, 'register']);
-     Route::get('/verify', [UserController::class, 'verify'])->name('verify');
-     Route::get('/createaccount', [UserController::class, 'createAccount'])
-    ->name('create.account');
-    Route::get('/createpassword', [UserController::class, 'createPassword'])
-    ->name('create.password');
+    Route::get('/verify', [UserController::class, 'verify'])->name('verify');
+    Route::get('/createaccount', [UserController::class, 'createAccount'])->name('create.account');
+    Route::get('/createpassword', [UserController::class, 'createPassword'])->name('create.password');
+    Route::get('/password-reset', [UserController::class, 'passwordReset']);
+    Route::post('/login-attempt', [UserController::class, 'loginAttempt']); 
+    Route::post('/password-reset-verify', [UserController::class, 'passwordResetVerify']); 
 
-    
-    
-
-
-
-    
-    
-    Route::post('/login-attempt', [UserController::class, 'loginAttempt']);
-    
 });
 
 Route::middleware('auth')->group(function(){
