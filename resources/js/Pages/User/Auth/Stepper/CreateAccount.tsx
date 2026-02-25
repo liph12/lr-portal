@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import {
     Box,
     Typography,
@@ -51,21 +51,24 @@ function CustomStepIcon(props: StepIconProps) {
 
 export default function CreateAccount() {
     const [activeStep, setActiveStep] = useState(0);
+
     const [formData, setFormData] = useState({
         // Step 1
         firstName: "",
-        middleName: "",
+        middleName: "", // optional
         lastName: "",
         sex: "",
         birthDate: "",
         status: "",
         citizenship: "",
+
         // Step 2
-        telNumber: "",
+        telNumber: "", // optional
         mobileNumber: "",
         email: "",
-        tin: "",
-        facebook: "",
+        tin: "", // optional
+        facebook: "", // optional
+
         // Step 3
         country: "",
         province: "",
@@ -73,7 +76,8 @@ export default function CreateAccount() {
         barangay: "",
         postalCode: "",
         address: "",
-        // Step 4
+
+        // Step 4 (all optional example)
         professions: "",
         hobbies: "",
         school: "",
@@ -84,11 +88,36 @@ export default function CreateAccount() {
         references: "",
     });
 
-    const formRef = useRef<HTMLFormElement | null>(null);
-    const [isNextDisabled, setIsNextDisabled] = useState(false);
-
     const handleChange = (field: string, value: string) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
+    };
+
+    // ✅ Required fields per step
+    const requiredFields: Record<number, string[]> = {
+        0: ["firstName", "lastName", "sex", "birthDate", "status", "citizenship"],
+        1: ["mobileNumber", "email"],
+        2: ["country", "province", "city", "barangay", "postalCode", "address"],
+        3: [], 
+    };
+
+    // ✅ Check if current step is valid
+    const isStepValid = () => {
+        const fields = requiredFields[activeStep];
+        return fields.every((field) => formData[field as keyof typeof formData].trim() !== "");
+    };
+
+    const handleNext = () => {
+        if (!isStepValid()) return;
+
+        if (activeStep < steps.length - 1) {
+            setActiveStep((prev) => prev + 1);
+        } else {
+            window.location.href = "/createpassword";
+        }
+    };
+
+    const handleBack = () => {
+        if (activeStep > 0) setActiveStep((prev) => prev - 1);
     };
 
     const stepComponents = [
@@ -98,31 +127,6 @@ export default function CreateAccount() {
         <Stepper4 formData={formData} handleChange={handleChange} />,
     ];
 
-    const handleNext = () => {
-        if (isNextDisabled) return;
-        setIsNextDisabled(true);
-
-        // Validate current step
-        if (formRef.current && !formRef.current.checkValidity()) {
-            formRef.current.reportValidity();
-            setIsNextDisabled(false);
-            return;
-        }
-
-        if (activeStep < steps.length - 1) {
-            setActiveStep((prev) => prev + 1);
-        } else {
-            // Redirect to createpassword page
-            window.location.href = "/createpassword"; // <- redirect on submit
-        }
-
-        setTimeout(() => setIsNextDisabled(false), 200);
-    };
-
-    const handleBack = () => {
-        if (activeStep > 0) setActiveStep((prev) => prev - 1);
-    };
-
     return (
         <Box
             sx={{
@@ -130,7 +134,6 @@ export default function CreateAccount() {
                 backgroundImage: "url(/assets/background.png)",
                 backgroundSize: "cover",
                 backgroundPosition: "center",
-                backgroundRepeat: "no-repeat",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -145,9 +148,9 @@ export default function CreateAccount() {
                 alt="LR Logo"
                 sx={{
                     position: "absolute",
-                    top: { xs: 20, sm: 30 },
-                    left: { xs: 20, sm: 40 },
-                    width: { xs: 100, sm: 140 },
+                    top: 30,
+                    left: 40,
+                    width: 140,
                 }}
             />
 
@@ -155,13 +158,11 @@ export default function CreateAccount() {
             <Box
                 sx={{
                     position: "absolute",
-                    top: { xs: 20, sm: 30 },
-                    right: { xs: 20, sm: 40 },
-                    zIndex: 10,
-                    textAlign: "right",
+                    top: 30,
+                    right: 40,
                 }}
             >
-                <Typography fontSize={{ xs: 14, sm: 15 }} fontWeight={500}>
+                <Typography fontSize={15} fontWeight={500}>
                     Already have an account?{" "}
                     <Link
                         href="/login"
@@ -169,7 +170,6 @@ export default function CreateAccount() {
                             color: "#d32f2f",
                             textDecoration: "none",
                             fontWeight: 600,
-                            "&:hover": { textDecoration: "underline" },
                         }}
                     >
                         Sign in
@@ -177,19 +177,14 @@ export default function CreateAccount() {
                 </Typography>
             </Box>
 
-            {/* CENTER CONTENT */}
             <Box sx={{ width: "100%", maxWidth: 1200 }}>
-                <Box textAlign="center" mt={{ xs: 10, sm: 10 }} mb={4}>
+                <Box textAlign="center" mt={10} mb={4}>
                     <Typography fontSize={36} fontWeight={500}>
                         Create Account
                     </Typography>
                 </Box>
 
-                <Stepper
-                    activeStep={activeStep}
-                    alternativeLabel
-                    sx={{ mb: 5 }}
-                >
+                <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 5 }}>
                     {steps.map((label) => (
                         <Step key={label}>
                             <StepLabel StepIconComponent={CustomStepIcon}>
@@ -207,7 +202,7 @@ export default function CreateAccount() {
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ duration: 0.5 }}
                     >
-                        <form ref={formRef}>{stepComponents[activeStep]}</form>
+                        {stepComponents[activeStep]}
                     </motion.div>
                 </AnimatePresence>
 
@@ -222,7 +217,7 @@ export default function CreateAccount() {
                     <StyledButton
                         variant="outlined"
                         onClick={handleBack}
-                        disabled={activeStep === 0 || isNextDisabled}
+                        disabled={activeStep === 0}
                     >
                         ← BACK
                     </StyledButton>
@@ -230,7 +225,7 @@ export default function CreateAccount() {
                     <StyledButton
                         variant="contained"
                         onClick={handleNext}
-                        disabled={isNextDisabled}
+                        disabled={!isStepValid()}
                     >
                         {activeStep === steps.length - 1 ? "SUBMIT" : "NEXT →"}
                     </StyledButton>

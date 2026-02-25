@@ -123,7 +123,7 @@ function Dashboard() {
                                         >
                                             {truncate(
                                                 "LR | registration/v2?ref=218171408",
-                                                35
+                                                35,
                                             )}
                                         </Typography>
                                     </Box>
@@ -163,7 +163,7 @@ function Dashboard() {
                                         >
                                             {truncate(
                                                 "LR | registration/v2?ref=218171408&type=international",
-                                                35
+                                                35,
                                             )}
                                         </Typography>
                                     </Box>
@@ -205,7 +205,7 @@ function Dashboard() {
                                         >
                                             {truncate(
                                                 "LR | business-card?email=libresphilip14@gmail.com",
-                                                35
+                                                35,
                                             )}
                                         </Typography>
                                     </Box>
@@ -245,7 +245,7 @@ function Dashboard() {
                                         >
                                             {truncate(
                                                 "LR | contact/813223928/philip-libres",
-                                                35
+                                                35,
                                             )}
                                         </Typography>
                                     </Box>

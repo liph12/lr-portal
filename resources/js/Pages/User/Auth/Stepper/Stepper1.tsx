@@ -62,7 +62,7 @@ export default function Stepper1({ formData, handleChange }: Stepper1Props) {
                     value={formData.lastName}
                     onChange={(e) => handleChange("lastName", e.target.value)}
                     sx={{ width: "100%" }}
-                    required
+                    
                 />
             </Box>
 
@@ -77,7 +77,7 @@ export default function Stepper1({ formData, handleChange }: Stepper1Props) {
                     value={formData.sex}
                     onChange={(e) => handleChange("sex", e.target.value)}
                     sx={{ width: "100%" }}
-                    required
+                    
                 >
                     <MenuItem value="">Sex</MenuItem>
                     <MenuItem value="male">Male</MenuItem>
