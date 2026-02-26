@@ -5,6 +5,9 @@
         "jsx": "react-jsx",
         "types": ["vite/client"],
         "target": "es2015",
-        "lib": ["dom", "es2015"]
+        "lib": ["dom", "es2015"],
+
+        "resolveJsonModule": true,
+        "esModuleInterop": true
     }
 }

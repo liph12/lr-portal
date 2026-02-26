@@ -16,6 +16,45 @@ import Stepper2 from "./Stepper2";
 import Stepper3 from "./Stepper3";
 import Stepper4 from "./Stepper4";
 
+// ----------------------
+// Shared form interface
+// ----------------------
+export interface FullFormData {
+    // Step 1
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    sex: string;
+    birthDate: string;
+    status: string;
+    citizenship: string;
+
+    // Step 2
+    telNumber: string;
+    mobileNumber: string;
+    email: string;
+    tin: string;
+    facebook: string;
+
+    // Step 3
+    country: string;
+    province: string;
+    city: string;
+    barangay: string;
+    postalCode: string;
+    address: string;
+
+    // Step 4
+    professions: string[];
+    hobbies: string[];
+    degrees: string[];
+    school: string;
+    skills: string;
+    workExperience: string;
+    about: string;
+    references: string;
+}
+
 const steps = [
     "Basic Information",
     "Contacts & Socials",
@@ -23,6 +62,9 @@ const steps = [
     "Personal Background",
 ];
 
+// ----------------------
+// Stepper Icon
+// ----------------------
 function CustomStepIcon(props: StepIconProps) {
     const { active = false, icon } = props;
     return (
@@ -49,69 +91,92 @@ function CustomStepIcon(props: StepIconProps) {
     );
 }
 
+// ----------------------
+// Main Component
+// ----------------------
 export default function CreateAccount() {
     const [activeStep, setActiveStep] = useState(0);
 
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<FullFormData>({
         // Step 1
-        firstName: "",
-        middleName: "", // optional
-        lastName: "",
-        sex: "",
-        birthDate: "",
-        status: "",
-        citizenship: "",
+        firstName: "Joseph",
+        middleName: "Untag",
+        lastName: "Amores",
+        sex: "Male",
+        birthDate: "11/25/1999",
+        status: "Single",
+        citizenship: "Filipino",
 
         // Step 2
-        telNumber: "", // optional
-        mobileNumber: "",
-        email: "",
-        tin: "", // optional
-        facebook: "", // optional
+        telNumber: "N/A",
+        mobileNumber: "09945200122",
+        email: "kokoyflores112@gmail.com",
+        tin: "N/A",
+        facebook: "Facebook.com/kokoyflores112",
 
         // Step 3
-        country: "",
-        province: "",
-        city: "",
-        barangay: "",
-        postalCode: "",
-        address: "",
+        country: "Philippines",
+        province: "Cebu",
+        city: "Mandaue City",
+        barangay: "Banilad",
+        postalCode: "6014",
+        address: "Banilad Mandaue City Cebu",
 
-        // Step 4 (all optional example)
-        professions: "",
-        hobbies: "",
+        // Step 4
+        professions: [],
+        hobbies: [],
+        degrees: [],
         school: "",
-        degree: "",
         skills: "",
         workExperience: "",
         about: "",
         references: "",
     });
 
-    const handleChange = (field: string, value: string) => {
+    // ----------------------
+    // Handle change
+    // ----------------------
+    const handleChange = (
+        field: keyof FullFormData,
+        value: string | string[],
+    ) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
     };
 
-    // ✅ Required fields per step
-    const requiredFields: Record<number, string[]> = {
-        0: ["firstName", "lastName", "sex", "birthDate", "status", "citizenship"],
+    // ----------------------
+    // Validation per step
+    // ----------------------
+    const requiredFields: Record<number, (keyof FullFormData)[]> = {
+        0: [
+            "firstName",
+            "lastName",
+            "sex",
+            "birthDate",
+            "status",
+            "citizenship",
+        ],
         1: ["mobileNumber", "email"],
         2: ["country", "province", "city", "barangay", "postalCode", "address"],
-        3: [], 
+        3: [], // Step 4 optional
     };
 
-    // ✅ Check if current step is valid
     const isStepValid = () => {
         const fields = requiredFields[activeStep];
-        return fields.every((field) => formData[field as keyof typeof formData].trim() !== "");
+        return fields.every((field) => {
+            const value = formData[field];
+            if (Array.isArray(value)) return value.length > 0;
+            return value.trim() !== "";
+        });
     };
 
+    // ----------------------
+    // Step navigation
+    // ----------------------
     const handleNext = () => {
         if (!isStepValid()) return;
-
-        if (activeStep < steps.length - 1) {
-            setActiveStep((prev) => prev + 1);
-        } else {
+        if (activeStep < steps.length - 1) setActiveStep((prev) => prev + 1);
+        else {
+            console.log("Final Form Data:", formData);
             window.location.href = "/createpassword";
         }
     };
@@ -120,13 +185,19 @@ export default function CreateAccount() {
         if (activeStep > 0) setActiveStep((prev) => prev - 1);
     };
 
+    // ----------------------
+    // Stepper components
+    // ----------------------
     const stepComponents = [
-        <Stepper1 formData={formData} handleChange={handleChange} />,
-        <Stepper2 formData={formData} handleChange={handleChange} />,
-        <Stepper3 formData={formData} handleChange={handleChange} />,
-        <Stepper4 formData={formData} handleChange={handleChange} />,
+        <Stepper1 key={0} formData={formData} handleChange={handleChange} />,
+        <Stepper2 key={1} formData={formData} handleChange={handleChange} />,
+        <Stepper3 key={2} formData={formData} handleChange={handleChange} />,
+        <Stepper4 key={3} formData={formData} handleChange={handleChange} />,
     ];
 
+    // ----------------------
+    // Render
+    // ----------------------
     return (
         <Box
             sx={{
@@ -135,33 +206,24 @@ export default function CreateAccount() {
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 display: "flex",
-                alignItems: "center",
                 justifyContent: "center",
                 position: "relative",
                 px: 3,
+                py: 8, // ✅ vertical spacing
+                overflowY: "auto", // ✅ allow scrolling
+                alignItems: "flex-start", // ✅ prevent collapsing
             }}
         >
-            {/* LOGO */}
+            {/* Logo */}
             <Box
                 component="img"
                 src="/assets/lr-logo.svg"
                 alt="LR Logo"
-                sx={{
-                    position: "absolute",
-                    top: 30,
-                    left: 40,
-                    width: 140,
-                }}
+                sx={{ position: "absolute", top: 30, left: 40, width: 140 }}
             />
 
-            {/* SIGN IN */}
-            <Box
-                sx={{
-                    position: "absolute",
-                    top: 30,
-                    right: 40,
-                }}
-            >
+            {/* Sign in link */}
+            <Box sx={{ position: "absolute", top: 30, right: 40 }}>
                 <Typography fontSize={15} fontWeight={500}>
                     Already have an account?{" "}
                     <Link
@@ -178,13 +240,19 @@ export default function CreateAccount() {
             </Box>
 
             <Box sx={{ width: "100%", maxWidth: 1200 }}>
-                <Box textAlign="center" mt={10} mb={4}>
+                {/* Title */}
+                <Box textAlign="center" mt={4} mb={4}>
                     <Typography fontSize={36} fontWeight={500}>
                         Create Account
                     </Typography>
                 </Box>
 
-                <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 5 }}>
+                {/* Stepper */}
+                <Stepper
+                    activeStep={activeStep}
+                    alternativeLabel
+                    sx={{ mb: 5 }}
+                >
                     {steps.map((label) => (
                         <Step key={label}>
                             <StepLabel StepIconComponent={CustomStepIcon}>
@@ -194,6 +262,7 @@ export default function CreateAccount() {
                     ))}
                 </Stepper>
 
+                {/* Step content */}
                 <AnimatePresence mode="wait">
                     <motion.div
                         key={activeStep}
@@ -206,6 +275,7 @@ export default function CreateAccount() {
                     </motion.div>
                 </AnimatePresence>
 
+                {/* Navigation buttons */}
                 <Box
                     sx={{
                         display: "flex",
