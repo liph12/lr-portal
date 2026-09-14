@@ -44,6 +44,24 @@ class UserSeeder extends Seeder
             'password' => Hash::make('123456'),
         ]);
 
+        $superadmin = User::create([
+            'name' => 'Mark Lawrince Sargado',
+            'email' => 'marklawrince730@gmail.com',
+            'password' => Hash::make('1'),
+        ]);
+
+        $superadmin = User::create([
+            'name' => 'Maizo',
+            'email' => 'johnrobertmaizo2@gmail.com',
+            'password' => Hash::make('12345'),
+        ]);
+
+        $superadmin = User::create([
+            'name' => 'Juliecor',
+            'email' => 'repompojuliecor@gmail.com',
+            'password' => Hash::make('12345'),
+        ]);
+
         $superadmin->roles()->sync([Role::where('name', 'superadmin')->value('id')]);
         $superadmin_1->roles()->sync([Role::where('name', 'superadmin')->value('id')]);
         $admin->roles()->sync([Role::where('name', 'admin')->value('id')]);
