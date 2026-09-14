@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('developers', function (Blueprint $table) {
             $table->string('profile_name')->nullable()->after('address');
-            $table->dropColumn('url');
+            // $table->dropColumn('url');
         });
     }
 
@@ -24,7 +24,7 @@ return new class extends Migration
     {
         Schema::table('developers', function (Blueprint $table) {
             $table->dropColumn('profile_name');
-            $table->string('url')->nullable()->after('address');
+            // $table->string('url')->nullable()->after('address');
         });
     }
 };
