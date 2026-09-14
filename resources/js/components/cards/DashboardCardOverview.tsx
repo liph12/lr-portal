@@ -22,100 +22,111 @@ export default function DashboardCardOverview({
     iconSize = 45,
     footerLabel,
 }: DashboardCardOverviewProps) {
+    const rateColor =
+        rateType === "error"
+            ? "#d93025"
+            : rateType === "warning"
+              ? "#f29900"
+              : "#1e8e3e";
+
     return (
-        <>
+        <Box
+            sx={{
+                p: 2.5,
+                borderRadius: 3,
+                border: "1px solid #e8eaed",
+                backgroundColor: "#fff",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                transition: "box-shadow 0.2s ease",
+                ":hover": {
+                    boxShadow:
+                        "0 1px 3px rgba(60,64,67,.15), 0 4px 8px rgba(60,64,67,.1)",
+                },
+            }}
+        >
+            {/* Title row */}
             <Box
                 sx={{
-                    p: 2,
-                    borderRadius: 0.5,
-                    border: "1px solid #ddd",
-                    height: "auto",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
                 }}
             >
-                <Box
-                    sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                    }}
+                <Typography
+                    variant="body2"
+                    sx={{ color: "#5f6368", fontWeight: 500 }}
                 >
-                    <Typography color="textPrimary">{title}</Typography>
-                    <Typography variant="h5" fontFamily="Google Sans Code">
-                        {value}
-                    </Typography>
-                </Box>
-                <Box
-                    sx={{
-                        py: 5,
-                        position: "relative",
-                    }}
-                >
+                    {title}
+                </Typography>
+                <Avatar
+                    src={iconSrc}
+                    sx={{ width: iconSize, height: "auto" }}
+                    variant="square"
+                />
+            </Box>
+
+            {/* Metric */}
+            <Typography
+                fontFamily="Google Sans Code"
+                sx={{
+                    fontSize: 32,
+                    fontWeight: 400,
+                    color: "#202124",
+                    mt: 1,
+                    lineHeight: 1.2,
+                }}
+            >
+                {value}
+            </Typography>
+
+            {/* Rate + footer */}
+            <Box sx={{ mt: "auto", pt: 2 }}>
+                {rateType ? (
                     <Box
                         sx={{
-                            position: "absolute",
-                            bottom: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.3,
                         }}
                     >
-                        {rateType ? (
-                            <Typography
-                                variant="body2"
-                                component="div"
-                                display="flex"
-                                alignItems="center"
-                            >
-                                {rateType === "error" ? (
-                                    <ArrowDownward
-                                        sx={{ fontSize: 15 }}
-                                        color="error"
-                                    />
-                                ) : (
-                                    <ArrowUpward
-                                        sx={{ fontSize: 15 }}
-                                        color="success"
-                                    />
-                                )}
-                                <Typography
-                                    color={rateType}
-                                    variant="body2"
-                                    component="span"
-                                >
-                                    {rateValue}
-                                </Typography>
-                                <Box sx={{ mx: 0.3 }} />
-                                <Typography
-                                    component="span"
-                                    color="textPrimary"
-                                    variant="body2"
-                                >
-                                    {rateLabel}
-                                </Typography>
-                            </Typography>
+                        {rateType === "error" ? (
+                            <ArrowDownward
+                                sx={{ fontSize: 15, color: rateColor }}
+                            />
                         ) : (
-                            <Typography variant="body2" component="div">
-                                {rateLabel}
-                            </Typography>
+                            <ArrowUpward
+                                sx={{ fontSize: 15, color: rateColor }}
+                            />
                         )}
-                        <Typography variant="caption" color="primary">
-                            {footerLabel}
+                        <Typography
+                            variant="body2"
+                            component="span"
+                            sx={{ color: rateColor, fontWeight: 500 }}
+                        >
+                            {rateValue}
+                        </Typography>
+                        <Typography
+                            component="span"
+                            variant="body2"
+                            sx={{ color: "#5f6368", ml: 0.5 }}
+                        >
+                            {rateLabel}
                         </Typography>
                     </Box>
-                    <Box
-                        sx={{
-                            position: "absolute",
-                            bottom: 0,
-                            right: 0,
-                        }}
-                    >
-                        <Avatar
-                            src={iconSrc}
-                            sx={{
-                                width: iconSize,
-                                height: "auto",
-                            }}
-                            variant="square"
-                        />
-                    </Box>
-                </Box>
+                ) : (
+                    <Typography variant="body2" sx={{ color: "#5f6368" }}>
+                        {rateLabel}
+                    </Typography>
+                )}
+                <Typography
+                    variant="caption"
+                    sx={{ color: "#1a73e8", display: "block", mt: 0.5 }}
+                >
+                    {footerLabel}
+                </Typography>
             </Box>
-        </>
+        </Box>
     );
 }

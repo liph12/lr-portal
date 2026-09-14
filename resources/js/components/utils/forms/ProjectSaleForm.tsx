@@ -1,7 +1,7 @@
 import StyledTextField from "../StyledTextField";
 import { Grid, FormHelperText } from "@mui/material";
 import { CreateSaleHandler } from "../../../types";
-import { propertyTypes, condoTypes, commissionStatus } from "../../../appdata";
+import { propertyTypes, condoTypes, commissionStatus } from "../../../app-data";
 import { AutoCompleteValue } from "../../../types";
 import { ProjectForm } from "../../../types/app-data-types";
 import StyledAutocomplete from "../StyledAutocomplete";
@@ -45,7 +45,7 @@ export default function ProjectSaleForm({ salesSources }: CreateSaleHandler) {
         label: d.name,
     }));
     const { data, setData } = useForm<ProjectForm>({
-        developer: null,
+        developer: undefined,
         unit_no: "",
         unit_type: {
             id: 1,
@@ -105,11 +105,11 @@ export default function ProjectSaleForm({ salesSources }: CreateSaleHandler) {
                                 params={params}
                                 placeholder="Select Developer"
                                 name="developer"
-                                value={data.developer?.label ?? null}
+                                value={data.developer?.label ?? undefined}
                             />
                         )}
                         onChange={(_, v) => {
-                            handleChangeDeveloper(v);
+                            if (v) handleChangeDeveloper(v);
                         }}
                         isOptionEqualToValue={(option, value) =>
                             value === undefined || option.id === value.id
@@ -139,7 +139,7 @@ export default function ProjectSaleForm({ salesSources }: CreateSaleHandler) {
                             />
                         )}
                         onChange={(_, v) => {
-                            handleChangePropertyType(v);
+                            if (v) handleChangePropertyType(v);
                         }}
                         isOptionEqualToValue={(option, value) =>
                             value === undefined || option.id === value.id
@@ -159,12 +159,13 @@ export default function ProjectSaleForm({ salesSources }: CreateSaleHandler) {
                                             params={params}
                                             name="unit_type"
                                             value={
-                                                data.unit_type?.label ?? null
+                                                data.unit_type?.label ??
+                                                undefined
                                             }
                                         />
                                     )}
                                     onChange={(_, v) => {
-                                        handleChangeUnitType(v);
+                                        if (v) handleChangeUnitType(v);
                                     }}
                                     isOptionEqualToValue={(option, value) =>
                                         value === undefined ||
@@ -231,7 +232,7 @@ export default function ProjectSaleForm({ salesSources }: CreateSaleHandler) {
                             />
                         )}
                         onChange={(_, v) => {
-                            handleChangePaymentTerms(v);
+                            if (v) handleChangePaymentTerms(v);
                         }}
                         isOptionEqualToValue={(option, value) =>
                             value === undefined || option.id === value.id
@@ -260,7 +261,7 @@ export default function ProjectSaleForm({ salesSources }: CreateSaleHandler) {
                             />
                         )}
                         onChange={(_, v) => {
-                            handleChangeCommissionStatus(v);
+                            if (v) handleChangeCommissionStatus(v);
                         }}
                         isOptionEqualToValue={(option, value) =>
                             value === undefined || option.id === value.id

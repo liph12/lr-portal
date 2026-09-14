@@ -1,19 +1,8 @@
-import {
-    Box,
-    Divider,
-    Typography,
-    Avatar,
-    Badge,
-    IconButton,
-    Stack,
-} from "@mui/material";
-import { SearchRounded } from "@mui/icons-material";
+import { Box, Divider, Typography } from "@mui/material";
 import { Link } from "@inertiajs/react";
 import useSidebarRoutes from "../hooks/useSidebarRoutes";
 import UserOnlineAvatar from "./utils/user/UserOnlineAvatar";
 import { User } from "./utils/user/UserOnlineAvatar";
-import { router } from "@inertiajs/react";
-import StyledButton from "./utils/StyledButton";
 
 const users: User[] = [
     {
@@ -26,8 +15,8 @@ const users: User[] = [
     },
     {
         id: 1,
-        avatar: "https://leuteriorealty.com/memberfiles/820243635/20250317015638.jpg",
-        name: "John Nel Lim",
+        avatar: "https://filipinohomes123.s3.ap-southeast-1.amazonaws.com/filipinohomes-compressed-from-old/cd23c6fa-51a9-40b9-926b-422a97739987.webp",
+        name: "Philip Libres",
         online: false,
         role: "Staff",
         timestamp: "45m",
@@ -37,30 +26,37 @@ const users: User[] = [
 export default function AppSidebar() {
     const routes = useSidebarRoutes();
 
-    const handleLogout = () => router.post("/logout");
-
     return (
         <Box
             sx={{
-                width: 250,
+                width: 270,
                 height: "100vh",
-                backgroundColor: "#222",
-                borderLeft: "0.5px solid #333",
+                backgroundColor: "#f8f9fa",
+                borderRight: "1px solid #e8eaed",
                 display: "flex",
                 flexDirection: "column",
+                overflowY: "auto",
             }}
         >
             {/* Menu */}
-            <Box sx={{ my: 2 }}>
+            <Box sx={{ py: 2, pr: 1.5 }}>
                 {routes.map((r, k) => {
                     const ADMINISTRATOR_GROUP = k === 0;
-                    const STAFF_GROUP = k === 2;
+                    const STAFF_GROUP = k === 3;
 
                     return (
                         <Box key={k}>
                             {ADMINISTRATOR_GROUP && (
                                 <Typography
-                                    sx={{ color: "#999", px: 2, mb: 1 }}
+                                    sx={{
+                                        color: "#5f6368",
+                                        px: 3,
+                                        mt: 1,
+                                        mb: 1,
+                                        fontWeight: 500,
+                                        letterSpacing: 0.3,
+                                        display: "block",
+                                    }}
                                     variant="caption"
                                 >
                                     Administrator
@@ -68,7 +64,15 @@ export default function AppSidebar() {
                             )}
                             {STAFF_GROUP && (
                                 <Typography
-                                    sx={{ color: "#999", px: 2, my: 1 }}
+                                    sx={{
+                                        color: "#5f6368",
+                                        px: 3,
+                                        mt: 2,
+                                        mb: 1,
+                                        fontWeight: 500,
+                                        letterSpacing: 0.3,
+                                        display: "block",
+                                    }}
                                     variant="caption"
                                 >
                                     Staff
@@ -81,24 +85,33 @@ export default function AppSidebar() {
                             >
                                 <Typography
                                     sx={{
-                                        px: 2,
-                                        py: 1,
+                                        pl: 3,
+                                        pr: 2,
+                                        py: 1.5,
+                                        mb: 0.5,
                                         cursor: "pointer",
-                                        color: "#ddd",
+                                        // flush-left, rounded right cap
+                                        borderTopRightRadius: 99,
+                                        borderBottomRightRadius: 99,
+                                        color: r.active ? "#1a73e8" : "#3c4043",
                                         backgroundColor: r.active
-                                            ? "#555"
-                                            : "none",
-                                        borderLeft: r.active
-                                            ? "5px solid #ddd"
-                                            : "5px solid transparent",
-                                        transition: "0.2s",
+                                            ? "#d2e3fc"
+                                            : "transparent",
+                                        fontWeight: 500,
+                                        transition: "0.15s",
                                         ":hover": {
-                                            backgroundColor: "#333",
-                                            color: "#fff",
+                                            backgroundColor: r.active
+                                                ? "#d2e3fc"
+                                                : "#eceff1",
                                         },
                                         display: "flex",
                                         alignItems: "center",
                                         gap: 2,
+                                        "& svg": {
+                                            color: r.active
+                                                ? "#1a73e8"
+                                                : "#5f6368",
+                                        },
                                     }}
                                     component="div"
                                     variant="body2"
@@ -111,31 +124,24 @@ export default function AppSidebar() {
                 })}
             </Box>
 
-            {/* Logout */}
-            <Box sx={{ px: 2 }}>
-                <StyledButton
-                    onClick={handleLogout}
-                    variant="contained"
-                    size="small"
-                    fullWidth
-                    color="error"
-                >
-                    Logout
-                </StyledButton>
-            </Box>
-
-            {/* Bottom section */}
-            <Box sx={{ mt: 5 }}>
-                <Divider sx={{ my: 1, backgroundColor: "#777" }} />
+            {/* Online users — flows right after the routes */}
+            <Box sx={{ pr: 1.5, pb: 2 }}>
+                <Divider sx={{ my: 1, borderColor: "#e8eaed", ml: 3 }} />
 
                 <Typography
-                    sx={{ color: "#999", px: 2, mb: 1 }}
+                    sx={{
+                        color: "#5f6368",
+                        px: 3,
+                        mb: 1,
+                        fontWeight: 500,
+                        display: "block",
+                    }}
                     variant="caption"
                 >
                     Online users (2)
                 </Typography>
 
-                <Box sx={{ maxHeight: "45vh", overflowY: "auto" }}>
+                <Box>
                     {users.map((u) => (
                         <UserOnlineAvatar
                             key={u.id}

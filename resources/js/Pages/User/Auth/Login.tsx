@@ -1,4 +1,4 @@
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography, Link as MuiLink } from "@mui/material";
 import { Form } from "@inertiajs/react";
 import StyledButton from "../../../components/utils/StyledButton";
 import StyledTextField from "../../../components/utils/StyledTextField";
@@ -24,16 +24,15 @@ export default function Login() {
             {/* LEFT SIDE — LOGIN CARD */}
             <Box
                 sx={{
-                    width: { xs: "100%", sm: 380, md: 400 },
+                    width: { xs: "100%", sm: 380, md: 410 },
                     maxWidth: "100%",
-                    borderRadius: 2,
-                    p: { xs: 4, md: 6 },
-                    textAlign: "center",
-                    background: "rgba(255, 255, 255, 0.1)",
-                    backdropFilter: "blur(15px)",
-                    WebkitBackdropFilter: "blur(15px)",
-                    border: "1px solid rgba(255, 255, 255, 0.6)",
-                    boxShadow: 1,
+                    borderRadius: 4,
+                    p: { xs: 4, md: 5 },
+                    background: "rgba(255, 255, 255, 0.85)",
+                    backdropFilter: "blur(20px)",
+                    WebkitBackdropFilter: "blur(20px)",
+                    border: "1px solid rgba(255, 255, 255, 0.7)",
+                    boxShadow: "0 4px 24px rgba(60,64,67,.22)",
                 }}
             >
                 {/* LOGO */}
@@ -49,7 +48,7 @@ export default function Login() {
                         src="/assets/lr-logo.svg"
                         alt="Leuterio Realty"
                         style={{
-                            width: 180,
+                            width: 170,
                             maxWidth: "100%",
                             height: "auto",
                         }}
@@ -57,44 +56,118 @@ export default function Login() {
                 </Box>
 
                 <Typography
-                    variant="h5"
-                    fontWeight={600}
-                    sx={{ mb: 1, color: "#000" }}
+                    sx={{
+                        fontSize: 24,
+                        fontWeight: 500,
+                        textAlign: "center",
+                        color: "#202124",
+                        mb: 0.5,
+                    }}
                 >
-                    Welcome back!
+                    Welcome back
                 </Typography>
 
-                <Typography variant="body2" sx={{ mb: 4, color: "#000" }}>
-                    Sign in to your account
+                <Typography
+                    variant="body2"
+                    sx={{ textAlign: "center", color: "#5f6368", mb: 3.5 }}
+                >
+                    Sign in to your LR Portal account
                 </Typography>
 
                 <Form action="/login-attempt" method="post">
                     {({ processing, errors }) => (
                         <Stack gap={2}>
                             {errors.email && (
-                                <Typography color="error" variant="body2">
-                                    Invalid credentials
-                                </Typography>
+                                <Box
+                                    sx={{
+                                        backgroundColor: "#fce8e6",
+                                        borderRadius: 2,
+                                        px: 2,
+                                        py: 1,
+                                    }}
+                                >
+                                    <Typography
+                                        variant="body2"
+                                        sx={{ color: "#d93025" }}
+                                    >
+                                        Invalid email or password.
+                                    </Typography>
+                                </Box>
                             )}
 
                             {/* EMAIL */}
-                            <StyledTextField
-                                name="email"
-                                placeholder="Email address"
-                            />
+                            <Box>
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        color: "#5f6368",
+                                        fontWeight: 500,
+                                        ml: 0.5,
+                                        mb: 0.5,
+                                        display: "block",
+                                    }}
+                                >
+                                    Email address
+                                </Typography>
+                                <StyledTextField
+                                    name="email"
+                                    placeholder="you@example.com"
+                                    error={errors.email ?? null}
+                                />
+                            </Box>
 
                             {/* PASSWORD */}
-                            <StyledTextField
-                                name="password"
-                                type="password"
-                                placeholder="Password"
-                            />
+                            <Box>
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        mb: 0.5,
+                                    }}
+                                >
+                                    <Typography
+                                        variant="caption"
+                                        sx={{
+                                            color: "#5f6368",
+                                            fontWeight: 500,
+                                            ml: 0.5,
+                                        }}
+                                    >
+                                        Password
+                                    </Typography>
+                                    <MuiLink
+                                        href="/forgot-password"
+                                        sx={{
+                                            fontSize: 12,
+                                            color: "#1a73e8",
+                                            textDecoration: "none",
+                                            ":hover": {
+                                                textDecoration: "underline",
+                                            },
+                                        }}
+                                    >
+                                        Forgot password?
+                                    </MuiLink>
+                                </Box>
+                                <StyledTextField
+                                    name="password"
+                                    type="password"
+                                    placeholder="Enter your password"
+                                />
+                            </Box>
 
                             <StyledButton
                                 type="submit"
                                 variant="contained"
                                 loading={processing}
-                                sx={{ mt: 1 }}
+                                fullWidth
+                                sx={{
+                                    mt: 1,
+                                    py: 1.1,
+                                    backgroundColor: "#1a73e8",
+                                    ":hover": { backgroundColor: "#1765cc" },
+                                }}
                             >
                                 Sign In
                             </StyledButton>

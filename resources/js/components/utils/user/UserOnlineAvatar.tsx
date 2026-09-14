@@ -79,7 +79,7 @@ export default function UserOnlineAvatar({
                         src={avatar}
                         alt="Anthony Gerard Leuterio"
                         sx={{
-                            backgroundColor: "#aaa",
+                            backgroundColor: "#414141",
                             height: 30,
                             width: 30,
                             fontSize: 12,
@@ -90,14 +90,14 @@ export default function UserOnlineAvatar({
                     <Typography
                         variant="body2"
                         fontSize={12}
-                        sx={{ color: "#ddd" }}
+                        sx={{ color: "#494949" }}
                     >
                         {name}
                     </Typography>
                     <Typography
                         variant="caption"
                         fontFamily="Google Sans Code"
-                        sx={{ color: "#aaa", fontSize: 10 }}
+                        sx={{ color: "#727272", fontSize: 10 }}
                     >
                         {role}
                     </Typography>

@@ -1,6 +1,6 @@
 import { usePage } from "@inertiajs/react";
 import type { ReactNode } from "react";
-import { useAppRoutes } from "../appdata";
+import { useAppRoutes } from "../app-data";
 
 interface RouteItem {
     name: string;
@@ -20,7 +20,7 @@ export default function useBreadcrumbs(): Breadcrumb[] {
     function findRoute(
         routes: RouteItem[],
         currentUrl: string,
-        trail: Breadcrumb[] = []
+        trail: Breadcrumb[] = [],
     ): Breadcrumb[] | null {
         for (const route of routes) {
             const newTrail = [...trail, { name: route.name, path: route.path }];

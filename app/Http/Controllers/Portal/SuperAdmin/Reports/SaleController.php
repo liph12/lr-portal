@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Portal\SuperAdmin\Reports;
 
 use App\Http\Controllers\Controller;
-use App\Models\Developer;
+use App\Models\Entities\Developer;
 
 class SaleController extends Controller
 {

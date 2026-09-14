@@ -9,6 +9,8 @@ import {
     BarChart,
     Apps,
     InboxRounded,
+    SettingsRounded,
+    BarChartRounded,
 } from "@mui/icons-material";
 
 export const useAppRoutes = [
@@ -58,7 +60,7 @@ export const useAppRoutes = [
                 children: [
                     {
                         name: "Developer",
-                        path: "/superadmin/dashboard/view-reports/developer",
+                        path: "/superadmin/dashboard/view-sales/developer",
                         children: [],
                     },
                 ],
@@ -69,6 +71,12 @@ export const useAppRoutes = [
         name: "Management",
         path: "/superadmin/management",
         icon: AdminPanelSettingsRounded,
+        children: [],
+    },
+    {
+        name: "Statistics",
+        path: "/superadmin/statistics",
+        icon: BarChartRounded,
         children: [],
     },
     {
@@ -93,6 +101,12 @@ export const useAppRoutes = [
         name: "Inbox",
         path: "/superadmin/inbox",
         icon: InboxRounded,
+        children: [],
+    },
+    {
+        name: "Settings",
+        path: "/superadmin/settings",
+        icon: SettingsRounded,
         children: [],
     },
 ];

@@ -1,11 +1,4 @@
-import {
-    Box,
-    Divider,
-    Avatar,
-    IconButton,
-    InputBase,
-    Typography,
-} from "@mui/material";
+import { Box, Divider, Avatar, IconButton, InputBase } from "@mui/material";
 import AppBreadcrumbs from "./utils/AppBreadcrumbs";
 import APP_LOGO from "../../assets/lr-logo.svg";
 import {
@@ -14,28 +7,30 @@ import {
     MoreVertRounded,
     NotificationsOutlined,
 } from "@mui/icons-material";
-import StyledButton from "./utils/StyledButton";
 
 export default function AppNavbar() {
     return (
         <>
             <Box
                 sx={{
-                    py: 0.5,
+                    py: 1,
                     display: "flex",
                     alignItems: "center",
                     width: "100%",
+                    backgroundColor: "#fff",
                 }}
             >
+                {/* Left: menu + logo */}
                 <Box
                     sx={{
                         display: "flex",
-                        gap: 2,
+                        gap: 1.5,
                         alignItems: "center",
                         px: 2,
+                        flexShrink: 0,
                     }}
                 >
-                    <IconButton>
+                    <IconButton sx={{ color: "#5f6368" }}>
                         <MenuRounded />
                     </IconButton>
                     <Avatar
@@ -44,79 +39,91 @@ export default function AppNavbar() {
                         sx={{ height: "auto", width: 70 }}
                     />
                 </Box>
+
+                {/* Center: search */}
                 <Box
                     sx={{
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
-                        width: "100%",
+                        flex: 1,
+                        px: 2,
                     }}
                 >
                     <Box
                         sx={{
-                            width: 500,
+                            width: "100%",
+                            maxWidth: 720,
                             display: "flex",
                             alignItems: "center",
                             gap: 1,
+                            px: 2,
+                            py: 0.75,
+                            borderRadius: 99,
+                            backgroundColor: "#f1f3f4",
+                            transition:
+                                "background-color 0.15s, box-shadow 0.15s",
+                            ":focus-within": {
+                                backgroundColor: "#fff",
+                                boxShadow: "0 1px 3px rgba(60,64,67,.2)",
+                            },
                         }}
                     >
+                        <SearchRounded
+                            sx={{ color: "#5f6368" }}
+                            fontSize="small"
+                        />
                         <InputBase
                             fullWidth
                             size="small"
                             placeholder="Search (/) for resources, sales, agents, developers & more"
                             sx={{
-                                // borderBottom: "1px solid #aaa",
-                                // py: 0.5,
-                                fontSize: 16,
-                                fontWeight: 300,
+                                fontSize: 15,
+                                fontWeight: 400,
+                                color: "#3c4043",
                                 "& .MuiInputBase-input::placeholder": {
-                                    color: "#999",
+                                    color: "#5f6368",
                                     opacity: 1,
                                 },
                             }}
                         />
-                        <StyledButton
-                            size="medium"
-                            variant="text"
-                            color="inherit"
-                            startIcon={<SearchRounded color="error" />}
-                        >
-                            Search
-                        </StyledButton>
-                        {/* <Typography variant="body2" sx={{ color: "#777" }}>
-                            Search
-                        </Typography> */}
                     </Box>
                 </Box>
-                <Box>
-                    <IconButton>
+
+                {/* Right: actions + avatar */}
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.5,
+                        px: 1.5,
+                        flexShrink: 0,
+                    }}
+                >
+                    <IconButton sx={{ color: "#5f6368" }}>
                         <NotificationsOutlined />
                     </IconButton>
-                </Box>
-                <Box>
-                    <IconButton>
+                    <IconButton sx={{ color: "#5f6368" }}>
                         <MoreVertRounded />
                     </IconButton>
-                </Box>
-                <Box sx={{ pr: 1 }}>
                     <Avatar
-                        src={null}
+                        src={undefined}
                         alt="Philip Libres"
-                        sx={{ height: 38, width: 38 }}
+                        sx={{ height: 36, width: 36, ml: 0.5 }}
                     />
                 </Box>
             </Box>
-            <Divider />
+            <Divider sx={{ borderColor: "#e8eaed" }} />
             <Box
                 sx={{
-                    height: "auto",
                     px: 3,
-                    py: 0.5,
+                    py: 0.75,
+                    backgroundColor: "#fff",
                 }}
             >
                 <AppBreadcrumbs />
             </Box>
-            <Divider />
+            <Divider sx={{ borderColor: "#e8eaed" }} />
         </>
     );
 }

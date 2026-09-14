@@ -10,7 +10,7 @@ interface User {
 
 function Accounting({ user }: { user: User }) {
     return (
-        <Box p={3}>
+        <>
             <Typography variant="h5" gutterBottom>
                 Accounting
             </Typography>
@@ -19,9 +19,8 @@ function Accounting({ user }: { user: User }) {
                 Welcome, {user.name} ({user.email})
             </Typography>
 
-            <Box mt={2}>
-            </Box>
-        </Box>
+            <Box mt={2}></Box>
+        </>
     );
 }
 

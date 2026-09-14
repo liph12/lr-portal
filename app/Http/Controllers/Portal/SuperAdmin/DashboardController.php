@@ -37,12 +37,12 @@ class DashboardController extends Controller
 
     public function viewSales()
     {
-        return inertia('SuperAdmin/Reports/Index');
+        return inertia('SuperAdmin/Dashboard/Reports/Index');
     }
 
     public function developerSales()
     {
-        return inertia('SuperAdmin/Reports/Developer');
+        return inertia('SuperAdmin/Dashboard/Reports/Developer');
     }
 
     public function createSale()

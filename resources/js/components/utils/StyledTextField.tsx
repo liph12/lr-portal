@@ -27,9 +27,24 @@ export default function StyledTextField({
         <>
             <Box
                 sx={{
-                    backgroundColor: "rgba(209, 209, 209, 0.5)",
                     display: "flex",
-                    border: error ? "1px solid #d32f2f" : "none",
+                    borderRadius: 2,
+                    backgroundColor: "#f1f3f4",
+                    border: error
+                        ? "1px solid #d93025"
+                        : "1px solid transparent",
+                    transition:
+                        "background-color 0.15s, border-color 0.15s, box-shadow 0.15s",
+                    ":hover": {
+                        backgroundColor: error ? "#f1f3f4" : "#e8eaed",
+                    },
+                    ":focus-within": {
+                        backgroundColor: "#fff",
+                        borderColor: error ? "#d93025" : "#1a73e8",
+                        boxShadow: error
+                            ? "0 0 0 2px rgba(217,48,37,.15)"
+                            : "0 0 0 2px rgba(26,115,232,.15)",
+                    },
                 }}
             >
                 <TextField
@@ -41,24 +56,32 @@ export default function StyledTextField({
                     onChange={handleChange}
                     type={type}
                     placeholder={placeholder}
-                    name={name} 
+                    name={name}
                     value={value}
                     sx={{
                         "& .MuiOutlinedInput-root": {
+                            borderRadius: 2,
                             "& fieldset": {
-                                mr: 1,
                                 border: "none",
                             },
                             "& .MuiInputBase-input": {
-                                color: "#333",
+                                color: "#202124",
                                 fontSize: 14,
+                                "&::placeholder": {
+                                    color: "#5f6368",
+                                    opacity: 1,
+                                },
                             },
                         },
                     }}
                 />
             </Box>
             {error && (
-                <Typography variant="caption" component="div" color="error">
+                <Typography
+                    variant="caption"
+                    component="div"
+                    sx={{ color: "#d93025", mt: 0.5, ml: 0.5 }}
+                >
                     {error}
                 </Typography>
             )}

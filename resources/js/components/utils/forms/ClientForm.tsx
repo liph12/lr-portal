@@ -3,8 +3,30 @@ import { Grid, FormHelperText } from "@mui/material";
 import { ClientForm as ClientFormTypes } from "../../../types/app-data-types";
 import { AutoCompleteValue, CreateSaleHandler } from "../../../types";
 import StyledAutocomplete from "../StyledAutocomplete";
-import { countries } from "../../../appdata";
+import { countries } from "../../../app-data";
 import { useForm } from "@inertiajs/react";
+
+const labelSx = {
+    color: "#5f6368",
+    fontWeight: 500,
+    mb: 0.5,
+    ml: 0.5,
+};
+
+// Plain text fields that share the same change handler
+const TEXT_FIELDS: {
+    name: keyof ClientFormTypes;
+    label: string;
+    type?: string;
+    size?: number;
+}[] = [
+    { name: "client_firstname", label: "Client Firstname" },
+    { name: "client_middlename", label: "Client Middlename" },
+    { name: "client_lastname", label: "Client Lastname" },
+    { name: "client_email", label: "Client Email" },
+    { name: "client_mobile", label: "Client Mobile" },
+    { name: "client_birthdate", label: "Client Birthdate", type: "date" },
+];
 
 export default function ClientForm({ salesSources }: CreateSaleHandler) {
     const { data, setData } = useForm<ClientFormTypes>({
@@ -27,9 +49,7 @@ export default function ClientForm({ salesSources }: CreateSaleHandler) {
 
     const handleChangeTextField = (e: React.ChangeEvent<HTMLInputElement>) => {
         const key = e.target.name as keyof ClientFormTypes;
-        const value = e.target.value;
-
-        setData(key, value);
+        setData(key, e.target.value);
     };
 
     const handleChangeGender = (v: AutoCompleteValue) =>
@@ -39,113 +59,76 @@ export default function ClientForm({ salesSources }: CreateSaleHandler) {
         setData("client_country", v);
 
     return (
-        <>
-            <Grid container spacing={2}>
-                <Grid size={{ lg: 3, md: 6, xs: 12 }}>
-                    <FormHelperText>Client Firstname</FormHelperText>
+        <Grid container spacing={2}>
+            {TEXT_FIELDS.map((field) => (
+                <Grid key={field.name} size={{ lg: 3, md: 6, xs: 12 }}>
+                    <FormHelperText sx={labelSx}>{field.label}</FormHelperText>
                     <StyledTextField
-                        name="client_firstname"
-                        value={data.client_firstname}
+                        type={field.type}
+                        name={field.name}
+                        value={data[field.name] as string}
                         handleChange={handleChangeTextField}
                     />
                 </Grid>
-                <Grid size={{ lg: 3, md: 6, xs: 12 }}>
-                    <FormHelperText>Client Middlename</FormHelperText>
-                    <StyledTextField
-                        name="client_middlename"
-                        value={data.client_middlename}
-                        handleChange={handleChangeTextField}
-                    />
-                </Grid>
-                <Grid size={{ lg: 3, md: 6, xs: 12 }}>
-                    <FormHelperText>Client Lastname</FormHelperText>
-                    <StyledTextField
-                        name="client_lastname"
-                        value={data.client_lastname}
-                        handleChange={handleChangeTextField}
-                    />
-                </Grid>
-                <Grid size={{ lg: 3, md: 6, xs: 12 }}>
-                    <FormHelperText>Client Email</FormHelperText>
-                    <StyledTextField
-                        name="client_email"
-                        value={data.client_email}
-                        handleChange={handleChangeTextField}
-                    />
-                </Grid>
-                <Grid size={{ lg: 3, md: 6, xs: 12 }}>
-                    <FormHelperText>Client Mobile</FormHelperText>
-                    <StyledTextField
-                        name="client_mobile"
-                        value={data.client_mobile}
-                        handleChange={handleChangeTextField}
-                    />
-                </Grid>
-                <Grid size={{ lg: 3, md: 6, xs: 12 }}>
-                    <FormHelperText>Client Birthdate</FormHelperText>
-                    <StyledTextField
-                        type="date"
-                        name="client_birthdate"
-                        value={data.client_birthdate}
-                        handleChange={handleChangeTextField}
-                    />
-                </Grid>
-                <Grid size={{ lg: 3, md: 6, xs: 12 }}>
-                    <FormHelperText>Client Gender</FormHelperText>
-                    <StyledAutocomplete
-                        options={[
-                            { id: 1, label: "Male" },
-                            { id: 2, label: "Female" },
-                        ]}
-                        value={data.client_gender}
-                        renderInput={(params) => (
-                            <StyledTextField
-                                params={params}
-                                name="client_gender"
-                                value={data.client_gender?.label ?? null}
-                            />
-                        )}
-                        onChange={(_, v) => {
-                            handleChangeGender(v);
-                        }}
-                        isOptionEqualToValue={(option, value) =>
-                            value === undefined || option.id === value.id
-                        }
-                    />
-                </Grid>
-                <Grid size={{ lg: 3, md: 6, xs: 12 }}>
-                    <FormHelperText>Client Country</FormHelperText>
-                    <StyledAutocomplete
-                        options={countries}
-                        value={data.client_country}
-                        renderInput={(params) => (
-                            <StyledTextField
-                                params={params}
-                                name="client_country"
-                                value={data.client_country?.label ?? null}
-                            />
-                        )}
-                        onChange={(_, v) => {
-                            handleChangeCountry(v);
-                        }}
-                        isOptionEqualToValue={(option, value) =>
-                            value === undefined || option.id === value.id
-                        }
-                    />
-                </Grid>
-                <Grid size={{ lg: 6, md: 6, xs: 12 }}>
-                    <FormHelperText>Client Address</FormHelperText>
-                    <StyledTextField
-                        name="client_address"
-                        value={data.client_address}
-                        handleChange={handleChangeTextField}
-                        props={{
-                            multiline: true,
-                            rows: 3,
-                        }}
-                    />
-                </Grid>
+            ))}
+
+            <Grid size={{ lg: 3, md: 6, xs: 12 }}>
+                <FormHelperText sx={labelSx}>Client Gender</FormHelperText>
+                <StyledAutocomplete
+                    options={[
+                        { id: 1, label: "Male" },
+                        { id: 2, label: "Female" },
+                    ]}
+                    value={data.client_gender}
+                    renderInput={(params) => (
+                        <StyledTextField
+                            params={params}
+                            name="client_gender"
+                            value={data.client_gender?.label ?? null}
+                        />
+                    )}
+                    onChange={(_, v) => {
+                        if (v) handleChangeGender(v);
+                    }}
+                    isOptionEqualToValue={(option, value) =>
+                        value === undefined || option.id === value.id
+                    }
+                />
             </Grid>
-        </>
+
+            <Grid size={{ lg: 3, md: 6, xs: 12 }}>
+                <FormHelperText sx={labelSx}>Client Country</FormHelperText>
+                <StyledAutocomplete
+                    options={countries}
+                    value={data.client_country}
+                    renderInput={(params) => (
+                        <StyledTextField
+                            params={params}
+                            name="client_country"
+                            value={data.client_country?.label ?? null}
+                        />
+                    )}
+                    onChange={(_, v) => {
+                        if (v) handleChangeCountry(v);
+                    }}
+                    isOptionEqualToValue={(option, value) =>
+                        value === undefined || option.id === value.id
+                    }
+                />
+            </Grid>
+
+            <Grid size={{ lg: 6, md: 6, xs: 12 }}>
+                <FormHelperText sx={labelSx}>Client Address</FormHelperText>
+                <StyledTextField
+                    name="client_address"
+                    value={data.client_address}
+                    handleChange={handleChangeTextField}
+                    props={{
+                        multiline: true,
+                        rows: 3,
+                    }}
+                />
+            </Grid>
+        </Grid>
     );
 }

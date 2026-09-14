@@ -1,11 +1,11 @@
 import { Typography, Box } from "@mui/material";
-import AppLayout from "../../../../components/layouts/AppLayout";
+import DashboardLayout from "../../../../components/layouts/DashboardLayout";
 import { ReactNode } from "react";
 
 function Developer() {
     return <Typography>Developer</Typography>;
 }
 
-Developer.layout = (page: ReactNode) => <AppLayout children={page} />;
+Developer.layout = (page: ReactNode) => <DashboardLayout children={page} />;
 
 export default Developer;

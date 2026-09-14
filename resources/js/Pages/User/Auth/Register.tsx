@@ -7,6 +7,7 @@ import {
     Checkbox,
     FormControl,
     FormHelperText,
+    Link as MuiLink,
 } from "@mui/material";
 import { Form, Link } from "@inertiajs/react";
 import EmailIcon from "@mui/icons-material/Email";
@@ -17,7 +18,7 @@ export default function Register() {
     const [termsChecked, setTermsChecked] = useState(false);
     const [termsError, setTermsError] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: React.FormEvent) => {
         if (!termsChecked) {
             e.preventDefault();
             setTermsError(true);
@@ -65,19 +66,15 @@ export default function Register() {
                     right: { xs: 12, sm: 16 },
                 }}
             >
-                <Typography variant="body2">
+                <Typography variant="body2" sx={{ color: "#3c4043" }}>
                     Already have an account?{" "}
                     <Link href="/login" style={{ textDecoration: "none" }}>
                         <Typography
                             component="span"
                             sx={{
-                                fontWeight: 600,
-                                color: "primary.main",
-                                transition: "0.3s",
-                                "&:hover": {
-                                    color: "secondary.main",
-                                    textDecoration: "underline",
-                                },
+                                fontWeight: 500,
+                                color: "#1a73e8",
+                                ":hover": { textDecoration: "underline" },
                             }}
                         >
                             Sign in here
@@ -87,14 +84,13 @@ export default function Register() {
             </Box>
 
             <Typography
-                variant="h4"
-                fontWeight={700}
                 sx={{
                     mb: { xs: 3, sm: 4 },
                     textAlign: "center",
-                    color: "#000",
-                    fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" }, // responsive font size
-                    lineHeight: 1.2, // optional for better mobile readability
+                    color: "#202124",
+                    fontWeight: 500,
+                    fontSize: { xs: "1.5rem", sm: "2rem", md: "2.25rem" },
+                    lineHeight: 1.2,
                 }}
             >
                 Sign up as a Salesperson
@@ -115,33 +111,32 @@ export default function Register() {
                 <Box
                     sx={{
                         width: { xs: "100%", sm: 400, md: 450 },
-                        borderRadius: 2,
-                        p: { xs: 3, sm: 4, md: 6 },
-                        background: "rgba(255, 255, 255, 0.1)",
-                        backdropFilter: "blur(15px)",
-                        WebkitBackdropFilter: "blur(15px)",
-                        border: "1px solid rgba(255, 255, 255, 0.6)",
+                        borderRadius: 4,
+                        p: { xs: 3, sm: 4, md: 5 },
+                        background: "rgba(255, 255, 255, 0.85)",
+                        backdropFilter: "blur(20px)",
+                        WebkitBackdropFilter: "blur(20px)",
+                        border: "1px solid rgba(255, 255, 255, 0.7)",
+                        boxShadow: "0 4px 24px rgba(60,64,67,.22)",
                     }}
                 >
-                    {/* SPONSOR SECTION (HIGHLIGHTED & RESPONSIVE) */}
+                    {/* SPONSOR SECTION */}
                     <Box
                         sx={{
                             mb: 3,
-                            p: { xs: 2, sm: 3 },
-                            borderRadius: 2,
-                            background: "rgba(25, 118, 210, 0.08)",
-                            border: "1px solid rgba(25, 118, 210, 0.3)",
-                            borderLeft: "6px solid",
-                            borderLeftColor: "primary.main",
+                            p: { xs: 2, sm: 2.5 },
+                            borderRadius: 3,
+                            backgroundColor: "#e8f0fe",
+                            border: "1px solid #d2e3fc",
                         }}
                     >
                         <Typography
                             variant="overline"
                             sx={{
-                                fontWeight: 700,
-                                color: "primary.main",
+                                fontWeight: 600,
+                                color: "#1a73e8",
                                 letterSpacing: 1,
-                                fontSize: { xs: 10, sm: 12 },
+                                fontSize: { xs: 10, sm: 11 },
                             }}
                         >
                             SPONSOR
@@ -152,8 +147,9 @@ export default function Register() {
                                 display: "flex",
                                 alignItems: "center",
                                 gap: 1,
-                                fontWeight: 700,
-                                fontSize: { xs: 14, sm: 18 },
+                                fontWeight: 500,
+                                fontSize: { xs: 14, sm: 17 },
+                                color: "#202124",
                                 mt: 0.5,
                             }}
                         >
@@ -162,8 +158,8 @@ export default function Register() {
                                 src="/assets/ph_flag.png"
                                 alt="Philippine Flag"
                                 sx={{
-                                    width: { xs: 20, sm: 30 },
-                                    height: { xs: 10, sm: 15 },
+                                    width: { xs: 20, sm: 28 },
+                                    height: { xs: 10, sm: 14 },
                                     objectFit: "cover",
                                     borderRadius: 0.5,
                                 }}
@@ -172,13 +168,21 @@ export default function Register() {
                         </Typography>
 
                         <Typography
-                            sx={{ mt: 1, fontSize: { xs: 12, sm: 14 } }}
+                            sx={{
+                                mt: 1,
+                                fontSize: { xs: 12, sm: 13 },
+                                color: "#5f6368",
+                            }}
                         >
                             ✉ libresphilip14@gmail.com
                         </Typography>
 
                         <Typography
-                            sx={{ mt: 0.5, fontSize: { xs: 12, sm: 14 } }}
+                            sx={{
+                                mt: 0.5,
+                                fontSize: { xs: 12, sm: 13 },
+                                color: "#5f6368",
+                            }}
                         >
                             📞 09677705320
                         </Typography>
@@ -187,12 +191,10 @@ export default function Register() {
                     {/* CREATE ACCOUNT */}
                     <Typography
                         sx={{
-                            fontWeight: 700,
-                            fontSize: { xs: "1.1rem", sm: "1.25rem" },
+                            fontWeight: 500,
+                            fontSize: { xs: "1.05rem", sm: "1.15rem" },
+                            color: "#202124",
                             mb: 2,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1.5,
                         }}
                     >
                         Create Account
@@ -218,11 +220,11 @@ export default function Register() {
                                 borderRadius: 0.5,
                             }}
                         />
-
                         <Typography
                             sx={{
                                 fontWeight: 500,
-                                fontSize: { xs: "1.1rem", sm: "1.25rem" },
+                                fontSize: { xs: "1rem", sm: "1.1rem" },
+                                color: "#3c4043",
                             }}
                         >
                             National
@@ -245,9 +247,17 @@ export default function Register() {
                                     props={{
                                         InputProps: {
                                             startAdornment: (
-                                                <Box sx={{ mr: 1 }}>
+                                                <Box
+                                                    sx={{
+                                                        mr: 1,
+                                                        display: "flex",
+                                                    }}
+                                                >
                                                     <EmailIcon
-                                                        sx={{ fontSize: 20 }}
+                                                        sx={{
+                                                            fontSize: 20,
+                                                            color: "#5f6368",
+                                                        }}
                                                     />
                                                 </Box>
                                             ),
@@ -262,19 +272,49 @@ export default function Register() {
                                                 checked={termsChecked}
                                                 onChange={(e) => {
                                                     setTermsChecked(
-                                                        e.target.checked
+                                                        e.target.checked,
                                                     );
                                                     if (e.target.checked) {
                                                         setTermsError(false);
                                                     }
                                                 }}
                                                 name="terms"
+                                                sx={{
+                                                    color: "#5f6368",
+                                                    "&.Mui-checked": {
+                                                        color: "#1a73e8",
+                                                    },
+                                                }}
                                             />
                                         }
-                                        label="I agree to the terms and condition of LR Contract and the website."
+                                        label={
+                                            <Typography
+                                                variant="body2"
+                                                sx={{ color: "#3c4043" }}
+                                            >
+                                                I agree to the{" "}
+                                                <MuiLink
+                                                    href="#"
+                                                    sx={{
+                                                        color: "#1a73e8",
+                                                        textDecoration: "none",
+                                                        ":hover": {
+                                                            textDecoration:
+                                                                "underline",
+                                                        },
+                                                    }}
+                                                >
+                                                    terms and conditions
+                                                </MuiLink>{" "}
+                                                of the LR Contract and the
+                                                website.
+                                            </Typography>
+                                        }
                                     />
                                     {termsError && (
-                                        <FormHelperText>
+                                        <FormHelperText
+                                            sx={{ color: "#d93025" }}
+                                        >
                                             You must agree to the terms and
                                             conditions.
                                         </FormHelperText>
@@ -286,7 +326,15 @@ export default function Register() {
                                     variant="contained"
                                     loading={processing}
                                     disabled={!termsChecked || processing}
-                                    sx={{ mt: 1 }}
+                                    fullWidth
+                                    sx={{
+                                        mt: 1,
+                                        py: 1.1,
+                                        backgroundColor: "#1a73e8",
+                                        ":hover": {
+                                            backgroundColor: "#1765cc",
+                                        },
+                                    }}
                                 >
                                     Proceed
                                 </StyledButton>

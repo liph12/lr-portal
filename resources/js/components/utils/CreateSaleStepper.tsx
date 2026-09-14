@@ -15,42 +15,44 @@ export default function CreateSaleStepper({
     return (
         <Box sx={{ width: "100%", my: 3 }}>
             <Stepper activeStep={activeStep} alternativeLabel={false}>
-                {steps.map((label, index) => (
-                    <Step key={label}>
-                        <StepLabel
-                            StepIconProps={{
-                                sx: {
-                                    fontSize: 22,
-                                    color:
-                                        index === activeStep
-                                            ? "error.main"
-                                            : "#bbb",
-                                    "&.Mui-active": {
-                                        color: "error.main",
+                {steps.map((label, index) => {
+                    const isActive = index === activeStep;
+                    const isCompleted = index < activeStep;
+
+                    return (
+                        <Step key={label}>
+                            <StepLabel
+                                StepIconProps={{
+                                    sx: {
+                                        fontSize: 24,
+                                        color: "#dadce0",
+                                        "&.Mui-active": {
+                                            color: "#1a73e8",
+                                        },
+                                        "&.Mui-completed": {
+                                            color: "#1a73e8",
+                                        },
                                     },
-                                    "&.Mui-completed": {
-                                        color: "success.main",
+                                }}
+                                sx={{
+                                    "& .MuiStepLabel-label": {
+                                        fontSize: 14,
+                                        color: isActive
+                                            ? "#1a73e8"
+                                            : isCompleted
+                                              ? "#3c4043"
+                                              : "#5f6368",
+                                        fontWeight: isActive ? 600 : 400,
+                                        "&.Mui-active": { color: "#1a73e8" },
+                                        "&.Mui-completed": { color: "#3c4043" },
                                     },
-                                },
-                            }}
-                            sx={{
-                                "& .MuiStepLabel-label": {
-                                    color:
-                                        index === activeStep
-                                            ? "error.main"
-                                            : "#bbb",
-                                    fontWeight:
-                                        index === activeStep
-                                            ? "bold"
-                                            : "normal",
-                                    fontSize: 15,
-                                },
-                            }}
-                        >
-                            {label}
-                        </StepLabel>
-                    </Step>
-                ))}
+                                }}
+                            >
+                                {label}
+                            </StepLabel>
+                        </Step>
+                    );
+                })}
             </Stepper>
         </Box>
     );
