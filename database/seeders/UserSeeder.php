@@ -44,19 +44,19 @@ class UserSeeder extends Seeder
             'password' => Hash::make('123456'),
         ]);
 
-        $superadmin = User::create([
+        $superadmin_2 = User::create([
             'name' => 'Mark Lawrince Sargado',
             'email' => 'marklawrince730@gmail.com',
             'password' => Hash::make('1'),
         ]);
 
-        $superadmin = User::create([
+        $superadmin_3 = User::create([
             'name' => 'Maizo',
             'email' => 'johnrobertmaizo2@gmail.com',
             'password' => Hash::make('12345'),
         ]);
 
-        $superadmin = User::create([
+        $superadmin_4 = User::create([
             'name' => 'Juliecor',
             'email' => 'repompojuliecor@gmail.com',
             'password' => Hash::make('12345'),
@@ -64,6 +64,9 @@ class UserSeeder extends Seeder
 
         $superadmin->roles()->sync([Role::where('name', 'superadmin')->value('id')]);
         $superadmin_1->roles()->sync([Role::where('name', 'superadmin')->value('id')]);
+        $superadmin_2->roles()->sync([Role::where('name', 'superadmin')->value('id')]);
+        $superadmin_3->roles()->sync([Role::where('name', 'superadmin')->value('id')]);
+        $superadmin_4->roles()->sync([Role::where('name', 'superadmin')->value('id')]);
         $admin->roles()->sync([Role::where('name', 'admin')->value('id')]);
         $staff->roles()->sync([Role::where('name', 'staff')->value('id')]);
         $sec->roles()->sync([Role::where('name', 'secretary')->value('id')]);
