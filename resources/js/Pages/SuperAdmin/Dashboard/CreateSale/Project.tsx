@@ -7,15 +7,7 @@ import { SalesSource } from "../../../../types/app-data-types";
 function Project({ developers }: { developers: SalesSource[] }) {
     return (
         <Container sx={{ py: 3 }} maxWidth="lg">
-            <Box
-                sx={{
-                    overflowY: "auto",
-                    height: "100vh",
-                    width: "100%",
-                    scrollBehavior: "smooth",
-                    pr: 3,
-                }}
-            >
+            <Box sx={{ pr: 3 }}>
                 <Typography variant="h6" fontWeight="bold" textAlign="center">
                     Create Project Sale
                 </Typography>

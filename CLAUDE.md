@@ -75,7 +75,9 @@ at the matching path. Nothing else.
   never JSON (its current `response()->json(..., 403)` at line 21 is a defect, see §5).
 - **Layouts**: persistent `.layout` static pattern only
   (`Project.layout = (page) => <DashboardLayout children={page} />`, `CreateSale/Project.tsx:28`).
-  Never wrap a layout inside the page's render.
+  Never wrap a layout inside the page's render. `AppLayout` owns the viewport (`100vh`,
+  `overflow: hidden`) and its `<main>` pane is the only page scroller — pages must not set
+  `100vh` heights or their own `overflowY`.
 - **Auth props**: shared from `app/Http/Middleware/HandleInertiaRequests.php` `share()` **only**
   (currently empty at lines 36-42 — that's where auth sharing goes). No `Inertia::share` in
   providers; no per-page `'user' => Auth::user()` props.

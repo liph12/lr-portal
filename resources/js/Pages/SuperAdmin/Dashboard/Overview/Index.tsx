@@ -28,15 +28,7 @@ interface OverviewProps {
 function Overview({ recruits }: OverviewProps) {
     return (
         <Container sx={{ py: 3 }} maxWidth="lg">
-            <Box
-                sx={{
-                    overflowY: "auto",
-                    height: "100vh",
-                    width: "100%",
-                    scrollBehavior: "smooth",
-                    pr: 3,
-                }}
-            >
+            <Box sx={{ pr: 3 }}>
                 <Grid container spacing={1}>
                     <Grid size={{ lg: 4, md: 6, sm: 12 }}>
                         <DashboardCardOverview

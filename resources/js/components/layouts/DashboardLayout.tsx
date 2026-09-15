@@ -17,11 +17,11 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 
     return (
         <AppLayout>
-            <Grid container sx={{ height: "100vh" }}>
+            <Grid container sx={{ height: "100%", overflow: "hidden" }}>
                 <Grid
                     size={{ lg: 9.5 }}
                     sx={{
-                        height: "100vh",
+                        height: "100%",
                         display: "flex",
                         flexDirection: "column",
                     }}
@@ -81,6 +81,8 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                         sx={{
                             flex: 1,
                             overflowY: "auto",
+                            overflowX: "hidden",
+                            scrollBehavior: "smooth",
                             minHeight: 0,
                             pb: 20,
                             backgroundColor: "#fff",
@@ -92,8 +94,10 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                 <Grid
                     size={{ lg: 2.5 }}
                     sx={{
-                        height: "100vh",
+                        height: "100%",
                         overflowY: "auto",
+                        overflowX: "hidden",
+                        scrollBehavior: "smooth",
                         borderLeft: "1px solid #e8eaed",
                         backgroundColor: "#fff",
                     }}

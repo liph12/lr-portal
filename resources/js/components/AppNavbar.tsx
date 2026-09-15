@@ -10,7 +10,7 @@ import {
 
 export default function AppNavbar() {
     return (
-        <>
+        <Box component="header" sx={{ flexShrink: 0 }}>
             <Box
                 sx={{
                     py: 1,
@@ -124,6 +124,6 @@ export default function AppNavbar() {
                 <AppBreadcrumbs />
             </Box>
             <Divider sx={{ borderColor: "#e8eaed" }} />
-        </>
+        </Box>
     );
 }

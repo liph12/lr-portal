@@ -74,15 +74,7 @@ function LinkCard({ label, url }: { label: string; url: string }) {
 
 function Dashboard() {
     return (
-        <Box
-            sx={{
-                height: "100%",
-                minHeight: "100vh",
-                overflowY: "auto",
-                scrollBehavior: "smooth",
-                backgroundColor: "#fff",
-            }}
-        >
+        <Box sx={{ backgroundColor: "#fff" }}>
             {/* Header band */}
             <Box
                 sx={{

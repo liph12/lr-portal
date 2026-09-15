@@ -30,12 +30,15 @@ export default function AppSidebar() {
         <Box
             sx={{
                 width: 270,
-                height: "100vh",
+                flexShrink: 0,
+                height: "100%",
                 backgroundColor: "#f8f9fa",
                 borderRight: "1px solid #e8eaed",
                 display: "flex",
                 flexDirection: "column",
                 overflowY: "auto",
+                overflowX: "hidden",
+                scrollBehavior: "smooth",
             }}
         >
             {/* Menu */}
