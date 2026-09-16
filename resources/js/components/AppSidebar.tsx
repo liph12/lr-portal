@@ -1,4 +1,6 @@
-import { Box, Divider, Typography } from "@mui/material";
+import { useState } from "react";
+import { Box, Collapse, Divider, Typography } from "@mui/material";
+import { ChevronRightRounded, LogoutRounded } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
 import useSidebarRoutes from "../hooks/useSidebarRoutes";
 import UserOnlineAvatar from "./utils/user/UserOnlineAvatar";
@@ -25,6 +27,7 @@ const users: User[] = [
 
 export default function AppSidebar() {
     const routes = useSidebarRoutes();
+    const [onlineOpen, setOnlineOpen] = useState(true);
 
     return (
         <Box
@@ -127,34 +130,90 @@ export default function AppSidebar() {
                 })}
             </Box>
 
-            {/* Online users — flows right after the routes */}
-            <Box sx={{ pr: 1.5, pb: 2 }}>
+            {/* Bottom section: collapsible online users + logout */}
+            <Box sx={{ mt: "auto", pr: 1.5, pb: 2 }}>
                 <Divider sx={{ my: 1, borderColor: "#e8eaed", ml: 3 }} />
 
-                <Typography
+                <Box
+                    role="button"
+                    aria-expanded={onlineOpen}
+                    onClick={() => setOnlineOpen((open) => !open)}
                     sx={{
-                        color: "#5f6368",
-                        px: 3,
-                        mb: 1,
-                        fontWeight: 500,
-                        display: "block",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.5,
+                        pl: 3,
+                        pr: 2,
+                        py: 0.75,
+                        mb: 0.5,
+                        cursor: "pointer",
+                        userSelect: "none",
+                        borderTopRightRadius: 99,
+                        borderBottomRightRadius: 99,
+                        ":hover": { backgroundColor: "#eceff1" },
                     }}
-                    variant="caption"
                 >
-                    Online users (2)
-                </Typography>
+                    <ChevronRightRounded
+                        fontSize="small"
+                        sx={{
+                            // glyph is centered in its box; pull it to the icon column's edge
+                            ml: -0.5,
+                            mr: 0.5,
+                            color: "#5f6368",
+                            transition: "transform 0.15s",
+                            transform: onlineOpen
+                                ? "rotate(90deg)"
+                                : "rotate(0deg)",
+                        }}
+                    />
+                    <Typography
+                        variant="caption"
+                        sx={{ color: "#5f6368", fontWeight: 500 }}
+                    >
+                        Online users ({users.length})
+                    </Typography>
+                </Box>
 
-                <Box>
-                    {users.map((u) => (
-                        <UserOnlineAvatar
-                            key={u.id}
-                            avatar={u.avatar}
-                            name={u.name}
-                            online={u.online}
-                            role={u.role}
-                            timestamp={u.timestamp}
-                        />
-                    ))}
+                <Collapse in={onlineOpen} timeout="auto" unmountOnExit>
+                    <Box sx={{ pl: 1 }}>
+                        {users.map((u) => (
+                            <UserOnlineAvatar
+                                key={u.id}
+                                avatar={u.avatar}
+                                name={u.name}
+                                online={u.online}
+                                role={u.role}
+                                timestamp={u.timestamp}
+                            />
+                        ))}
+                    </Box>
+                </Collapse>
+
+                <Divider sx={{ my: 1, borderColor: "#e8eaed", ml: 3 }} />
+
+                <Box
+                    role="button"
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.5,
+                        pl: 3,
+                        pr: 2,
+                        py: 0.75,
+                        cursor: "pointer",
+                        userSelect: "none",
+                        borderTopRightRadius: 99,
+                        borderBottomRightRadius: 99,
+                        ":hover": { backgroundColor: "#fce8e6" },
+                    }}
+                >
+                    <LogoutRounded fontSize="small" sx={{ color: "#d93025" }} />
+                    <Typography
+                        variant="caption"
+                        sx={{ color: "#d93025", fontWeight: 500 }}
+                    >
+                        Logout
+                    </Typography>
                 </Box>
             </Box>
         </Box>

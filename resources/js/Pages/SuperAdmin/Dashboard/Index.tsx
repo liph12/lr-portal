@@ -7,6 +7,7 @@ import {
     IconButton,
     Stack,
     Chip,
+    Avatar,
 } from "@mui/material";
 import DashboardLayout from "../../../components/layouts/DashboardLayout";
 import DashboardCardApp from "../../../components/cards/DashboardCardApp";
@@ -72,6 +73,9 @@ function LinkCard({ label, url }: { label: string; url: string }) {
     );
 }
 
+const SAMPLE_PROFILE_PICTURE =
+    "https://filipinohomes123.s3.ap-southeast-1.amazonaws.com/filipinohomes-compressed-from-old/cd23c6fa-51a9-40b9-926b-422a97739987.webp";
+
 function Dashboard() {
     return (
         <Box sx={{ backgroundColor: "#fff" }}>
@@ -84,52 +88,70 @@ function Dashboard() {
                     py: 4,
                 }}
             >
-                <Typography
-                    sx={{
-                        fontSize: 28,
-                        fontWeight: 400,
-                        color: "#202124",
-                    }}
-                >
-                    Welcome to LR Portal, Philip 👋
-                </Typography>
-                <Typography variant="body2" sx={{ color: "#5f6368", mt: 0.5 }}>
-                    Record your sale, manage and track statistics, access tools
-                    and more.
-                </Typography>
-                <Box
-                    sx={{
-                        mt: 2,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 2,
-                    }}
-                >
-                    <StyledButton
-                        variant="contained"
-                        size="small"
+                <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+                    <Avatar
+                        src={SAMPLE_PROFILE_PICTURE}
+                        alt="Philip Libres"
                         sx={{
-                            borderRadius: 99,
-                            textTransform: "none",
-                            backgroundColor: "#1a73e8",
-                            px: 2.5,
-                            ":hover": { backgroundColor: "#1765cc" },
+                            width: 112,
+                            height: 112,
+                            flexShrink: 0,
+                            border: "3px solid #fff",
+                            boxShadow: "0 1px 3px rgba(60,64,67,.3)",
                         }}
-                        startIcon={<NoteAddIcon />}
-                        LinkComponent={Link}
-                        href="/superadmin/dashboard/create-sale"
-                    >
-                        Create Sale
-                    </StyledButton>
-                    <Chip
-                        variant="outlined"
-                        size="small"
-                        icon={<Android />}
-                        color="success"
-                        label="Download the LR app now!"
-                        onClick={() => {}}
-                        sx={{ borderRadius: 99 }}
                     />
+                    <Box>
+                        <Typography
+                            sx={{
+                                fontSize: 28,
+                                fontWeight: 400,
+                                color: "#202124",
+                            }}
+                        >
+                            Welcome to LR Portal, Philip 👋
+                        </Typography>
+                        <Typography
+                            variant="body2"
+                            sx={{ color: "#5f6368", mt: 0.5 }}
+                        >
+                            Record your sale, manage and track statistics,
+                            access tools and more.
+                        </Typography>
+                        <Box
+                            sx={{
+                                mt: 2,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 2,
+                            }}
+                        >
+                            <StyledButton
+                                variant="contained"
+                                size="small"
+                                sx={{
+                                    borderRadius: 99,
+                                    textTransform: "none",
+                                    backgroundColor: "#1a73e8",
+                                    px: 2.5,
+                                    ":hover": { backgroundColor: "#1765cc" },
+                                }}
+                                startIcon={<NoteAddIcon />}
+                                LinkComponent={Link}
+                                href="/superadmin/dashboard/create-sale"
+                            >
+                                Create Sale
+                            </StyledButton>
+                            <Chip
+                                variant="outlined"
+                                size="small"
+                                icon={<Android />}
+                                color="success"
+                                label="Download the LR app now!"
+                                onClick={() => {}}
+                                sx={{ borderRadius: 99 }}
+                            />
+                        </Box>
+                    </Box>
                 </Box>
             </Box>
 
