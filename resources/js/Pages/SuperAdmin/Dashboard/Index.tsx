@@ -6,12 +6,7 @@ import {
     Typography,
     IconButton,
     Stack,
-<<<<<<< HEAD
     Tooltip,
-=======
-    Chip,
-    Avatar,
->>>>>>> 8a3cd60e1ce5db468c68077d874f0c3ab9815327
 } from "@mui/material";
 import DashboardLayout from "../../../components/layouts/DashboardLayout";
 import DashboardCardApp from "../../../components/cards/DashboardCardApp";
@@ -67,7 +62,10 @@ function LinkCard({ label, url }: { label: string; url: string }) {
                 <LinkRounded fontSize="small" />
             </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="body2" sx={{ fontWeight: 500, color: "var(--lr-text-primary)" }}>
+                <Typography
+                    variant="body2"
+                    sx={{ fontWeight: 500, color: "var(--lr-text-primary)" }}
+                >
                     {label}
                 </Typography>
                 <Typography
@@ -87,12 +85,18 @@ function LinkCard({ label, url }: { label: string; url: string }) {
             </Box>
             <Stack direction="row" spacing={0.5}>
                 <Tooltip title="Copy">
-                    <IconButton size="small" sx={{ color: "var(--lr-text-secondary)" }}>
+                    <IconButton
+                        size="small"
+                        sx={{ color: "var(--lr-text-secondary)" }}
+                    >
                         <ContentCopyRounded fontSize="small" />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title="Share">
-                    <IconButton size="small" sx={{ color: "var(--lr-text-secondary)" }}>
+                    <IconButton
+                        size="small"
+                        sx={{ color: "var(--lr-text-secondary)" }}
+                    >
                         <ShareRounded fontSize="small" />
                     </IconButton>
                 </Tooltip>
@@ -125,7 +129,10 @@ function Dashboard() {
                 >
                     Welcome to LR Portal, Philip 👋
                 </Typography>
-                <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)", mt: 0.5 }}>
+                <Typography
+                    variant="body2"
+                    sx={{ color: "var(--lr-text-secondary)", mt: 0.5 }}
+                >
                     Record your sale, manage and track statistics, access tools
                     and more.
                 </Typography>
@@ -146,7 +153,9 @@ function Dashboard() {
                             textTransform: "none",
                             backgroundColor: "var(--lr-primary)",
                             px: 2.5,
-                            ":hover": { backgroundColor: "var(--lr-primary-hover)" },
+                            ":hover": {
+                                backgroundColor: "var(--lr-primary-hover)",
+                            },
                         }}
                         startIcon={<NoteAddIcon />}
                         LinkComponent={Link}
@@ -163,7 +172,9 @@ function Dashboard() {
                             color: "var(--lr-text-body)",
                             borderColor: "var(--lr-outline)",
                             backgroundColor: "var(--lr-surface)",
-                            "& .MuiButton-startIcon": { color: "var(--lr-success-icon)" },
+                            "& .MuiButton-startIcon": {
+                                color: "var(--lr-success-icon)",
+                            },
                             ":hover": {
                                 borderColor: "var(--lr-outline)",
                                 backgroundColor: "var(--lr-surface-dim)",
