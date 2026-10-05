@@ -43,7 +43,7 @@ app/
 │   │           ├── ManagementController.php          │ inertia(...)
 │   │           ├── SettingsController.php            ┘
 │   │           ├── Reports/
-│   │           │   └── SaleController.php            ← create-sale pages; the app's only DB query
+│   │           │   └── SaleController.php            ← record-sale pages; the app's only DB query
 │   │           └── Statistics/
 │   │               ├── AgentStatistics.php           ┐ four EMPTY stubs (class body
 │   │               ├── DeveloperStatistics.php       │ is `//`); no routes point to
@@ -78,14 +78,14 @@ app/
 ```
 resources/js/
 ├── app.tsx                       ← Inertia entry point (17 lines, quoted in §3)
-├── app-data.tsx                  ← static config: `useAppRoutes` nav tree, create-sale steps,
+├── app-data.tsx                  ← static config: `useAppRoutes` nav tree, record-sale steps,
 │                                    property types, countries. Plain consts, despite `use` names.
 ├── Pages/                        ← Inertia page components; path mirrors the inertia('...') string
 │   ├── Admin/AdminDashboard.tsx
 │   ├── Home/Index.tsx            ← rendered by NO controller (dead page)
 │   ├── SuperAdmin/
 │   │   ├── Accounting/index.tsx  ← lowercase filename (lone exception; see §4)
-│   │   ├── Dashboard/{Index, CreateSale/{Index,Project,Rental,Brokerage},
+│   │   ├── Dashboard/{Index, RecordSale/{Index,Project,Rental,Brokerage},
 │   │   │              Overview/Index, Reports/{Index,Developer}}.tsx
 │   │   └── {Documentation,HumanResource,Inbox,Management,Settings}/Index.tsx
 │   └── User/
@@ -99,11 +99,11 @@ resources/js/
 │   ├── layouts/
 │   │   ├── AppLayout.tsx         ← base shell: AppNavbar + AppSidebar + children
 │   │   ├── DashboardLayout.tsx   ← wraps AppLayout; tab bar + 9.5/2.5 grid with right rail
-│   │   └── CreateSaleStepperLayout.tsx  ← misnamed: not a layout, it's the sale wizard component
+│   │   └── RecordSaleStepperLayout.tsx  ← misnamed: not a layout, it's the sale wizard component
 │   └── utils/
 │       ├── Styled{Button,TextField,TextFieldPrimary,Autocomplete}.tsx  ← MUI wrappers (§6)
-│       ├── AppBreadcrumbs.tsx, CreateSaleStepper.tsx,
-│       │   CreateProjectSaleStepperContent.tsx,
+│       ├── AppBreadcrumbs.tsx, RecordSaleStepper.tsx,
+│       │   RecordProjectSaleStepperContent.tsx,
 │       │   DashboardFilters.tsx (body commented out), DashboardLeaderboards.tsx
 │       ├── forms/                ← ClientForm, ProjectSaleForm, UploadPOTForm (§7.1)
 │       ├── tables/               ← TopAgentsTable.tsx (§7.2) — the only "table"
@@ -144,18 +144,18 @@ Concrete trace of the one route that carries real DB data:
 **1. Route** — `routes/superadmin/superadmin-dashboard.php:16` (inside `prefix('dashboard')`, itself inside `web.php:27`'s `prefix('superadmin')->middleware('role:superadmin')`, inside `middleware('auth')`):
 
 ```php
-Route::get('/project', [SaleController::class, 'createProject'])->name('superadmin.create-sale.project');
+Route::get('/project', [SaleController::class, 'recordProject'])->name('superadmin.record-sale.project');
 ```
-→ final URL `GET /superadmin/dashboard/create-sale/project`, middleware stack `web` (+ appended `HandleInertiaRequests`, `bootstrap/app.php:17-19`) → `auth` → `role:superadmin`.
+→ final URL `GET /superadmin/dashboard/record-sale/project`, middleware stack `web` (+ appended `HandleInertiaRequests`, `bootstrap/app.php:17-19`) → `auth` → `role:superadmin`.
 
 **2. Controller** — `app/Http/Controllers/Portal/SuperAdmin/Reports/SaleController.php:15-20`:
 
 ```php
-public function createProject()
+public function recordProject()
 {
     $developers = Developer::get();
 
-    return inertia('SuperAdmin/Dashboard/CreateSale/Project', ['developers' => $developers]);
+    return inertia('SuperAdmin/Dashboard/RecordSale/Project', ['developers' => $developers]);
 }
 ```
 
@@ -203,11 +203,11 @@ createInertiaApp({
 
 Notes: exact, case-sensitive string-key lookup (no `resolvePageComponent` from `laravel-vite-plugin/inertia-helpers`); `eager: true` bundles all 26 pages into one chunk (no code splitting); no `title` callback or `progress` config; the only wrapper is `AppProvider` — **no ThemeProvider/CssBaseline** (§6).
 
-**6. Page component** — `resources/js/Pages/SuperAdmin/Dashboard/CreateSale/Project.tsx`:
+**6. Page component** — `resources/js/Pages/SuperAdmin/Dashboard/RecordSale/Project.tsx`:
 
 ```tsx
 function Project({ developers }: { developers: SalesSource[] }) {
-    return ( /* ... */ <CreateSaleStepperLayout salesSources={developers} /> /* ... */ );
+    return ( /* ... */ <RecordSaleStepperLayout salesSources={developers} /> /* ... */ );
 }
 
 Project.layout = (page: ReactNode) => <DashboardLayout children={page} />;
@@ -231,10 +231,10 @@ Client-side navigation is Inertia `<Link href>` (e.g. `components/AppSidebar.tsx
 | Thing | Convention | Deviations |
 |---|---|---|
 | Controllers | `{Name}Controller`, namespaced `App\Http\Controllers\Portal\{Role}\...` | The 4 `Statistics/` stubs drop the suffix (`AgentStatistics` etc.) |
-| Methods | camelCase (`loginAttempt`, `createProject`, `viewSales`) | `UserController::CreateAccount()` is PascalCase (`UserController.php:33`); works only because PHP method names are case-insensitive — `web.php:15` calls it as `'createAccount'` |
+| Methods | camelCase (`loginAttempt`, `recordProject`, `viewSales`) | `UserController::CreateAccount()` is PascalCase (`UserController.php:33`); works only because PHP method names are case-insensitive — `web.php:15` calls it as `'createAccount'` |
 | Services | `{Name}Service` (`AuthUserService`) | sample size = 1; no interface, no container binding (autowired) |
 | Middleware | `{Name}Middleware` for custom (`RoleMiddleware`); scaffold keeps framework name | — |
-| Route names | dot-notation `{role}.{section}[.{sub}]` (`superadmin.create-sale.project`) | split style: `superadmin.accounting` (no suffix) vs `superadmin.inbox.index`; and `superadmin.index` is registered **twice** (§8.2 #5) |
+| Route names | dot-notation `{role}.{section}[.{sub}]` (`superadmin.record-sale.project`) | split style: `superadmin.accounting` (no suffix) vs `superadmin.inbox.index`; and `superadmin.index` is registered **twice** (§8.2 #5) |
 | Route files | `routes/{role}/{role}-{section}.php` | — |
 | Typing | middleware fully typed; **controller methods have no param/return types**; `AuthUserService` untyped | mixed |
 | Formatting | mixed Allman (`UserController.php:58-59`) and K&R (`RoleMiddleware.php:20`) braces; `AccountingController.php:11-16` has a method body outdented to column 0 | Pint is in `require-dev` but there is no `pint.json` and the code is not Pint-formatted |
@@ -288,7 +288,7 @@ public function handle(Request $request, Closure $next, $role): Response
 ### Business logic — one service + inline in controllers/models
 
 - `app/Services/AuthUserService.php` (the entire `Services/` folder): `createSession()` wraps `Auth::attempt` + session regenerate; `redirect()` computes the post-login landing. Used only by `UserController` (constructor injection, `UserController.php:13-16`).
-- Inline in controllers: the recruit-percentage arithmetic over **hardcoded constants** in `DashboardController::overview()` (`DashboardController.php:14-36`), and the unpaginated, unfiltered `Developer::get()` in `SaleController::createProject()` (`SaleController.php:17`) — the app's only Eloquent query. (`developers` is seeded with ~680 rows by the 713-line `database/seeders/DeveloperSeeder.php`, and its `status` column is never filtered.)
+- Inline in controllers: the recruit-percentage arithmetic over **hardcoded constants** in `DashboardController::overview()` (`DashboardController.php:14-36`), and the unpaginated, unfiltered `Developer::get()` in `SaleController::recordProject()` (`SaleController.php:17`) — the app's only Eloquent query. (`developers` is seeded with ~680 rows by the 713-line `database/seeders/DeveloperSeeder.php`, and its `status` column is never filtered.)
 - On models: `User::hasRole()/hasPermission()/permissions()` (`User.php:49-72`). Note `User::permissions()` returns a flattened `Collection`, not a relationship, and `User::role()` (`User.php:54-57`) is a `belongsTo` with **no backing `users.role_id` column** in any migration — dead code that would throw if called.
 
 **Known-broken logic worth flagging** — `AuthUserService::redirect()` (`AuthUserService.php:21-28`):
@@ -438,10 +438,9 @@ const handleLogout = () => router.post("/logout");
 | Pattern | Where | Submits? |
 |---|---|---|
 | Inertia `<Form action method>` render-prop | `Pages/User/Auth/Login.tsx:77`, `Register.tsx:234`, `Verify.tsx` | Login yes; Register posts to `/register-attempt`, **a route that does not exist** |
-| Inertia `useForm()` used only as state (`const { data, setData } = useForm(...)` — `post`/`errors` never touched) | `components/utils/forms/ClientForm.tsx:32`, `ProjectSaleForm.tsx:47` | Never — the Create Sale wizard's "Submit" button only increments the step (`components/layouts/CreateSaleStepperLayout.tsx:25-41`); no POST route exists for sales |
 | `useState` + native inputs + `window.location.href` | `Pages/User/Auth/Stepper/CreateAccount.tsx`, `CreatePassword.tsx` | Never — CreateAccount `console.log`s the data and hard-navigates to `/createpassword` (line 180), a URL that doesn't exist (`/create-password` does); CreatePassword `alert()`s and never sends the password |
 
-Even within the one wizard, adjacent steps use different stacks: `ClientForm`/`ProjectSaleForm` (`useForm`) vs `UploadPOTForm` (`useState`, `UploadPOTForm.tsx:26`), and each step's state is destroyed on unmount by the step `switch` (`components/utils/CreateProjectSaleStepperContent.tsx`) — nothing aggregates the wizard.
+Even within the one wizard, adjacent steps use different stacks: `ClientForm`/`ProjectSaleForm` (`useForm`) vs `UploadPOTForm` (`useState`, `UploadPOTForm.tsx:26`), and each step's state is destroyed on unmount by the step `switch` (`components/utils/RecordProjectSaleStepperContent.tsx`) — nothing aggregates the wizard.
 
 ### 8.2 Everything else
 
@@ -453,7 +452,7 @@ Even within the one wizard, adjacent steps use different stacks: `ClientForm`/`P
 6. **Page filename case:** `Pages/SuperAdmin/Accounting/index.tsx` + `inertia('SuperAdmin/Accounting/index')` vs `Index.tsx`/`'.../Index'` everywhere else; the exact-string glob lookup in `app.tsx:8` means renaming either side alone silently breaks the page.
 7. **Layout attachment, two syntaxes:** `Page.layout = (page) => <DashboardLayout children={page} />` (11 pages) vs `<AppLayout>{page}</AppLayout>` (4 pages, e.g. `Accounting/index.tsx:27`).
 8. **Export style:** default exports (components, hooks, pages) vs named exports (helpers, `AppProvider`); `function X(){} ... export default X;` (layout-bearing pages) vs `export default function X()` (auth pages, all components).
-9. **`use` prefix on non-hooks:** `useAppRoutes` / `useCreateSaleSteps` are plain arrays (`app-data.tsx:16,114`); `useHexToRGBA` is a pure function — beside real hooks `useBreadcrumbs`/`useSidebarRoutes`.
+9. **`use` prefix on non-hooks:** `useAppRoutes` / `useRecordSaleSteps` are plain arrays (`app-data.tsx:16,114`); `useHexToRGBA` is a pure function — beside real hooks `useBreadcrumbs`/`useSidebarRoutes`.
 10. **Two TextField wrappers + bare `<TextField>`** (three ways to render an input): `StyledTextField` (pill/grey, custom props) vs `StyledTextFieldPrimary` (square, passthrough, dead) vs direct MUI `TextField` in `Stepper1-4.tsx`/`CreatePassword.tsx`.
 11. **File extension noise:** `.tsx` for JSX-free modules (`app-data.tsx`, `helpers/truncateText.tsx`) next to `.ts` siblings; `interface User {name; email}` duplicated across 7 page files and colliding with the exported `User` in `components/utils/user/UserOnlineAvatar.tsx:12`; interface `ClientForm` (`types/app-data-types.ts:3`) collides with component `ClientForm.tsx`, forcing an import alias; `types/index.ts` ↔ `types/app-data-types.ts` import each other (circular, type-only).
 12. **PHP class naming:** 11 controllers carry the `Controller` suffix; the 4 `Statistics/` classes don't. `CreateAccount()` PascalCase method vs camelCase everywhere else.

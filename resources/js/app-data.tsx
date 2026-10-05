@@ -32,22 +32,22 @@ export const useAppRoutes = [
                 icon: StorageRounded,
             },
             {
-                name: "Create Sale",
-                path: "/superadmin/dashboard/create-sale",
+                name: "Record Your Sale",
+                path: "/superadmin/dashboard/record-sale",
                 children: [
                     {
                         name: "Project Sale",
-                        path: "/superadmin/dashboard/create-sale/project",
+                        path: "/superadmin/dashboard/record-sale/project",
                         children: [],
                     },
                     {
                         name: "Rental Sale",
-                        path: "/superadmin/dashboard/create-sale/rental",
+                        path: "/superadmin/dashboard/record-sale/rental",
                         children: [],
                     },
                     {
                         name: "Brokerage Sale",
-                        path: "/superadmin/dashboard/create-sale/brokerage",
+                        path: "/superadmin/dashboard/record-sale/brokerage",
                         children: [],
                     },
                 ],
@@ -111,7 +111,7 @@ export const useAppRoutes = [
     },
 ];
 
-export const useCreateSaleSteps = [
+export const useRecordSaleSteps = [
     "Client Details",
     "Property/Unit",
     "Upload POT",

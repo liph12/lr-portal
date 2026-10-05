@@ -1,5 +1,3 @@
-import { SalesSource } from "./app-data-types";
-
 export interface KeyValue {
     name: "string";
     value: "string";
@@ -10,25 +8,24 @@ export interface AutoCompleteValue {
     label: string;
 }
 
-export interface CreateSaleCompletedSteps {
-    clientDetails: boolean;
-    property: boolean;
-    uploadPOT: boolean;
+// Laravel keys nested errors by dot path (e.g. "files.0"), so errors are looked up by string.
+export type FormErrors = Partial<Record<string, string>>;
+
+export interface SaleStepProps<T> {
+    data: T;
+    setData: <K extends keyof T>(key: K, value: T[K]) => void;
+    errors: FormErrors;
 }
 
-export interface CreateSaleHandler {
-    salesSources: SalesSource[];
-    step: number;
-    handleChange?: (
-        e: React.ChangeEvent<HTMLInputElement> | null,
-        obj?: KeyValue | null
-    ) => void;
-    handleChangeAutocompleteContent?: (
-        e: React.ChangeEvent<HTMLInputElement>
-    ) => void;
-    // handleChangeAutocomplete: <K extends keyof AccountDetails>(
-    //     k: K,
-    //     s: AutoCompleteValue[],
-    //     v: AutoCompleteValue | null
-    //   ) => void;
+export interface AuthUser {
+    id: number;
+    name: string;
+    email: string;
+    role: string | null;
+}
+
+export interface SharedProps {
+    auth: AuthUser | null;
+    flash: { success: string | null };
+    [key: string]: unknown;
 }

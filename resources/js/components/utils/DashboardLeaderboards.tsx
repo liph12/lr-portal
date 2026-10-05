@@ -1,11 +1,10 @@
 import StyledButton from "./StyledButton";
 import {
-    ArrowDownwardRounded,
     LeaderboardRounded,
     ExpandMoreRounded,
     KeyboardArrowRightRounded,
 } from "@mui/icons-material";
-import { Box, Divider, IconButton, Typography } from "@mui/material";
+import { Box, Divider, Typography } from "@mui/material";
 import TopAgentsTable from "./tables/TopAgentsTable";
 
 interface LeaderRow {
@@ -55,17 +54,21 @@ function LeaderButton({ label, active, showTable }: LeaderRow) {
                 size="small"
                 variant="text"
                 sx={{
-                    borderRadius: 0,
+                    // flush-left, rounded right cap — mirrors the sidebar items
+                    borderTopRightRadius: 99,
+                    borderBottomRightRadius: 99,
+                    borderTopLeftRadius: 0,
+                    borderBottomLeftRadius: 0,
                     justifyContent: "flex-start",
                     textTransform: "none",
                     fontWeight: 500,
                     px: 2,
                     py: 1,
-                    color: active ? "#1a73e8" : "#3c4043",
-                    backgroundColor: active ? "#e8f0fe" : "transparent",
-                    "& svg": { color: active ? "#1a73e8" : "#5f6368" },
+                    color: active ? "var(--lr-primary)" : "var(--lr-text-body)",
+                    backgroundColor: active ? "var(--lr-primary-soft)" : "transparent",
+                    "& svg": { color: active ? "var(--lr-primary)" : "var(--lr-text-secondary)" },
                     ":hover": {
-                        backgroundColor: active ? "#e8f0fe" : "#f1f3f4",
+                        backgroundColor: active ? "var(--lr-primary-soft)" : "var(--lr-surface-container)",
                     },
                 }}
             >
@@ -78,7 +81,7 @@ function LeaderButton({ label, active, showTable }: LeaderRow) {
 
 export default function DashboardLeaderboards() {
     return (
-        <Box sx={{ height: "100%", backgroundColor: "#fff" }}>
+        <Box sx={{ height: "100%", backgroundColor: "var(--lr-surface)" }}>
             {/* Header */}
             <Box sx={{ pt: 1.5, pb: 1, px: 2 }}>
                 <StyledButton
@@ -90,60 +93,40 @@ export default function DashboardLeaderboards() {
                         textTransform: "none",
                         fontWeight: 500,
                         px: 2,
-                        color: "#1a73e8",
-                        backgroundColor: "#e8f0fe",
-                        "& svg": { color: "#1a73e8" },
-                        ":hover": { backgroundColor: "#e8f0fe" },
+                        color: "var(--lr-primary)",
+                        backgroundColor: "var(--lr-primary-soft)",
+                        "& svg": { color: "var(--lr-primary)" },
+                        ":hover": { backgroundColor: "var(--lr-primary-soft)" },
+                        cursor: "default",
                     }}
                 >
                     Leaderboards
                 </StyledButton>
             </Box>
-            <Divider sx={{ borderColor: "#e8eaed" }} />
+            <Divider sx={{ borderColor: "var(--lr-border)" }} />
 
-            {/* Scrollable list */}
-            <Box sx={{ position: "relative" }}>
-                <Box sx={{ overflowY: "auto" }}>
-                    {GROUPS.map((group) => (
-                        <Box key={group.period}>
-                            <Typography
-                                variant="caption"
-                                component="div"
-                                sx={{
-                                    pt: 2,
-                                    pb: 0.5,
-                                    px: 2,
-                                    color: "#5f6368",
-                                    fontWeight: 500,
-                                    letterSpacing: 0.3,
-                                }}
-                            >
-                                {group.period}
-                            </Typography>
-                            {group.rows.map((row) => (
-                                <LeaderButton key={row.label} {...row} />
-                            ))}
-                        </Box>
-                    ))}
-                </Box>
-
-                <IconButton
-                    size="small"
-                    sx={{
-                        position: "absolute",
-                        left: "50%",
-                        bottom: 10,
-                        transform: "translateX(-50%)",
-                        zIndex: 10,
-                        backgroundColor: "#fff",
-                        border: "1px solid #e8eaed",
-                        color: "#1a73e8",
-                        boxShadow: "0 1px 3px rgba(60,64,67,.15)",
-                        ":hover": { backgroundColor: "#f1f3f4" },
-                    }}
-                >
-                    <ArrowDownwardRounded fontSize="small" />
-                </IconButton>
+            <Box sx={{ pr: 1.5, pb: 2 }}>
+                {GROUPS.map((group) => (
+                    <Box key={group.period}>
+                        <Typography
+                            variant="caption"
+                            component="div"
+                            sx={{
+                                pt: 2,
+                                pb: 0.5,
+                                px: 2,
+                                color: "var(--lr-text-secondary)",
+                                fontWeight: 500,
+                                letterSpacing: 0.3,
+                            }}
+                        >
+                            {group.period}
+                        </Typography>
+                        {group.rows.map((row) => (
+                            <LeaderButton key={row.label} {...row} />
+                        ))}
+                    </Box>
+                ))}
             </Box>
         </Box>
     );

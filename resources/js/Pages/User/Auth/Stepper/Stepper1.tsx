@@ -12,19 +12,21 @@ export default function Stepper1({ formData, handleChange }: Stepper1Props) {
                 width: "100%",
                 maxWidth: 1150,
                 mx: "auto",
-                mt: 4,
+                mt: { xs: 2, md: 4 },
                 display: "grid",
-                gap: 5,
+                gap: { xs: 3, md: 5 },
+                // minmax(0, …) lets tracks shrink below their content so nothing forces horizontal scroll
                 gridTemplateColumns: {
-                    xs: "1fr",
-                    md: "repeat(3, 1fr)",
+                    xs: "minmax(0, 1fr)",
+                    sm: "repeat(2, minmax(0, 1fr))",
+                    md: "repeat(3, minmax(0, 1fr))",
                 },
             }}
         >
             {/* FIRST NAME */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    First Name <span style={{ color: "#d32f2f" }}>*</span>
+                    First Name <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="firstName"
@@ -39,7 +41,7 @@ export default function Stepper1({ formData, handleChange }: Stepper1Props) {
             {/* Middle Name */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    Middle Name <span style={{ color: "#d32f2f" }}>*</span>
+                    Middle Name <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="middleName"
@@ -54,7 +56,7 @@ export default function Stepper1({ formData, handleChange }: Stepper1Props) {
             {/* LAST NAME */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    Last Name <span style={{ color: "#d32f2f" }}>*</span>
+                    Last Name <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="lastName"
@@ -69,7 +71,7 @@ export default function Stepper1({ formData, handleChange }: Stepper1Props) {
             {/* SEX */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    Sex <span style={{ color: "#d32f2f" }}>*</span>
+                    Sex <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="sex"
@@ -88,7 +90,7 @@ export default function Stepper1({ formData, handleChange }: Stepper1Props) {
             {/* DATE OF BIRTH */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    Date of Birth <span style={{ color: "#d32f2f" }}>*</span>
+                    Date of Birth <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="birthDate"
@@ -103,7 +105,7 @@ export default function Stepper1({ formData, handleChange }: Stepper1Props) {
             {/* MARITAL STATUS */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    Marital Status <span style={{ color: "#d32f2f" }}>*</span>
+                    Marital Status <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="status"
@@ -122,7 +124,7 @@ export default function Stepper1({ formData, handleChange }: Stepper1Props) {
             {/* CITIZENSHIP */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    Citizenship <span style={{ color: "#d32f2f" }}>*</span>
+                    Citizenship <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="citizenship"

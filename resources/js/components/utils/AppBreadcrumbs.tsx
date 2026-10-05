@@ -11,7 +11,7 @@ export default function AppBreadcrumbs() {
             sx={{
                 fontSize: 13,
                 "& .MuiBreadcrumbs-separator": {
-                    color: "#5f6368",
+                    color: "var(--lr-text-secondary)",
                 },
             }}
         >
@@ -21,7 +21,7 @@ export default function AppBreadcrumbs() {
                 return isLast ? (
                     <Typography
                         key={crumb.path}
-                        sx={{ fontSize: 13, color: "#202124", fontWeight: 500 }}
+                        sx={{ fontSize: 13, color: "var(--lr-text-primary)", fontWeight: 500 }}
                     >
                         {crumb.name}
                     </Typography>
@@ -34,7 +34,7 @@ export default function AppBreadcrumbs() {
                         <Typography
                             sx={{
                                 fontSize: 13,
-                                color: "#1a73e8",
+                                color: "var(--lr-primary)",
                                 ":hover": { textDecoration: "underline" },
                             }}
                         >

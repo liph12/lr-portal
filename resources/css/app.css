@@ -10,3 +10,76 @@
         "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
         "Noto Color Emoji";
 }
+
+/* App color tokens. Light values are the original Google-style palette; .dark is set on <html>
+   by the inline script in app.blade.php (before paint) and kept in sync by MUI's ThemeProvider. */
+:root {
+    color-scheme: light;
+    --lr-text-primary: #202124;
+    --lr-text-body: #3c4043;
+    --lr-text-secondary: #5f6368;
+    --lr-surface: #ffffff;
+    --lr-surface-dim: #f8f9fa;
+    --lr-surface-container: #f1f3f4;
+    --lr-surface-hover: #eceff1;
+    --lr-border: #e8eaed;
+    --lr-outline: #dadce0;
+    --lr-primary: #1a73e8;
+    --lr-primary-hover: #1765cc;
+    --lr-on-primary: #ffffff;
+    --lr-primary-soft: #e8f0fe;
+    --lr-primary-soft-strong: #d2e3fc;
+    --lr-primary-soft-hover: #f8fbff;
+    --lr-error: #d93025;
+    --lr-error-strong: #c5221f;
+    --lr-error-soft: #fce8e6;
+    --lr-success: #137333;
+    --lr-success-icon: #1e8e3e;
+    --lr-success-soft: #e6f4ea;
+    --lr-warning: #b06000;
+    --lr-warning-soft: #fef7e0;
+    --lr-glass: rgba(255, 255, 255, 0.85);
+    --lr-glass-border: rgba(255, 255, 255, 0.7);
+    --lr-auth-bg: url(/assets/background.png);
+}
+
+.dark {
+    color-scheme: dark;
+    --lr-text-primary: #e8eaed;
+    --lr-text-body: #dadce0;
+    --lr-text-secondary: #9aa0a6;
+    --lr-surface: #1f1f1f;
+    --lr-surface-dim: #181818;
+    --lr-surface-container: #2d2e30;
+    --lr-surface-hover: #303134;
+    --lr-border: #3c4043;
+    --lr-outline: #5f6368;
+    --lr-primary: #a8c7fa;
+    --lr-primary-hover: #c2d7fb;
+    --lr-on-primary: #062e6f;
+    --lr-primary-soft: #1f3760;
+    --lr-primary-soft-strong: #004a77;
+    --lr-primary-soft-hover: #253b5c;
+    --lr-error: #f28b82;
+    --lr-error-strong: #f28b82;
+    --lr-error-soft: #3c1f1e;
+    --lr-success: #81c995;
+    --lr-success-icon: #81c995;
+    --lr-success-soft: #1e3a2a;
+    --lr-warning: #fdd663;
+    --lr-warning-soft: #3d3420;
+    --lr-glass: rgba(31, 31, 31, 0.88);
+    --lr-glass-border: rgba(255, 255, 255, 0.08);
+    --lr-auth-bg: linear-gradient(rgba(19, 19, 20, 0.82), rgba(19, 19, 20, 0.82)), url(/assets/background.png);
+}
+
+body {
+    background-color: var(--lr-surface);
+    color: var(--lr-text-primary);
+}
+
+/* Pairs of images (e.g. the logo) where each scheme needs its own asset. */
+.dark .lr-light-only,
+html:not(.dark) .lr-dark-only {
+    display: none !important;
+}

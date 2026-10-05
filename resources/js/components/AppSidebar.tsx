@@ -2,6 +2,7 @@ import { Box, Divider, Typography } from "@mui/material";
 import { Link } from "@inertiajs/react";
 import useSidebarRoutes from "../hooks/useSidebarRoutes";
 import UserOnlineAvatar from "./utils/user/UserOnlineAvatar";
+import SidebarProfile from "./utils/user/SidebarProfile";
 import { User } from "./utils/user/UserOnlineAvatar";
 
 const users: User[] = [
@@ -32,8 +33,8 @@ export default function AppSidebar() {
                 width: 270,
                 flexShrink: 0,
                 height: "100%",
-                backgroundColor: "#f8f9fa",
-                borderRight: "1px solid #e8eaed",
+                backgroundColor: "var(--lr-surface-dim)",
+                borderRight: "1px solid var(--lr-border)",
                 display: "flex",
                 flexDirection: "column",
                 overflowY: "auto",
@@ -41,6 +42,8 @@ export default function AppSidebar() {
                 scrollBehavior: "smooth",
             }}
         >
+            <SidebarProfile />
+
             {/* Menu */}
             <Box sx={{ py: 2, pr: 1.5 }}>
                 {routes.map((r, k) => {
@@ -52,7 +55,7 @@ export default function AppSidebar() {
                             {ADMINISTRATOR_GROUP && (
                                 <Typography
                                     sx={{
-                                        color: "#5f6368",
+                                        color: "var(--lr-text-secondary)",
                                         px: 3,
                                         mt: 1,
                                         mb: 1,
@@ -68,7 +71,7 @@ export default function AppSidebar() {
                             {STAFF_GROUP && (
                                 <Typography
                                     sx={{
-                                        color: "#5f6368",
+                                        color: "var(--lr-text-secondary)",
                                         px: 3,
                                         mt: 2,
                                         mb: 1,
@@ -96,24 +99,24 @@ export default function AppSidebar() {
                                         // flush-left, rounded right cap
                                         borderTopRightRadius: 99,
                                         borderBottomRightRadius: 99,
-                                        color: r.active ? "#1a73e8" : "#3c4043",
+                                        color: r.active ? "var(--lr-primary)" : "var(--lr-text-body)",
                                         backgroundColor: r.active
-                                            ? "#d2e3fc"
+                                            ? "var(--lr-primary-soft-strong)"
                                             : "transparent",
                                         fontWeight: 500,
                                         transition: "0.15s",
                                         ":hover": {
                                             backgroundColor: r.active
-                                                ? "#d2e3fc"
-                                                : "#eceff1",
+                                                ? "var(--lr-primary-soft-strong)"
+                                                : "var(--lr-surface-hover)",
                                         },
                                         display: "flex",
                                         alignItems: "center",
                                         gap: 2,
                                         "& svg": {
                                             color: r.active
-                                                ? "#1a73e8"
-                                                : "#5f6368",
+                                                ? "var(--lr-primary)"
+                                                : "var(--lr-text-secondary)",
                                         },
                                     }}
                                     component="div"
@@ -129,11 +132,11 @@ export default function AppSidebar() {
 
             {/* Online users — flows right after the routes */}
             <Box sx={{ pr: 1.5, pb: 2 }}>
-                <Divider sx={{ my: 1, borderColor: "#e8eaed", ml: 3 }} />
+                <Divider sx={{ my: 1, borderColor: "var(--lr-border)", ml: 3 }} />
 
                 <Typography
                     sx={{
-                        color: "#5f6368",
+                        color: "var(--lr-text-secondary)",
                         px: 3,
                         mb: 1,
                         fontWeight: 500,

@@ -45,8 +45,8 @@ class DashboardController extends Controller
         return inertia('SuperAdmin/Dashboard/Reports/Developer');
     }
 
-    public function createSale()
+    public function recordSale()
     {
-        return inertia('SuperAdmin/Dashboard/CreateSale/Index');
+        return inertia('SuperAdmin/Dashboard/RecordSale/Index');
     }
 }

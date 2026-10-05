@@ -4,7 +4,7 @@ import { useHexToRGBA } from "../../helpers/hexToRgba";
 
 export default function DashboardCard() {
     return (
-        <Box sx={{ p: 2, borderRadius: 5, border: "1px solid #ddd" }}>
+        <Box sx={{ p: 2, borderRadius: 5, border: "1px solid var(--lr-border)" }}>
             <Box
                 sx={{
                     backgroundColor: useHexToRGBA("#db5858", 0.1),

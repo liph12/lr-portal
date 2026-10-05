@@ -12,12 +12,14 @@ export default function Stepper2({ formData, handleChange }: Stepper2Props) {
                 width: "100%",
                 maxWidth: 1150,
                 mx: "auto",
-                mt: 4,
+                mt: { xs: 2, md: 4 },
                 display: "grid",
-                gap: 5,
+                gap: { xs: 3, md: 5 },
+                // minmax(0, …) lets tracks shrink below their content so nothing forces horizontal scroll
                 gridTemplateColumns: {
-                    xs: "1fr",
-                    md: "repeat(3, 1fr)",
+                    xs: "minmax(0, 1fr)",
+                    sm: "repeat(2, minmax(0, 1fr))",
+                    md: "repeat(3, minmax(0, 1fr))",
                 },
             }}
         >
@@ -38,7 +40,7 @@ export default function Stepper2({ formData, handleChange }: Stepper2Props) {
             {/* MOBILE NUMBER */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    Mobile Number <span style={{ color: "#d32f2f" }}>*</span>
+                    Mobile Number <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="mobileNumber"
@@ -53,7 +55,7 @@ export default function Stepper2({ formData, handleChange }: Stepper2Props) {
             {/* EMAIL */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    Email <span style={{ color: "#d32f2f" }}>*</span>
+                    Email <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="email"
@@ -82,7 +84,7 @@ export default function Stepper2({ formData, handleChange }: Stepper2Props) {
             {/* FACEBOOK LINK */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    Facebook Link <span style={{ color: "#d32f2f" }}>*</span>
+                    Facebook Link <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="facebook"

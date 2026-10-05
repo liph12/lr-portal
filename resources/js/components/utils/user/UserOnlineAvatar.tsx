@@ -51,14 +51,14 @@ export default function UserOnlineAvatar({
                                         width: 8,
                                         backgroundColor: "rgb(78, 210, 94)",
                                         borderRadius: "50%",
-                                        border: "1px solid #222",
+                                        border: "1px solid var(--lr-text-primary)",
                                     }}
                                 />
                             ) : (
                                 <Box
                                     sx={{
                                         px: 0.3,
-                                        backgroundColor: "#222",
+                                        backgroundColor: "var(--lr-text-primary)",
                                         borderRadius: 1,
                                     }}
                                 >
@@ -79,7 +79,7 @@ export default function UserOnlineAvatar({
                         src={avatar}
                         alt="Anthony Gerard Leuterio"
                         sx={{
-                            backgroundColor: "#414141",
+                            backgroundColor: "var(--lr-text-secondary)",
                             height: 30,
                             width: 30,
                             fontSize: 12,
@@ -90,14 +90,14 @@ export default function UserOnlineAvatar({
                     <Typography
                         variant="body2"
                         fontSize={12}
-                        sx={{ color: "#494949" }}
+                        sx={{ color: "var(--lr-text-body)" }}
                     >
                         {name}
                     </Typography>
                     <Typography
                         variant="caption"
                         fontFamily="Google Sans Code"
-                        sx={{ color: "#727272", fontSize: 10 }}
+                        sx={{ color: "var(--lr-text-secondary)", fontSize: 10 }}
                     >
                         {role}
                     </Typography>

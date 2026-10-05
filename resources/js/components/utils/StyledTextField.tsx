@@ -29,18 +29,18 @@ export default function StyledTextField({
                 sx={{
                     display: "flex",
                     borderRadius: 2,
-                    backgroundColor: "#f1f3f4",
+                    backgroundColor: "var(--lr-surface-container)",
                     border: error
-                        ? "1px solid #d93025"
+                        ? "1px solid var(--lr-error)"
                         : "1px solid transparent",
                     transition:
                         "background-color 0.15s, border-color 0.15s, box-shadow 0.15s",
                     ":hover": {
-                        backgroundColor: error ? "#f1f3f4" : "#e8eaed",
+                        backgroundColor: error ? "var(--lr-surface-container)" : "var(--lr-surface-hover)",
                     },
                     ":focus-within": {
-                        backgroundColor: "#fff",
-                        borderColor: error ? "#d93025" : "#1a73e8",
+                        backgroundColor: "var(--lr-surface)",
+                        borderColor: error ? "var(--lr-error)" : "var(--lr-primary)",
                         boxShadow: error
                             ? "0 0 0 2px rgba(217,48,37,.15)"
                             : "0 0 0 2px rgba(26,115,232,.15)",
@@ -65,10 +65,10 @@ export default function StyledTextField({
                                 border: "none",
                             },
                             "& .MuiInputBase-input": {
-                                color: "#202124",
+                                color: "var(--lr-text-primary)",
                                 fontSize: 14,
                                 "&::placeholder": {
-                                    color: "#5f6368",
+                                    color: "var(--lr-text-secondary)",
                                     opacity: 1,
                                 },
                             },
@@ -80,7 +80,7 @@ export default function StyledTextField({
                 <Typography
                     variant="caption"
                     component="div"
-                    sx={{ color: "#d93025", mt: 0.5, ml: 0.5 }}
+                    sx={{ color: "var(--lr-error)", mt: 0.5, ml: 0.5 }}
                 >
                     {error}
                 </Typography>

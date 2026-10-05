@@ -1,103 +1,84 @@
-import StyledTextField from "../StyledTextField";
+import { ChangeEvent } from "react";
 import { Grid, FormHelperText } from "@mui/material";
-import { ClientForm as ClientFormTypes } from "../../../types/app-data-types";
-import { AutoCompleteValue, CreateSaleHandler } from "../../../types";
+import StyledTextField from "../StyledTextField";
 import StyledAutocomplete from "../StyledAutocomplete";
+import { ClientFields } from "../../../types/app-data-types";
+import { SaleStepProps } from "../../../types";
 import { countries } from "../../../app-data";
-import { useForm } from "@inertiajs/react";
 
 const labelSx = {
-    color: "#5f6368",
+    color: "var(--lr-text-secondary)",
     fontWeight: 500,
     mb: 0.5,
     ml: 0.5,
 };
 
-// Plain text fields that share the same change handler
+const GENDERS = [
+    { id: 1, label: "Male" },
+    { id: 2, label: "Female" },
+];
+
 const TEXT_FIELDS: {
-    name: keyof ClientFormTypes;
+    name: keyof ClientFields;
     label: string;
     type?: string;
-    size?: number;
+    required?: boolean;
 }[] = [
-    { name: "client_firstname", label: "Client Firstname" },
-    { name: "client_middlename", label: "Client Middlename" },
-    { name: "client_lastname", label: "Client Lastname" },
-    { name: "client_email", label: "Client Email" },
-    { name: "client_mobile", label: "Client Mobile" },
+    { name: "client_firstname", label: "Client First Name", required: true },
+    { name: "client_middlename", label: "Client Middle Name" },
+    { name: "client_lastname", label: "Client Last Name", required: true },
+    { name: "client_email", label: "Client Email", type: "email" },
+    { name: "client_mobile", label: "Client Mobile", type: "tel", required: true },
     { name: "client_birthdate", label: "Client Birthdate", type: "date" },
 ];
 
-export default function ClientForm({ salesSources }: CreateSaleHandler) {
-    const { data, setData } = useForm<ClientFormTypes>({
-        client_firstname: "",
-        client_middlename: "",
-        client_lastname: "",
-        client_email: "",
-        client_mobile: "",
-        client_birthdate: "",
-        client_gender: {
-            id: 1,
-            label: "Male",
-        },
-        client_country: {
-            id: "PH",
-            label: "Philippines",
-        },
-        client_address: "",
-    });
+function Label({ text, required }: { text: string; required?: boolean }) {
+    return (
+        <FormHelperText sx={labelSx}>
+            {text}
+            {required && <span style={{ color: "var(--lr-error)" }}> *</span>}
+        </FormHelperText>
+    );
+}
 
-    const handleChangeTextField = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const key = e.target.name as keyof ClientFormTypes;
-        setData(key, e.target.value);
-    };
-
-    const handleChangeGender = (v: AutoCompleteValue) =>
-        setData("client_gender", v);
-
-    const handleChangeCountry = (v: AutoCompleteValue) =>
-        setData("client_country", v);
+export default function ClientForm({ data, setData, errors }: SaleStepProps<ClientFields>) {
+    const handleChangeTextField = (e: ChangeEvent<HTMLInputElement>) =>
+        setData(e.target.name as keyof ClientFields, e.target.value as never);
 
     return (
         <Grid container spacing={2}>
             {TEXT_FIELDS.map((field) => (
                 <Grid key={field.name} size={{ lg: 3, md: 6, xs: 12 }}>
-                    <FormHelperText sx={labelSx}>{field.label}</FormHelperText>
+                    <Label text={field.label} required={field.required} />
                     <StyledTextField
                         type={field.type}
                         name={field.name}
                         value={data[field.name] as string}
+                        error={errors[field.name] ?? null}
                         handleChange={handleChangeTextField}
                     />
                 </Grid>
             ))}
 
             <Grid size={{ lg: 3, md: 6, xs: 12 }}>
-                <FormHelperText sx={labelSx}>Client Gender</FormHelperText>
+                <Label text="Client Gender" />
                 <StyledAutocomplete
-                    options={[
-                        { id: 1, label: "Male" },
-                        { id: 2, label: "Female" },
-                    ]}
+                    options={GENDERS}
                     value={data.client_gender}
                     renderInput={(params) => (
                         <StyledTextField
                             params={params}
                             name="client_gender"
-                            value={data.client_gender?.label ?? null}
+                            error={errors.client_gender ?? null}
                         />
                     )}
-                    onChange={(_, v) => {
-                        if (v) handleChangeGender(v);
-                    }}
-                    isOptionEqualToValue={(option, value) =>
-                        value === undefined || option.id === value.id
-                    }
+                    onChange={(_, v) => setData("client_gender", v)}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
                 />
             </Grid>
 
             <Grid size={{ lg: 3, md: 6, xs: 12 }}>
-                <FormHelperText sx={labelSx}>Client Country</FormHelperText>
+                <Label text="Client Country" required />
                 <StyledAutocomplete
                     options={countries}
                     value={data.client_country}
@@ -105,28 +86,22 @@ export default function ClientForm({ salesSources }: CreateSaleHandler) {
                         <StyledTextField
                             params={params}
                             name="client_country"
-                            value={data.client_country?.label ?? null}
+                            error={errors.client_country ?? null}
                         />
                     )}
-                    onChange={(_, v) => {
-                        if (v) handleChangeCountry(v);
-                    }}
-                    isOptionEqualToValue={(option, value) =>
-                        value === undefined || option.id === value.id
-                    }
+                    onChange={(_, v) => setData("client_country", v)}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
                 />
             </Grid>
 
             <Grid size={{ lg: 6, md: 6, xs: 12 }}>
-                <FormHelperText sx={labelSx}>Client Address</FormHelperText>
+                <Label text="Client Address" />
                 <StyledTextField
                     name="client_address"
                     value={data.client_address}
+                    error={errors.client_address ?? null}
                     handleChange={handleChangeTextField}
-                    props={{
-                        multiline: true,
-                        rows: 3,
-                    }}
+                    props={{ multiline: true, rows: 3 }}
                 />
             </Grid>
         </Grid>

@@ -1,24 +1,11 @@
-import {
-    createContext,
-    useContext,
-    ReactNode,
-    useState,
-    useEffect,
-} from "react";
+import { createContext, useContext, ReactNode } from "react";
 import { useMediaQuery } from "@mui/material";
-import { ThemeProvider, createTheme, useTheme } from "@mui/material/styles";
-import { CreateSaleCompletedSteps } from "../types";
+import { ThemeProvider, useTheme } from "@mui/material/styles";
+import { appTheme } from "./appTheme";
 import "../../css/app.css";
 
 interface AppContextType {
     desktop: boolean;
-    createSaleCompletedSteps: CreateSaleCompletedSteps;
-    handleUpdateCreateSaleCompletedSteps: <
-        K extends keyof CreateSaleCompletedSteps
-    >(
-        completed: boolean,
-        key: K
-    ) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -26,34 +13,19 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const AppProvider = ({ children }: { children: ReactNode }) => {
     const theme = useTheme();
     const desktop = useMediaQuery(theme.breakpoints.up("lg"));
-    const [createSaleCompletedSteps, setCreateSaleCompletedSteps] =
-        useState<CreateSaleCompletedSteps>({
-            clientDetails: false,
-            property: false,
-            uploadPOT: false,
-        });
-
-    const handleUpdateCreateSaleCompletedSteps = <
-        K extends keyof CreateSaleCompletedSteps
-    >(
-        completed: boolean,
-        key: K
-    ) => {
-        setCreateSaleCompletedSteps((prevState) => ({
-            ...prevState,
-            [key]: completed,
-        }));
-    };
 
     return (
         <AppContext.Provider
-            value={{
-                desktop,
-                createSaleCompletedSteps,
-                handleUpdateCreateSaleCompletedSteps,
-            }}
+            value={{ desktop }}
         >
-            {children}
+            <ThemeProvider
+                theme={appTheme}
+                defaultMode="light"
+                modeStorageKey="lr-theme-mode"
+                disableTransitionOnChange
+            >
+                {children}
+            </ThemeProvider>
         </AppContext.Provider>
     );
 };

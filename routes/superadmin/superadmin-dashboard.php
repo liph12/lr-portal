@@ -10,11 +10,12 @@ Route::prefix('dashboard')->group(function(){
     Route::get('/overview', [DashboardController::class, 'overview'])->name('superadmin.overview');
     Route::get('/view-sales', [DashboardController::class, 'viewSales'])->name('superadmin.view-sales');
     Route::get('/view-sales/developer', [DashboardController::class, 'developerSales'])->name('superadmin.view-sales.developer');
-    Route::get('/create-sale', [DashboardController::class, 'createSale'])->name('superadmin.create-sale');
+    Route::get('/record-sale', [DashboardController::class, 'recordSale'])->name('superadmin.record-sale');
 
-    Route::prefix('create-sale')->group(function(){
-        Route::get('/project', [SaleController::class, 'createProject'])->name('superadmin.create-sale.project');
-        Route::get('/rental', [SaleController::class, 'createRental'])->name('superadmin.create-sale.rental');
-        Route::get('/brokerage', [SaleController::class, 'createBrokerage'])->name('superadmin.create-sale.brokerage');
+    Route::prefix('record-sale')->group(function(){
+        Route::get('/project', [SaleController::class, 'recordProject'])->name('superadmin.record-sale.project');
+        Route::post('/project', [SaleController::class, 'storeProject'])->name('superadmin.record-sale.project.store');
+        Route::get('/rental', [SaleController::class, 'recordRental'])->name('superadmin.record-sale.rental');
+        Route::get('/brokerage', [SaleController::class, 'recordBrokerage'])->name('superadmin.record-sale.brokerage');
     });
 });

@@ -13,19 +13,21 @@ export default function Stepper3({ formData, handleChange }: Stepper3Props) {
                 width: "100%",
                 maxWidth: 1150,
                 mx: "auto",
-                mt: 4,
+                mt: { xs: 2, md: 4 },
                 display: "grid",
-                gap: 5,
+                gap: { xs: 3, md: 5 },
+                // minmax(0, …) lets tracks shrink below their content so nothing forces horizontal scroll
                 gridTemplateColumns: {
-                    xs: "1fr",
-                    md: "repeat(3, 1fr)",
+                    xs: "minmax(0, 1fr)",
+                    sm: "repeat(2, minmax(0, 1fr))",
+                    md: "repeat(3, minmax(0, 1fr))",
                 },
             }}
         >
             {/* COUNTRY */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    Country <span style={{ color: "#d32f2f" }}>*</span>
+                    Country <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="country"
@@ -45,7 +47,7 @@ export default function Stepper3({ formData, handleChange }: Stepper3Props) {
             {/* PROVINCE */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    Province <span style={{ color: "#d32f2f" }}>*</span>
+                    Province <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="province"
@@ -60,7 +62,7 @@ export default function Stepper3({ formData, handleChange }: Stepper3Props) {
             {/* CITY */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    City <span style={{ color: "#d32f2f" }}>*</span>
+                    City <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="city"
@@ -75,7 +77,7 @@ export default function Stepper3({ formData, handleChange }: Stepper3Props) {
             {/* BARANGAY */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    Barangay <span style={{ color: "#d32f2f" }}>*</span>
+                    Barangay <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="barangay"
@@ -90,7 +92,7 @@ export default function Stepper3({ formData, handleChange }: Stepper3Props) {
             {/* POSTAL CODE */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    Postal Code <span style={{ color: "#d32f2f" }}>*</span>
+                    Postal Code <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="postalCode"
@@ -105,7 +107,7 @@ export default function Stepper3({ formData, handleChange }: Stepper3Props) {
             {/* ADDRESS */}
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    Address <span style={{ color: "#d32f2f" }}>*</span>
+                    Address <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     name="address"

@@ -194,7 +194,7 @@ export default function Stepper4({ formData, handleChange }: Stepper4Props) {
     ) => (
         <Box>
             <Typography mb={1} fontSize={16}>
-                {label} <span style={{ color: "#d32f2f" }}>*</span>
+                {label} <span style={{ color: "var(--lr-error)" }}>*</span>
             </Typography>
 
             <Autocomplete
@@ -230,10 +230,15 @@ export default function Stepper4({ formData, handleChange }: Stepper4Props) {
                 width: "100%",
                 maxWidth: 1150,
                 mx: "auto",
-                mt: 4,
+                mt: { xs: 2, md: 4 },
                 display: "grid",
-                gap: 5,
-                gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+                gap: { xs: 3, md: 5 },
+                // minmax(0, …) stops long chip labels (degree names) from widening the track past the viewport
+                gridTemplateColumns: {
+                    xs: "minmax(0, 1fr)",
+                    sm: "repeat(2, minmax(0, 1fr))",
+                    md: "repeat(3, minmax(0, 1fr))",
+                },
                 alignItems: "start",
                 gridAutoRows: "auto",
             }}
@@ -244,7 +249,7 @@ export default function Stepper4({ formData, handleChange }: Stepper4Props) {
 
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    School / College <span style={{ color: "#d32f2f" }}>*</span>
+                    School / College <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     fullWidth
@@ -255,7 +260,7 @@ export default function Stepper4({ formData, handleChange }: Stepper4Props) {
 
             <Box>
                 <Typography mb={1} fontSize={16}>
-                    Skills <span style={{ color: "#d32f2f" }}>*</span>
+                    Skills <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     fullWidth
@@ -293,7 +298,7 @@ export default function Stepper4({ formData, handleChange }: Stepper4Props) {
             <Box>
                 <Typography mb={1} fontSize={16}>
                     Contact & References{" "}
-                    <span style={{ color: "#d32f2f" }}>*</span>
+                    <span style={{ color: "var(--lr-error)" }}>*</span>
                 </Typography>
                 <TextField
                     fullWidth

@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
 
+import AppLogo from "../../../../components/utils/AppLogo";
 import StyledButton from "../../../../components/utils/StyledButton";
 import Stepper1 from "./Stepper1";
 import Stepper2 from "./Stepper2";
@@ -71,7 +72,7 @@ function CustomStepIcon(props: StepIconProps) {
         <motion.div
             animate={{
                 scale: active ? 1.3 : 1,
-                backgroundColor: active ? "#d32f2f" : "#c4c4c4",
+                backgroundColor: active ? "#d32f2f" : "var(--lr-outline)",
             }}
             transition={{ duration: 0.3 }}
             style={{
@@ -201,104 +202,149 @@ export default function CreateAccount() {
     return (
         <Box
             sx={{
-                minHeight: "100vh",
-                backgroundImage: "url(/assets/background.png)",
+                height: "100vh",
+                "@supports (height: 100dvh)": { height: "100dvh" },
+                // Self-scrolling: outside AppLayout, and html/body may be overflow-locked
+                overflowY: "auto",
+                backgroundImage: "var(--lr-auth-bg)",
                 backgroundSize: "cover",
                 backgroundPosition: "center",
-                display: "flex",
-                justifyContent: "center",
-                position: "relative",
-                px: 3,
-                py: 8, // ✅ vertical spacing
-                overflowY: "auto", // ✅ allow scrolling
-                alignItems: "flex-start", // ✅ prevent collapsing
             }}
         >
-            {/* Logo */}
             <Box
-                component="img"
-                src="/assets/lr-logo.svg"
-                alt="LR Logo"
-                sx={{ position: "absolute", top: 30, left: 40, width: 140 }}
-            />
-
-            {/* Sign in link */}
-            <Box sx={{ position: "absolute", top: 30, right: 40 }}>
-                <Typography fontSize={15} fontWeight={500}>
-                    Already have an account?{" "}
-                    <Link
-                        href="/login"
+                sx={{
+                    minHeight: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    position: "relative",
+                    px: { xs: 2, sm: 3 },
+                    py: { xs: 2, md: 8 },
+                }}
+            >
+                {/* Logo + sign in link — in flow below md so they can't collide with each other or the title */}
+                <Box
+                    sx={{
+                        position: { xs: "static", md: "absolute" },
+                        top: { md: 30 },
+                        left: { md: 40 },
+                        right: { md: 40 },
+                        width: { xs: "100%", md: "auto" },
+                        display: "flex",
+                        flexWrap: "wrap",
+                        alignItems: { xs: "center", md: "flex-start" },
+                        justifyContent: "space-between",
+                        columnGap: 2,
+                        rowGap: 1,
+                    }}
+                >
+                    <AppLogo
                         sx={{
-                            color: "#d32f2f",
-                            textDecoration: "none",
-                            fontWeight: 600,
+                            width: { xs: 96, sm: 120, md: 140 },
+                            height: "auto",
                         }}
-                    >
-                        Sign in
-                    </Link>
-                </Typography>
-            </Box>
+                    />
 
-            <Box sx={{ width: "100%", maxWidth: 1200 }}>
-                {/* Title */}
-                <Box textAlign="center" mt={4} mb={4}>
-                    <Typography fontSize={36} fontWeight={500}>
-                        Create Account
+                    <Typography
+                        fontWeight={500}
+                        sx={{ fontSize: { xs: 14, sm: 15 } }}
+                    >
+                        Already have an account?{" "}
+                        <Link
+                            href="/login"
+                            sx={{
+                                color: "var(--lr-error)",
+                                textDecoration: "none",
+                                fontWeight: 600,
+                            }}
+                        >
+                            Sign in
+                        </Link>
                     </Typography>
                 </Box>
 
-                {/* Stepper */}
-                <Stepper
-                    activeStep={activeStep}
-                    alternativeLabel
-                    sx={{ mb: 5 }}
-                >
-                    {steps.map((label) => (
-                        <Step key={label}>
-                            <StepLabel StepIconComponent={CustomStepIcon}>
-                                {label}
-                            </StepLabel>
-                        </Step>
-                    ))}
-                </Stepper>
-
-                {/* Step content */}
-                <AnimatePresence mode="wait">
-                    <motion.div
-                        key={activeStep}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.5 }}
+                <Box sx={{ width: "100%", maxWidth: 1200 }}>
+                    {/* Title */}
+                    <Box
+                        textAlign="center"
+                        sx={{ mt: { xs: 3, md: 4 }, mb: { xs: 3, md: 4 } }}
                     >
-                        {stepComponents[activeStep]}
-                    </motion.div>
-                </AnimatePresence>
+                        <Typography
+                            fontWeight={500}
+                            sx={{ fontSize: { xs: 26, sm: 32, md: 36 } }}
+                        >
+                            Create Account
+                        </Typography>
+                    </Box>
 
-                {/* Navigation buttons */}
-                <Box
-                    sx={{
-                        display: "flex",
-                        justifyContent: "center",
-                        gap: 3,
-                        py: 4,
-                    }}
-                >
-                    <StyledButton
-                        variant="outlined"
-                        onClick={handleBack}
-                        disabled={activeStep === 0}
+                    {/* Stepper */}
+                    <Stepper
+                        activeStep={activeStep}
+                        alternativeLabel
+                        sx={{
+                            mb: { xs: 3, sm: 5 },
+                            "& .MuiStep-root": { px: { xs: 0.5, sm: 1 } },
+                            "& .MuiStepLabel-label": {
+                                fontSize: { xs: 11, sm: 14 },
+                                overflowWrap: "anywhere",
+                            },
+                        }}
                     >
-                        ← BACK
-                    </StyledButton>
+                        {steps.map((label) => (
+                            <Step key={label}>
+                                <StepLabel StepIconComponent={CustomStepIcon}>
+                                    {label}
+                                </StepLabel>
+                            </Step>
+                        ))}
+                    </Stepper>
 
-                    <StyledButton
-                        variant="contained"
-                        onClick={handleNext}
-                        disabled={!isStepValid()}
+                    {/* Step content */}
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={activeStep}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.5 }}
+                        >
+                            {stepComponents[activeStep]}
+                        </motion.div>
+                    </AnimatePresence>
+
+                    {/* Navigation buttons */}
+                    <Box
+                        sx={{
+                            display: "flex",
+                            justifyContent: "center",
+                            gap: { xs: 2, sm: 3 },
+                            py: 4,
+                        }}
                     >
-                        {activeStep === steps.length - 1 ? "SUBMIT" : "NEXT →"}
-                    </StyledButton>
+                        <StyledButton
+                            variant="outlined"
+                            onClick={handleBack}
+                            disabled={activeStep === 0}
+                            sx={{
+                                flex: { xs: 1, sm: "0 0 auto" },
+                                py: { xs: 1.25, sm: 0.75 },
+                            }}
+                        >
+                            ← BACK
+                        </StyledButton>
+
+                        <StyledButton
+                            variant="contained"
+                            onClick={handleNext}
+                            disabled={!isStepValid()}
+                            sx={{
+                                flex: { xs: 1, sm: "0 0 auto" },
+                                py: { xs: 1.25, sm: 0.75 },
+                            }}
+                        >
+                            {activeStep === steps.length - 1 ? "SUBMIT" : "NEXT →"}
+                        </StyledButton>
+                    </Box>
                 </Box>
             </Box>
         </Box>

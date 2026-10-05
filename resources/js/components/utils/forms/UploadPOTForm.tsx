@@ -1,85 +1,98 @@
-import { useRef, useState } from "react";
+import { DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography, IconButton, Link as MuiLink } from "@mui/material";
 import {
     CloudUploadOutlined,
     InsertDriveFileOutlined,
+    PictureAsPdfOutlined,
+    DescriptionOutlined,
     CloseRounded,
     CheckCircleRounded,
 } from "@mui/icons-material";
 
-interface UploadedFile {
-    id: string;
-    file: File;
-    preview: string | null;
+interface UploadPOTFormProps {
+    value: File[];
+    onChange: (files: File[]) => void;
+    error?: string | null;
 }
 
-const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+// Browsers often report an empty MIME type for .doc/.docx, so the extension is checked too.
+const ACCEPTED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "pdf", "doc", "docx"];
+const ACCEPT_ATTR = ".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,image/jpeg,image/png,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const MAX_SIZE_MB = 10;
+const MAX_FILES = 10;
 const POT_SAMPLE_URL = "https://leuteriorealty.com/admin/dashboard#";
 
-export default function UploadPOTForm({
-    onChange,
-}: {
-    onChange?: (files: File[]) => void;
-}) {
-    const inputRef = useRef<HTMLInputElement>(null);
-    const [files, setFiles] = useState<UploadedFile[]>([]);
-    const [dragOver, setDragOver] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+const extensionOf = (file: File) => file.name.split(".").pop()?.toLowerCase() ?? "";
+const fileKey = (file: File) => `${file.name}-${file.size}-${file.lastModified}`;
 
-    const emit = (next: UploadedFile[]) => onChange?.(next.map((f) => f.file));
+function FileTypeIcon({ file }: { file: File }) {
+    const ext = extensionOf(file);
+    const Icon =
+        ext === "pdf"
+            ? PictureAsPdfOutlined
+            : ext === "doc" || ext === "docx"
+              ? DescriptionOutlined
+              : InsertDriveFileOutlined;
+
+    return <Icon sx={{ color: "var(--lr-text-secondary)" }} />;
+}
+
+export default function UploadPOTForm({ value, onChange, error }: UploadPOTFormProps) {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [dragOver, setDragOver] = useState(false);
+    const [localError, setLocalError] = useState<string | null>(null);
+
+    const previews = useMemo(
+        () => value.map((f) => (f.type.startsWith("image/") ? URL.createObjectURL(f) : null)),
+        [value],
+    );
+    useEffect(() => () => previews.forEach((p) => p && URL.revokeObjectURL(p)), [previews]);
 
     const addFiles = (fileList: FileList | null) => {
         if (!fileList) return;
-        setError(null);
+        setLocalError(null);
 
-        const accepted: UploadedFile[] = [];
+        const existing = new Set(value.map(fileKey));
+        const accepted: File[] = [];
 
-        Array.from(fileList).forEach((file) => {
-            if (!ACCEPTED.includes(file.type)) {
-                setError("Only JPG, PNG, WEBP or PDF files are allowed.");
-                return;
+        for (const file of Array.from(fileList)) {
+            if (ACCEPTED_EXTENSIONS.indexOf(extensionOf(file)) === -1) {
+                setLocalError("Only images (JPG, PNG, WEBP), PDF or Word (DOC, DOCX) files are allowed.");
+                continue;
             }
             if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-                setError(`Each file must be under ${MAX_SIZE_MB}MB.`);
-                return;
+                setLocalError(`${file.name} is over ${MAX_SIZE_MB}MB.`);
+                continue;
             }
-            accepted.push({
-                id: `${file.name}-${file.size}-${Date.now()}`,
-                file,
-                preview: file.type.startsWith("image/")
-                    ? URL.createObjectURL(file)
-                    : null,
-            });
-        });
-
-        if (accepted.length) {
-            const next = [...files, ...accepted];
-            setFiles(next);
-            emit(next);
+            if (!existing.has(fileKey(file))) accepted.push(file);
         }
+
+        const next = [...value, ...accepted];
+        if (next.length > MAX_FILES) {
+            setLocalError(`You can upload up to ${MAX_FILES} files.`);
+        }
+        if (accepted.length) onChange(next.slice(0, MAX_FILES));
     };
 
-    const removeFile = (id: string) => {
-        const target = files.find((f) => f.id === id);
-        if (target?.preview) URL.revokeObjectURL(target.preview);
-        const next = files.filter((f) => f.id !== id);
-        setFiles(next);
-        emit(next);
+    const removeFile = (index: number) => {
+        setLocalError(null);
+        onChange(value.filter((_, i) => i !== index));
     };
 
-    const handleDrop = (e: React.DragEvent) => {
+    const handleDrop = (e: DragEvent) => {
         e.preventDefault();
         setDragOver(false);
         addFiles(e.dataTransfer.files);
     };
+
+    const shownError = localError ?? error;
 
     return (
         <Box>
             {/* Instruction block */}
             <Box
                 sx={{
-                    backgroundColor: "#e8f0fe",
+                    backgroundColor: "var(--lr-primary-soft)",
                     borderRadius: 2,
                     p: 2,
                     mb: 2.5,
@@ -87,7 +100,7 @@ export default function UploadPOTForm({
             >
                 <Typography
                     variant="body2"
-                    sx={{ color: "#3c4043", lineHeight: 1.6 }}
+                    sx={{ color: "var(--lr-text-body)", lineHeight: 1.6 }}
                 >
                     <strong>Proof of Transaction</strong> (such as a photo
                     capture of a transaction document): Valid POT includes a
@@ -99,7 +112,7 @@ export default function UploadPOTForm({
                         target="_blank"
                         rel="noopener"
                         sx={{
-                            color: "#1a73e8",
+                            color: "var(--lr-primary)",
                             fontWeight: 500,
                             textDecoration: "none",
                             ":hover": { textDecoration: "underline" },
@@ -121,55 +134,61 @@ export default function UploadPOTForm({
                 onDrop={handleDrop}
                 sx={{
                     border: "2px dashed",
-                    borderColor: dragOver ? "#1a73e8" : "#dadce0",
+                    borderColor: dragOver ? "var(--lr-primary)" : "var(--lr-outline)",
                     borderRadius: 3,
-                    backgroundColor: dragOver ? "#f8fbff" : "#f8f9fa",
+                    backgroundColor: dragOver ? "var(--lr-primary-soft-hover)" : "var(--lr-surface-dim)",
                     p: 4,
                     textAlign: "center",
                     cursor: "pointer",
                     transition: "0.15s",
                     ":hover": {
-                        borderColor: "#1a73e8",
-                        backgroundColor: "#f8fbff",
+                        borderColor: "var(--lr-primary)",
+                        backgroundColor: "var(--lr-primary-soft-hover)",
                     },
                 }}
             >
                 <CloudUploadOutlined
-                    sx={{ fontSize: 40, color: "#1a73e8", mb: 1 }}
+                    sx={{ fontSize: 40, color: "var(--lr-primary)", mb: 1 }}
                 />
                 <Typography
                     variant="body2"
-                    sx={{ color: "#3c4043", fontWeight: 500 }}
+                    sx={{ color: "var(--lr-text-body)", fontWeight: 500 }}
                 >
                     Drag &amp; drop your POT here, or click to browse
                 </Typography>
                 <Typography
                     variant="caption"
-                    sx={{ color: "#5f6368", display: "block", mt: 0.5 }}
+                    sx={{ color: "var(--lr-text-secondary)", display: "block", mt: 0.5 }}
                 >
-                    JPG, PNG, WEBP or PDF · up to {MAX_SIZE_MB}MB each
+                    JPG, PNG, WEBP, PDF, DOC or DOCX · up to {MAX_SIZE_MB}MB each, {MAX_FILES} files max
                 </Typography>
 
                 <input
                     ref={inputRef}
                     type="file"
                     hidden
-                    accept={ACCEPTED.join(",")}
-                    onChange={(e) => addFiles(e.target.files)}
+                    multiple
+                    accept={ACCEPT_ATTR}
+                    onChange={(e) => {
+                        addFiles(e.target.files);
+                        // Reset so picking the same file again after removing it still fires onChange.
+                        e.target.value = "";
+                    }}
                 />
             </Box>
 
-            {error && (
+            {shownError && (
                 <Typography
+                    role="alert"
                     variant="caption"
-                    sx={{ color: "#d93025", mt: 1, display: "block", ml: 0.5 }}
+                    sx={{ color: "var(--lr-error)", mt: 1, display: "block", ml: 0.5 }}
                 >
-                    {error}
+                    {shownError}
                 </Typography>
             )}
 
             {/* File previews */}
-            {files.length > 0 && (
+            {value.length > 0 && (
                 <Box
                     sx={{
                         mt: 2.5,
@@ -178,24 +197,25 @@ export default function UploadPOTForm({
                         gap: 1,
                     }}
                 >
-                    {files.map((f) => (
+                    {value.map((file, index) => (
                         <Box
-                            key={f.id}
+                            key={fileKey(file)}
                             sx={{
                                 display: "flex",
                                 alignItems: "center",
                                 gap: 1.5,
                                 p: 1,
                                 pr: 0.5,
-                                border: "1px solid #e8eaed",
+                                border: "1px solid var(--lr-border)",
                                 borderRadius: 2,
-                                backgroundColor: "#fff",
+                                backgroundColor: "var(--lr-surface)",
                             }}
                         >
-                            {f.preview ? (
+                            {previews[index] ? (
                                 <Box
                                     component="img"
-                                    src={f.preview}
+                                    src={previews[index] ?? undefined}
+                                    alt=""
                                     sx={{
                                         width: 44,
                                         height: 44,
@@ -213,13 +233,11 @@ export default function UploadPOTForm({
                                         display: "flex",
                                         alignItems: "center",
                                         justifyContent: "center",
-                                        backgroundColor: "#f1f3f4",
+                                        backgroundColor: "var(--lr-surface-container)",
                                         flexShrink: 0,
                                     }}
                                 >
-                                    <InsertDriveFileOutlined
-                                        sx={{ color: "#5f6368" }}
-                                    />
+                                    <FileTypeIcon file={file} />
                                 </Box>
                             )}
 
@@ -227,33 +245,34 @@ export default function UploadPOTForm({
                                 <Typography
                                     variant="body2"
                                     sx={{
-                                        color: "#202124",
+                                        color: "var(--lr-text-primary)",
                                         fontWeight: 500,
                                         whiteSpace: "nowrap",
                                         overflow: "hidden",
                                         textOverflow: "ellipsis",
                                     }}
                                 >
-                                    {f.file.name}
+                                    {file.name}
                                 </Typography>
                                 <Typography
                                     variant="caption"
-                                    sx={{ color: "#5f6368" }}
+                                    sx={{ color: "var(--lr-text-secondary)" }}
                                 >
-                                    {(f.file.size / 1024 / 1024).toFixed(2)} MB
+                                    {(file.size / 1024 / 1024).toFixed(2)} MB
                                 </Typography>
                             </Box>
 
                             <CheckCircleRounded
-                                sx={{ color: "#1e8e3e", fontSize: 20 }}
+                                sx={{ color: "var(--lr-success-icon)", fontSize: 20 }}
                             />
                             <IconButton
                                 size="small"
+                                aria-label={`Remove ${file.name}`}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    removeFile(f.id);
+                                    removeFile(index);
                                 }}
-                                sx={{ color: "#5f6368" }}
+                                sx={{ color: "var(--lr-text-secondary)" }}
                             >
                                 <CloseRounded fontSize="small" />
                             </IconButton>

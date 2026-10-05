@@ -17,6 +17,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Sale Files Disk
+    |--------------------------------------------------------------------------
+    |
+    | Where proof-of-transaction uploads go. Defaults to the S3 bucket from
+    | the AWS_* variables; tests swap it with Storage::fake().
+    |
+    */
+
+    'sale_files_disk' => env('SALE_FILES_DISK', 's3'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |

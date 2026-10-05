@@ -11,7 +11,7 @@ export default function StyledTextFieldPrimary(props: TextFieldProps) {
                         borderRadius: 0,
                     },
                     "& .MuiInputBase-input": {
-                        color: "#333",
+                        color: "var(--lr-text-primary)",
                         fontSize: 14,
                     },
                 },

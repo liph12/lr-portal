@@ -1,20 +1,26 @@
 import Box from "@mui/material/Box";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 import Stepper from "@mui/material/Stepper";
 import Step from "@mui/material/Step";
 import StepLabel from "@mui/material/StepLabel";
 
-interface CreateSaleStepperProps {
+interface RecordSaleStepperProps {
     activeStep: number;
     steps: Array<string>;
 }
 
-export default function CreateSaleStepper({
+export default function RecordSaleStepper({
     activeStep,
     steps,
-}: CreateSaleStepperProps) {
+}: RecordSaleStepperProps) {
+    const theme = useTheme();
+    // Side-by-side labels don't fit three steps on a phone; stack them under the icons.
+    const compact = useMediaQuery(theme.breakpoints.down("sm"), { noSsr: true });
+
     return (
         <Box sx={{ width: "100%", my: 3 }}>
-            <Stepper activeStep={activeStep} alternativeLabel={false}>
+            <Stepper activeStep={activeStep} alternativeLabel={compact}>
                 {steps.map((label, index) => {
                     const isActive = index === activeStep;
                     const isCompleted = index < activeStep;
@@ -25,26 +31,26 @@ export default function CreateSaleStepper({
                                 StepIconProps={{
                                     sx: {
                                         fontSize: 24,
-                                        color: "#dadce0",
+                                        color: "var(--lr-outline)",
                                         "&.Mui-active": {
-                                            color: "#1a73e8",
+                                            color: "var(--lr-primary)",
                                         },
                                         "&.Mui-completed": {
-                                            color: "#1a73e8",
+                                            color: "var(--lr-primary)",
                                         },
                                     },
                                 }}
                                 sx={{
                                     "& .MuiStepLabel-label": {
-                                        fontSize: 14,
+                                        fontSize: { xs: 12, sm: 14 },
                                         color: isActive
-                                            ? "#1a73e8"
+                                            ? "var(--lr-primary)"
                                             : isCompleted
-                                              ? "#3c4043"
-                                              : "#5f6368",
+                                              ? "var(--lr-text-body)"
+                                              : "var(--lr-text-secondary)",
                                         fontWeight: isActive ? 600 : 400,
-                                        "&.Mui-active": { color: "#1a73e8" },
-                                        "&.Mui-completed": { color: "#3c4043" },
+                                        "&.Mui-active": { color: "var(--lr-primary)" },
+                                        "&.Mui-completed": { color: "var(--lr-text-body)" },
                                     },
                                 }}
                             >

@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { Box, Divider, Grid } from "@mui/material";
+import { Box, Grid } from "@mui/material";
 import { useAppRoutes } from "../../app-data";
 import { isRouteActive } from "../../helpers/routeMatch";
 import { usePage, Link } from "@inertiajs/react";
@@ -13,29 +13,44 @@ const DASHBOARD_ROUTES = useAppRoutes[0];
 function DashboardLayout({ children }: { children: ReactNode }) {
     const { url } = usePage();
     const routeNodes = DASHBOARD_ROUTES.children;
-    const nodeName = routeNodes.find((r) => url.includes(r.path))?.name;
+    const nodePath = routeNodes.find((r) => url.includes(r.path))?.path;
+    const showFilters = nodePath === "/superadmin/dashboard/overview";
+    const showLeaderboards =
+        nodePath === "/superadmin/dashboard/main" ||
+        nodePath === "/superadmin/dashboard/record-sale";
 
     return (
         <AppLayout>
-            <Grid container sx={{ height: "100%", overflow: "hidden" }}>
+            {/* lg+: two fixed-height columns that scroll on their own; below: one column scrolled by AppLayout's main */}
+            <Grid
+                container
+                sx={{ height: { lg: "100%" }, overflow: { lg: "hidden" } }}
+            >
                 <Grid
-                    size={{ lg: 9.5 }}
+                    size={{ xs: 12, lg: 9.5 }}
                     sx={{
-                        height: "100%",
+                        height: { lg: "100%" },
                         display: "flex",
                         flexDirection: "column",
                     }}
                 >
-                    {/* Fixed tab bar */}
+                    {/* Tab bar — sticky on mobile so section switching stays in reach */}
                     <Box
                         sx={{
                             pt: 1.5,
                             pb: 1,
-                            px: 3,
+                            px: { xs: 2, sm: 3 },
                             display: "flex",
                             gap: 1,
                             flexShrink: 0,
-                            backgroundColor: "#fff",
+                            backgroundColor: "var(--lr-surface)",
+                            borderBottom: "1px solid var(--lr-border)",
+                            overflowX: "auto",
+                            scrollbarWidth: "none",
+                            "&::-webkit-scrollbar": { display: "none" },
+                            position: { xs: "sticky", lg: "static" },
+                            top: 0,
+                            zIndex: 2,
                         }}
                     >
                         {routeNodes.map((r) => {
@@ -53,18 +68,20 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                                         sx={{
                                             borderRadius: 99,
                                             textTransform: "none",
+                                            whiteSpace: "nowrap",
+                                            flexShrink: 0,
                                             px: 2,
                                             fontWeight: 500,
                                             color: active
-                                                ? "#1a73e8"
-                                                : "#5f6368",
+                                                ? "var(--lr-primary)"
+                                                : "var(--lr-text-secondary)",
                                             backgroundColor: active
-                                                ? "#e8f0fe"
+                                                ? "var(--lr-primary-soft)"
                                                 : "transparent",
                                             ":hover": {
                                                 backgroundColor: active
-                                                    ? "#e8f0fe"
-                                                    : "#f1f3f4",
+                                                    ? "var(--lr-primary-soft)"
+                                                    : "var(--lr-surface-container)",
                                             },
                                         }}
                                     >
@@ -74,38 +91,36 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                             );
                         })}
                     </Box>
-                    <Divider sx={{ flexShrink: 0, borderColor: "#e8eaed" }} />
 
                     {/* Scrollable content area */}
                     <Box
                         sx={{
                             flex: 1,
-                            overflowY: "auto",
+                            overflowY: { lg: "auto" },
                             overflowX: "hidden",
                             scrollBehavior: "smooth",
                             minHeight: 0,
-                            pb: 20,
-                            backgroundColor: "#fff",
+                            pb: { xs: 4, lg: 20 },
+                            backgroundColor: "var(--lr-surface)",
                         }}
                     >
                         {children}
                     </Box>
                 </Grid>
                 <Grid
-                    size={{ lg: 2.5 }}
+                    size={{ xs: 12, lg: 2.5 }}
                     sx={{
-                        height: "100%",
-                        overflowY: "auto",
+                        height: { lg: "100%" },
+                        overflowY: { lg: "auto" },
                         overflowX: "hidden",
                         scrollBehavior: "smooth",
-                        borderLeft: "1px solid #e8eaed",
-                        backgroundColor: "#fff",
+                        borderLeft: { lg: "1px solid var(--lr-border)" },
+                        borderTop: { xs: "1px solid var(--lr-border)", lg: "none" },
+                        backgroundColor: "var(--lr-surface)",
                     }}
                 >
-                    {nodeName === "Overview" && <DashboardFilters />}
-                    {(nodeName === "Main" || nodeName === "Create Sale") && (
-                        <DashboardLeaderboards />
-                    )}
+                    {showFilters && <DashboardFilters />}
+                    {showLeaderboards && <DashboardLeaderboards />}
                 </Grid>
             </Grid>
         </AppLayout>

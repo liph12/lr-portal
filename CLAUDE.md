@@ -26,18 +26,28 @@ resources/js/
   hooks/  helpers/  providers/  types/
 ```
 
+## 1a. Commands
+
+```
+composer setup        # first run: install, .env, key, migrate, npm build
+composer dev          # serve + queue + pail logs + vite, all at once
+npm run build         # production build — the only frontend check (no tsc/eslint installed)
+composer test         # Pest (tests/ holds only the default examples)
+php artisan migrate --seed   # MySQL db `lr_portal`; seeders: roles, permissions, users, developers
+```
+
 ## 2. Reference implementation — copy this flow
 
-`GET /superadmin/dashboard/create-sale/project`, end to end:
+`GET /superadmin/dashboard/record-sale/project`, end to end:
 
-1. **Route** — `routes/superadmin/superadmin-dashboard.php:16`, named `superadmin.create-sale.project`,
+1. **Route** — `routes/superadmin/superadmin-dashboard.php:16`, named `superadmin.record-sale.project`,
    inside `prefix('superadmin')->middleware('role:superadmin')` (`routes/web.php:27`).
 2. **Controller** — `app/Http/Controllers/Portal/SuperAdmin/Reports/SaleController.php:15-20`:
-   `createProject()` → `inertia('SuperAdmin/Dashboard/CreateSale/Project', ['developers' => ...])`.
+   `recordProject()` → `inertia('SuperAdmin/Dashboard/RecordSale/Project', ['developers' => ...])`.
    Always the lowercase `inertia()` helper — `Inertia::render` is not used in this codebase.
-3. **Page** — `resources/js/Pages/SuperAdmin/Dashboard/CreateSale/Project.tsx`: typed destructured
+3. **Page** — `resources/js/Pages/SuperAdmin/Dashboard/RecordSale/Project.tsx`: typed destructured
    props (`{ developers }: { developers: SalesSource[] }`), persistent layout via
-   `Project.layout = (page: ReactNode) => <DashboardLayout children={page} />` (line 28),
+   `Project.layout = (page: ReactNode) => <DashboardLayout children={page} />` (line 20),
    `export default Project;` at the bottom.
 4. **Resolution** — `resources/js/app.tsx:6-9`: exact, case-sensitive glob key
    `./Pages/${name}.tsx`. The `inertia('...')` string and the file path must match exactly.
@@ -51,6 +61,7 @@ at the matching path. Nothing else.
 - Route names: `{role}.{section}.{action}` dot-notation; section index pages `{role}.{section}.index`
   (e.g. `superadmin.management.index`). Route files: `routes/{role}/{role}-{section}.php`.
 - Services: `{Name}Service` in `app/Services/`, constructor-injected (`UserController.php:13-16`).
+- Section headings: `components/utils/SectionTitle.tsx` (title, subtitle, optional action).
 - Pages/components: PascalCase `.tsx`, one component per file, **default export**.
   Pages use `Index.tsx` (one legacy lowercase exception `Pages/SuperAdmin/Accounting/index.tsx` —
   do not add more).
@@ -67,25 +78,41 @@ at the matching path. Nothing else.
   `resources/js/components/utils/StyledButton.tsx` (spread props, merge caller `sx` last).
   Do **not** add Tailwind classes or styled-components/`styled()` — both are installed but
   unused (`docs/ARCHITECTURE.md` §6); keep it that way.
-- **Validation**: a Form Request in `app/Http/Requests/` for **every non-GET route**.
-  No inline `$request->validate()`. (`app/Http/Requests/` doesn't exist yet — create it with
-  the first write endpoint; nothing in the repo validates today, see docs §5.)
-- **Authorization**: Policies in `app/Policies/` + `authorize()` in controllers (none exist yet).
+- **Colors / dark mode**: never hardcode hex in components — use the `var(--lr-*)` tokens from
+  `resources/css/app.css` (`--lr-text-primary`, `--lr-surface`, `--lr-border`, `--lr-primary`, …),
+  which flip under `html.dark`. MUI's palette (`providers/appTheme.ts`) mirrors them — change both
+  together. Mode is `useColorScheme()` (`components/utils/ThemeModeToggle.tsx`), stored in
+  `localStorage['lr-theme-mode']` and applied pre-paint by the script in `app.blade.php`.
+  Logos: use `components/utils/AppLogo.tsx` (swaps to the white logo in dark mode).
+- **Validation**: a Form Request in `app/Http/Requests/{Role}/` for **every non-GET route**.
+  No inline `$request->validate()`. Example: `Requests/SuperAdmin/StoreProjectSaleRequest.php`.
+- **Authorization**: Policies in `app/Policies/` (auto-discovered, e.g. `AgentTransactionPolicy`),
+  checked from the Form Request's `authorize()` or `Gate::authorize()` — the base `Controller`
+  has no `AuthorizesRequests` trait.
   `app/Http/Middleware/RoleMiddleware.php` must return an Inertia-compatible redirect —
   never JSON (its current `response()->json(..., 403)` at line 21 is a defect, see §5).
 - **Layouts**: persistent `.layout` static pattern only
-  (`Project.layout = (page) => <DashboardLayout children={page} />`, `CreateSale/Project.tsx:28`).
+  (`Project.layout = (page) => <DashboardLayout children={page} />`, `RecordSale/Project.tsx:20`).
   Never wrap a layout inside the page's render. `AppLayout` owns the viewport (`100vh`,
   `overflow: hidden`) and its `<main>` pane is the only page scroller — pages must not set
-  `100vh` heights or their own `overflowY`.
+  `100vh` heights or their own `overflowY`. Below `lg` the sidebar becomes a `Drawer` opened from
+  the navbar menu button, and `DashboardLayout` collapses to one column (side panel below content).
+  Pages outside `AppLayout` (`Pages/User/Auth/*`) scroll themselves: `100dvh` + `overflowY: "auto"`.
 - **Auth props**: shared from `app/Http/Middleware/HandleInertiaRequests.php` `share()` **only**
-  (currently empty at lines 36-42 — that's where auth sharing goes). No `Inertia::share` in
+  (`auth` = `{ id, name, email, role }`, role is the first role's label). Read it in components
+  with `hooks/useAuthUser.ts` (typed by `SharedProps` in `types/index.ts`). No `Inertia::share` in
   providers; no per-page `'user' => Auth::user()` props.
 - **Forms**: `useForm` from `@inertiajs/react` — and actually use its `post/put`, `errors`,
-  `processing`, not just `data/setData` (the existing `ClientForm.tsx:32` misuses it — §5).
+  `processing`, not just `data/setData`. Multi-step forms keep **one** `useForm` in the page and
+  pass `data/setData/errors` to step components (`SaleStepProps`); see
+  `Pages/SuperAdmin/Dashboard/RecordSale/Project.tsx`.
+- **File uploads**: go through a service, never straight from the controller. Sale files:
+  `ProjectSaleService` → `FileCompressionService` (images resized ≤2400px + re-encoded; PDF/DOC
+  gzipped with `Content-Encoding: gzip` when it saves ≥10%) → disk `config('filesystems.sale_files_disk')`
+  (`SALE_FILES_DISK`, default `s3`), one `agent_transaction_files` row per file. Tests use `Storage::fake('s3')`.
 - **Tables**: no pattern exists yet (`components/utils/tables/TopAgentsTable.tsx` is a hardcoded
   demo). **Ask before building one.**
-- **Navigation**: Inertia `<Link>` / `router` only (`components/AppSidebar.tsx:82`).
+- **Navigation**: Inertia `<Link>` / `router` only (`components/AppSidebar.tsx:85`).
   No raw `fetch`/`axios`/`window.location` for page transitions.
 - **Controllers**: always suffixed `Controller`, in the `Portal\{Role}` namespace of the
   portal they serve.
@@ -95,15 +122,10 @@ at the matching path. Nothing else.
 - `app/Http/Controllers/Portal/SuperAdmin/Statistics/*.php` — four empty stub classes with no
   `Controller` suffix, no methods, no routes.
 - `RoleMiddleware.php:21` — the JSON 403 inside the Inertia stack (unrenderable by the client).
-- `resources/js/components/utils/tables/TopAgentsTable.tsx` — hardcoded rows, zero props,
-  `totalSlaes` typo.
-- The two form patterns that never submit:
-  `useForm` as bare state (`components/utils/forms/ClientForm.tsx:32`, `ProjectSaleForm.tsx:47`)
-  and `useState` + `window.location.href` (`Pages/User/Auth/Stepper/CreateAccount.tsx:180`,
-  `Pages/User/Auth/CreatePassword.tsx:32`).
-- `app/Providers/AppServiceProvider.php:24-34` — `Inertia::share` auth sharing from a provider
-  (belongs in `HandleInertiaRequests::share()`; also ships `role` as a whole roles collection).
-- Also: placeholder constructors (`SaleController.php:10-13` `// to do`), per-page
+- `resources/js/components/utils/tables/TopAgentsTable.tsx` — hardcoded rows, zero props.
+- The form pattern that never submits: `useState` + `window.location.href` (`Pages/User/Auth/Stepper/CreateAccount.tsx:180`,
+  `Pages/User/Auth/CreatePassword.tsx:32`, `Pages/User/Auth/Register.tsx:239`).
+- Also: per-page
   `'user' => Auth::user()` props (7 controllers), lowercase page filenames.
 
 ## 6. Comments
