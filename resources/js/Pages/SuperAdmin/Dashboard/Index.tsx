@@ -6,7 +6,12 @@ import {
     Typography,
     IconButton,
     Stack,
+<<<<<<< HEAD
     Tooltip,
+=======
+    Chip,
+    Avatar,
+>>>>>>> 8a3cd60e1ce5db468c68077d874f0c3ab9815327
 } from "@mui/material";
 import DashboardLayout from "../../../components/layouts/DashboardLayout";
 import DashboardCardApp from "../../../components/cards/DashboardCardApp";
@@ -95,6 +100,9 @@ function LinkCard({ label, url }: { label: string; url: string }) {
         </Box>
     );
 }
+
+const SAMPLE_PROFILE_PICTURE =
+    "https://filipinohomes123.s3.ap-southeast-1.amazonaws.com/filipinohomes-compressed-from-old/cd23c6fa-51a9-40b9-926b-422a97739987.webp";
 
 function Dashboard() {
     return (
