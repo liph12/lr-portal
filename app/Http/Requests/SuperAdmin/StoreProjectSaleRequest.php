@@ -9,7 +9,7 @@ use Illuminate\Validation\Rule;
 class StoreProjectSaleRequest extends FormRequest
 {
     public const MAX_FILES = 10;
-    public const MAX_FILE_KB = 10240;
+    public const MAX_FILE_KB = 20480;
 
     public const COMMISSION_STATUSES = ['Unclaimed', 'Partially Claimed', 'Fully Claimed'];
 
@@ -35,9 +35,15 @@ class StoreProjectSaleRequest extends FormRequest
             'client_address' => ['nullable', 'string', 'max:1000'],
 
             'developer_id' => ['required', 'integer', Rule::exists('developers', 'id')],
-            'project_name' => ['required', 'string', 'max:255'],
+            // A listed project must belong to the chosen developer; unlisted ones are typed by name instead.
+            'developer_project_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('developer_projects', 'id')->where('developer_id', $this->integer('developer_id')),
+            ],
+            'project_name' => ['required_without:developer_project_id', 'nullable', 'string', 'max:255'],
             'unit_no' => ['required', 'string', 'max:100'],
-            'property_type' => ['required', 'string', 'max:100'],
+            'project_property_type_id' => ['required', 'integer', Rule::exists('project_property_types', 'id')],
             'unit_type' => ['nullable', 'string', 'max:100'],
             'floor_area' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
             'lot_area' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
@@ -65,11 +71,14 @@ class StoreProjectSaleRequest extends FormRequest
         return [
             'files.required' => 'Upload at least one proof of transaction.',
             'files.max' => 'You can upload up to '.self::MAX_FILES.' files.',
-            'files.*.max' => 'Each file must be 10MB or smaller.',
+            'files.*.max' => 'Each file must be 20MB or smaller.',
             'files.*.mimes' => 'Only images (JPG, PNG, WEBP), PDF or Word (DOC, DOCX) files are allowed.',
             'files.*.mimetypes' => 'Only images (JPG, PNG, WEBP), PDF or Word (DOC, DOCX) files are allowed.',
             'files.*.uploaded' => 'A file failed to upload. It may be larger than the server allows.',
             'developer_id.required' => 'Select a developer.',
+            'developer_project_id.exists' => 'That project does not belong to the selected developer.',
+            'project_name.required_without' => 'Select a project, or enter its name if it is not listed.',
+            'project_property_type_id.required' => 'Select a property type.',
             'total_contract_price.gt' => 'Total contract price must be more than 0.',
         ];
     }
@@ -85,6 +94,8 @@ class StoreProjectSaleRequest extends FormRequest
             'client_lastname' => 'client last name',
             'client_mobile' => 'client mobile',
             'developer_id' => 'developer',
+            'developer_project_id' => 'project',
+            'project_property_type_id' => 'property type',
             'unit_no' => 'unit / block and lot no.',
         ];
     }

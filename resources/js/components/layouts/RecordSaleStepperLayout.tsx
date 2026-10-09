@@ -13,6 +13,8 @@ interface RecordSaleStepperLayoutProps {
     onNext: () => void;
     onSubmit: () => void;
     processing: boolean;
+    // Holds the primary button while something on the step (e.g. photo compression) is still running.
+    busy?: boolean;
     uploadPercentage?: number;
     children: ReactNode;
 }
@@ -24,6 +26,7 @@ export default function RecordSaleStepperLayout({
     onNext,
     onSubmit,
     processing,
+    busy = false,
     uploadPercentage,
     children,
 }: RecordSaleStepperLayoutProps) {
@@ -79,6 +82,7 @@ export default function RecordSaleStepperLayout({
                     variant="contained"
                     onClick={isLastStep ? onSubmit : onNext}
                     loading={processing}
+                    disabled={busy}
                     endIcon={isLastStep ? <CloudUploadRounded /> : <EastIcon />}
                     sx={{
                         px: 3,

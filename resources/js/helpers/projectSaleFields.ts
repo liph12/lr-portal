@@ -1,10 +1,10 @@
 import { AutoCompleteValue } from "../types";
 
-// Property type ids from app-data `propertyTypes` whose units have extra measurements.
+// project_property_types ids (ProjectPropertyTypeSeeder) whose units have extra measurements.
 const CONDO = 1;
 const HOUSE_AND_LOT = 10;
 const TOWNHOUSE = 11;
-const LOT_ONLY = 12;
+const LOT_ONLY = 14;
 
 export function showsUnitType(propertyType: AutoCompleteValue | null): boolean {
     return propertyType?.id === CONDO;

@@ -30,7 +30,7 @@ resources/js/
 
 ```
 composer setup        # first run: install, .env, key, migrate, npm build
-composer dev          # serve + queue + pail logs + vite, all at once
+composer dev          # serve + queue + pail logs + vite; serve loads dev/php/*.ini (20MB uploads)
 npm run build         # production build — the only frontend check (no tsc/eslint installed)
 composer test         # Pest (tests/ holds only the default examples)
 php artisan migrate --seed   # MySQL db `lr_portal`; seeders: roles, permissions, users, developers
@@ -106,7 +106,9 @@ at the matching path. Nothing else.
   `processing`, not just `data/setData`. Multi-step forms keep **one** `useForm` in the page and
   pass `data/setData/errors` to step components (`SaleStepProps`); see
   `Pages/SuperAdmin/Dashboard/RecordSale/Project.tsx`.
-- **File uploads**: go through a service, never straight from the controller. Sale files:
+- **File uploads**: limit is 20MB per original file. Photos are compressed in the browser first
+  (`helpers/compressImage.ts`, ≤2400px, q0.8) and again on the server. Go through a service, never
+  straight from the controller. Sale files:
   `ProjectSaleService` → `FileCompressionService` (images resized ≤2400px + re-encoded; PDF/DOC
   gzipped with `Content-Encoding: gzip` when it saves ≥10%) → disk `config('filesystems.sale_files_disk')`
   (`SALE_FILES_DISK`, default `s3`), one `agent_transaction_files` row per file. Tests use `Storage::fake('s3')`.

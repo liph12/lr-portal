@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Entities\AgentTransaction;
 use App\Models\Entities\AgentTransactionFile;
+use App\Models\Entities\DeveloperProject;
 use App\Models\User;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
@@ -51,10 +52,14 @@ class ProjectSaleService
                     'client_address' => $data['client_address'] ?? null,
                 ]);
 
+                $projectId = $data['developer_project_id'] ?? null;
+
                 $transaction->projectTransaction()->create([
                     'developer_id' => $data['developer_id'],
-                    'project_name' => $data['project_name'],
-                    'property_type' => $data['property_type'],
+                    'developer_project_id' => $projectId,
+                    // Snapshot the catalogue name so the sale still reads correctly if the project is renamed.
+                    'project_name' => $projectId ? DeveloperProject::whereKey($projectId)->value('name') : $data['project_name'],
+                    'project_property_type_id' => $data['project_property_type_id'],
                     'unit_type' => $data['unit_type'] ?? null,
                     'floor_area' => $data['floor_area'] ?? null,
                     'lot_area' => $data['lot_area'] ?? null,

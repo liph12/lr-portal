@@ -11,7 +11,6 @@
         "Noto Color Emoji";
 }
 
-<<<<<<< HEAD
 /* App color tokens. Light values are the original Google-style palette; .dark is set on <html>
    by the inline script in app.blade.php (before paint) and kept in sync by MUI's ThemeProvider. */
 :root {
@@ -83,7 +82,8 @@ body {
 .dark .lr-light-only,
 html:not(.dark) .lr-dark-only {
     display: none !important;
-=======
+}
+
 /* Inertia's error modal rewrites body.style.overflow on close; html is the lock it can't touch. */
 html,
 body {
@@ -91,5 +91,4 @@ body {
     margin: 0;
     overflow: hidden;
     overscroll-behavior: none;
->>>>>>> 8a3cd60e1ce5db468c68077d874f0c3ab9815327
 }

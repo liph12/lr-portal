@@ -15,6 +15,12 @@ beforeEach(function () {
     config(['filesystems.sale_files_disk' => 's3']);
 
     $this->developerId = DB::table('developers')->insertGetId(['name' => 'Cebu Landmasters Inc.']);
+    $this->condoTypeId = DB::table('project_property_types')->insertGetId(['name' => 'Condominiums']);
+    $this->projectId = DB::table('developer_projects')->insertGetId([
+        'developer_id' => $this->developerId,
+        'name' => 'Mivela Garden Residences',
+        'project_property_type_id' => $this->condoTypeId,
+    ]);
 
     $this->superadmin = User::factory()->create();
     $this->superadmin->roles()->attach(Role::create(['name' => 'superadmin', 'label' => 'Superadmin']));
@@ -22,6 +28,9 @@ beforeEach(function () {
 
 function projectSalePayload(int $developerId, array $overrides = []): array
 {
+    $projectId = DB::table('developer_projects')->where('developer_id', $developerId)->value('id');
+    $typeId = DB::table('project_property_types')->where('name', 'Condominiums')->value('id');
+
     return array_merge([
         'client_firstname' => 'Juan',
         'client_middlename' => 'Santos',
@@ -33,9 +42,9 @@ function projectSalePayload(int $developerId, array $overrides = []): array
         'client_country' => 'PH',
         'client_address' => 'Cebu City',
         'developer_id' => $developerId,
-        'project_name' => 'Mivela Garden Residences',
+        'developer_project_id' => $projectId,
         'unit_no' => 'Tower 1 - 12B',
-        'property_type' => 'Condominiums',
+        'project_property_type_id' => $typeId,
         'unit_type' => 'Studio',
         'floor_area' => '28.50',
         'total_contract_price' => '3500000',
@@ -68,7 +77,9 @@ test('a superadmin records a project sale with compressed files on the sale disk
         ->and($sale->detail->client_last_name)->toBe('Dela Cruz')
         ->and($sale->detail->client_country)->toBe('PH')
         ->and($sale->projectTransaction->developer_id)->toBe($this->developerId)
+        ->and($sale->projectTransaction->developer_project_id)->toBe($this->projectId)
         ->and($sale->projectTransaction->project_name)->toBe('Mivela Garden Residences')
+        ->and($sale->projectTransaction->project_property_type_id)->toBe($this->condoTypeId)
         ->and($sale->projectTransaction->total_contract_price)->toBe(3500000.0)
         ->and($sale->files)->toHaveCount(2);
 
@@ -156,4 +167,78 @@ test('word documents are accepted', function () {
     $file = AgentTransaction::sole()->files->sole();
     expect($file->original_name)->toBe('term-sheet.docx');
     Storage::disk('s3')->assertExists($file->path);
+});
+
+test('files up to 20MB are accepted and larger ones are rejected', function () {
+    $pdf = fn (string $name, int $bytes) => UploadedFile::fake()->createWithContent(
+        $name,
+        "%PDF-1.4\n".str_repeat("1 0 obj << /Type /Page >> endobj\n", intdiv($bytes, 34)),
+    );
+
+    $this->actingAs($this->superadmin)
+        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId, [
+            'files' => [$pdf('big.pdf', 19 * 1024 * 1024)],
+        ]))
+        ->assertSessionHasNoErrors();
+
+    $file = AgentTransaction::sole()->files->sole();
+    expect($file->original_size)->toBeGreaterThan(19 * 1000 * 1000)
+        ->and($file->stored_size)->toBeLessThan($file->original_size / 10);
+
+    $this->actingAs($this->superadmin)
+        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId, [
+            'files' => [$pdf('too-big.pdf', 21 * 1024 * 1024)],
+        ]))
+        ->assertSessionHasErrors(['files.0' => 'Each file must be 20MB or smaller.']);
+
+    expect(AgentTransaction::count())->toBe(1);
+});
+
+test('a project that is not listed can be recorded by name', function () {
+    $this->actingAs($this->superadmin)
+        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId, [
+            'developer_project_id' => '',
+            'project_name' => 'Brand New Tower',
+        ]))
+        ->assertSessionHasNoErrors();
+
+    $project = AgentTransaction::sole()->projectTransaction;
+    expect($project->developer_project_id)->toBeNull()
+        ->and($project->project_name)->toBe('Brand New Tower');
+});
+
+test('a project from another developer, or no project at all, is rejected', function () {
+    $otherDeveloper = DB::table('developers')->insertGetId(['name' => 'Other Developer']);
+    $otherProject = DB::table('developer_projects')->insertGetId([
+        'developer_id' => $otherDeveloper,
+        'name' => 'Somewhere Else',
+    ]);
+
+    $this->actingAs($this->superadmin)
+        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId, [
+            'developer_project_id' => $otherProject,
+        ]))
+        ->assertSessionHasErrors(['developer_project_id' => 'That project does not belong to the selected developer.']);
+
+    $this->actingAs($this->superadmin)
+        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId, [
+            'developer_project_id' => '',
+            'project_name' => '',
+            'project_property_type_id' => 999,
+        ]))
+        ->assertSessionHasErrors(['project_name', 'project_property_type_id']);
+
+    expect(AgentTransaction::count())->toBe(0);
+});
+
+test('deleting a catalogue project keeps the recorded sale', function () {
+    $this->actingAs($this->superadmin)
+        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId))
+        ->assertSessionHasNoErrors();
+
+    DB::table('developer_projects')->where('id', $this->projectId)->delete();
+
+    $project = AgentTransaction::sole()->projectTransaction;
+    expect($project->developer_project_id)->toBeNull()
+        ->and($project->project_name)->toBe('Mivela Garden Residences');
 });

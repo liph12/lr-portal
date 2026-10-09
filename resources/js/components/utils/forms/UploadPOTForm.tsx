@@ -1,5 +1,6 @@
 import { DragEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Box, Typography, IconButton, Link as MuiLink } from "@mui/material";
+import { Box, Typography, IconButton, LinearProgress, Link as MuiLink } from "@mui/material";
+import { compressImage, isCompressibleImage } from "../../../helpers/compressImage";
 import {
     CloudUploadOutlined,
     InsertDriveFileOutlined,
@@ -13,13 +14,21 @@ interface UploadPOTFormProps {
     value: File[];
     onChange: (files: File[]) => void;
     error?: string | null;
+    // Largest file PHP on this server will accept after compression.
+    maxFileKb?: number;
+    onCompressingChange?: (compressing: boolean) => void;
 }
 
 // Browsers often report an empty MIME type for .doc/.docx, so the extension is checked too.
 const ACCEPTED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "pdf", "doc", "docx"];
 const ACCEPT_ATTR = ".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,image/jpeg,image/png,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-const MAX_SIZE_MB = 10;
 const MAX_FILES = 10;
+const MAX_ORIGINAL_MB = 20;
+
+// Original (pre-compression) size and identity, keyed by the compressed File the parent holds.
+const originalSizes = new WeakMap<File, number>();
+const originalKeys = new WeakMap<File, string>();
+const formatMb = (bytes: number) => `${(bytes / 1048576).toFixed(2)} MB`;
 const POT_SAMPLE_URL = "https://leuteriorealty.com/admin/dashboard#";
 
 const extensionOf = (file: File) => file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -37,7 +46,15 @@ function FileTypeIcon({ file }: { file: File }) {
     return <Icon sx={{ color: "var(--lr-text-secondary)" }} />;
 }
 
-export default function UploadPOTForm({ value, onChange, error }: UploadPOTFormProps) {
+const formatLimit = (kb: number) => (kb >= 1024 ? `${+(kb / 1024).toFixed(1)}MB` : `${kb}KB`);
+
+export default function UploadPOTForm({
+    value,
+    onChange,
+    error,
+    maxFileKb = MAX_ORIGINAL_MB * 1024,
+    onCompressingChange,
+}: UploadPOTFormProps) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [dragOver, setDragOver] = useState(false);
     const [localError, setLocalError] = useState<string | null>(null);
@@ -48,30 +65,57 @@ export default function UploadPOTForm({ value, onChange, error }: UploadPOTFormP
     );
     useEffect(() => () => previews.forEach((p) => p && URL.revokeObjectURL(p)), [previews]);
 
-    const addFiles = (fileList: FileList | null) => {
+    const [compressing, setCompressing] = useState(0);
+    // Compression is async; read the latest list when it finishes instead of the one captured at drop time.
+    const valueRef = useRef(value);
+    valueRef.current = value;
+
+    useEffect(() => onCompressingChange?.(compressing > 0), [compressing, onCompressingChange]);
+
+    const addFiles = async (fileList: FileList | null) => {
         if (!fileList) return;
         setLocalError(null);
 
-        const existing = new Set(value.map(fileKey));
-        const accepted: File[] = [];
+        const existing = new Set(valueRef.current.map((f) => originalKeys.get(f) ?? fileKey(f)));
+        const picked: File[] = [];
 
         for (const file of Array.from(fileList)) {
             if (ACCEPTED_EXTENSIONS.indexOf(extensionOf(file)) === -1) {
                 setLocalError("Only images (JPG, PNG, WEBP), PDF or Word (DOC, DOCX) files are allowed.");
                 continue;
             }
-            if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-                setLocalError(`${file.name} is over ${MAX_SIZE_MB}MB.`);
+            if (file.size > MAX_ORIGINAL_MB * 1048576) {
+                setLocalError(`${file.name} is ${formatMb(file.size)} — the limit is ${MAX_ORIGINAL_MB}MB per file.`);
                 continue;
             }
-            if (!existing.has(fileKey(file))) accepted.push(file);
+            if (!existing.has(fileKey(file))) picked.push(file);
         }
 
-        const next = [...value, ...accepted];
-        if (next.length > MAX_FILES) {
-            setLocalError(`You can upload up to ${MAX_FILES} files.`);
+        const room = MAX_FILES - valueRef.current.length;
+        if (picked.length > room) setLocalError(`You can upload up to ${MAX_FILES} files.`);
+        const toAdd = picked.slice(0, Math.max(0, room));
+        if (!toAdd.length) return;
+
+        setCompressing((n) => n + toAdd.length);
+        const prepared = await Promise.all(
+            toAdd.map(async (original) => {
+                const file = isCompressibleImage(original) ? await compressImage(original) : original;
+                originalSizes.set(file, original.size);
+                originalKeys.set(file, fileKey(original));
+                setCompressing((n) => n - 1);
+                return file;
+            }),
+        );
+
+        const tooBig = prepared.filter((f) => f.size > maxFileKb * 1024);
+        if (tooBig.length) {
+            setLocalError(
+                `${tooBig[0].name} is ${formatMb(tooBig[0].size)} after compression — this server accepts up to ${formatLimit(maxFileKb)} per file.`,
+            );
         }
-        if (accepted.length) onChange(next.slice(0, MAX_FILES));
+
+        const accepted = prepared.filter((f) => f.size <= maxFileKb * 1024);
+        if (accepted.length) onChange([...valueRef.current, ...accepted].slice(0, MAX_FILES));
     };
 
     const removeFile = (index: number) => {
@@ -160,7 +204,7 @@ export default function UploadPOTForm({ value, onChange, error }: UploadPOTFormP
                     variant="caption"
                     sx={{ color: "var(--lr-text-secondary)", display: "block", mt: 0.5 }}
                 >
-                    JPG, PNG, WEBP, PDF, DOC or DOCX · up to {MAX_SIZE_MB}MB each, {MAX_FILES} files max
+                    JPG, PNG, WEBP, PDF, DOC or DOCX · up to {MAX_ORIGINAL_MB}MB each, {MAX_FILES} files max · photos are compressed before upload
                 </Typography>
 
                 <input
@@ -176,6 +220,18 @@ export default function UploadPOTForm({ value, onChange, error }: UploadPOTFormP
                     }}
                 />
             </Box>
+
+            {compressing > 0 && (
+                <Box sx={{ mt: 1.5 }}>
+                    <LinearProgress sx={{ borderRadius: 99 }} />
+                    <Typography
+                        variant="caption"
+                        sx={{ color: "var(--lr-text-secondary)", display: "block", mt: 0.5 }}
+                    >
+                        Compressing {compressing} photo{compressing > 1 ? "s" : ""}…
+                    </Typography>
+                </Box>
+            )}
 
             {shownError && (
                 <Typography
@@ -258,7 +314,9 @@ export default function UploadPOTForm({ value, onChange, error }: UploadPOTFormP
                                     variant="caption"
                                     sx={{ color: "var(--lr-text-secondary)" }}
                                 >
-                                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                                    {(originalSizes.get(file) ?? file.size) > file.size
+                                        ? `${formatMb(originalSizes.get(file) ?? file.size)} → ${formatMb(file.size)} compressed`
+                                        : formatMb(file.size)}
                                 </Typography>
                             </Box>
 

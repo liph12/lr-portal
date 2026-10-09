@@ -14,6 +14,9 @@ export interface ClientFields {
 
 export interface ProjectFields {
     developer: AutoCompleteValue | null;
+    project: AutoCompleteValue | null;
+    // True when the project isn't in the catalogue and its name is typed instead.
+    project_not_listed: boolean;
     project_name: string;
     unit_no: string;
     property_type: AutoCompleteValue | null;
@@ -31,6 +34,18 @@ export type ProjectSaleFormData = ClientFields &
     ProjectFields & {
         files: File[];
     };
+
+export interface DeveloperProjectOption {
+    id: number;
+    developer_id: number;
+    name: string;
+    project_property_type_id: number | null;
+}
+
+export interface PropertyTypeOption {
+    id: number;
+    name: string;
+}
 
 export interface SalesSource {
     id: number;

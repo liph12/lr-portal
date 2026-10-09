@@ -1,10 +1,10 @@
-import { ChangeEvent } from "react";
-import { Grid, FormHelperText } from "@mui/material";
+import { ChangeEvent, useMemo } from "react";
+import { Grid, FormHelperText, Link as MuiLink } from "@mui/material";
 import StyledTextField from "../StyledTextField";
 import StyledAutocomplete from "../StyledAutocomplete";
-import { ProjectFields } from "../../../types/app-data-types";
+import { DeveloperProjectOption, ProjectFields } from "../../../types/app-data-types";
 import { AutoCompleteValue, SaleStepProps } from "../../../types";
-import { propertyTypes, condoTypes, commissionStatus } from "../../../app-data";
+import { condoTypes, commissionStatus } from "../../../app-data";
 import {
     makePaymentTerms,
     showsFloorArea,
@@ -14,6 +14,8 @@ import {
 
 interface ProjectSaleFormProps extends SaleStepProps<ProjectFields> {
     developers: AutoCompleteValue[];
+    projects: DeveloperProjectOption[];
+    propertyTypes: AutoCompleteValue[];
 }
 
 const PAYMENT_TERMS = makePaymentTerms();
@@ -39,7 +41,42 @@ export default function ProjectSaleForm({
     setData,
     errors,
     developers,
+    projects,
+    propertyTypes,
 }: ProjectSaleFormProps) {
+    const developerProjects = useMemo(
+        () => projects.filter((p) => p.developer_id === data.developer?.id),
+        [projects, data.developer?.id],
+    );
+    const projectOptions = useMemo(
+        () => developerProjects.map((p) => ({ id: p.id, label: p.name })),
+        [developerProjects],
+    );
+    const hasProjects = projectOptions.length > 0;
+
+    const handleChangeDeveloper = (developer: AutoCompleteValue | null) => {
+        setData("developer", developer);
+        setData("project", null);
+        // Developers with nothing in the catalogue go straight to typing the project name.
+        setData(
+            "project_not_listed",
+            developer !== null && !projects.some((p) => p.developer_id === developer.id),
+        );
+    };
+
+    const handleChangeProject = (project: AutoCompleteValue | null) => {
+        setData("project", project);
+        const typeId = developerProjects.find((p) => p.id === project?.id)?.project_property_type_id;
+        const type = propertyTypes.find((t) => t.id === typeId);
+        if (type) setData("property_type", type);
+    };
+
+    const toggleNotListed = () => {
+        setData("project_not_listed", !data.project_not_listed);
+        setData("project", null);
+        setData("project_name", "");
+    };
+
     const handleChangeTextField = (e: ChangeEvent<HTMLInputElement>) =>
         setData(e.target.name as keyof ProjectFields, e.target.value as never);
 
@@ -60,19 +97,60 @@ export default function ProjectSaleForm({
                             error={errors.developer_id ?? errors.developer ?? null}
                         />
                     )}
-                    onChange={(_, v) => setData("developer", v)}
+                    onChange={(_, v) => handleChangeDeveloper(v)}
                     isOptionEqualToValue={(option, value) => option.id === value.id}
                 />
             </Grid>
             <Grid size={{ lg: 3, md: 6, xs: 12 }}>
-                <Label text="Project Name" required />
-                <StyledTextField
-                    name="project_name"
-                    placeholder="e.g. Mivela Garden Residences"
-                    value={data.project_name}
-                    error={errors.project_name ?? null}
-                    handleChange={handleChangeTextField}
-                />
+                {data.project_not_listed ? (
+                    <>
+                        <Label text="Project Name" required />
+                        <StyledTextField
+                            name="project_name"
+                            placeholder="Type the project name"
+                            value={data.project_name}
+                            error={errors.project_name ?? null}
+                            handleChange={handleChangeTextField}
+                        />
+                    </>
+                ) : (
+                    <>
+                        <Label text="Project" required />
+                        <StyledAutocomplete
+                            options={projectOptions}
+                            value={data.project}
+                            disabled={!data.developer}
+                            noOptionsText="No matching project"
+                            renderInput={(params) => (
+                                <StyledTextField
+                                    params={params}
+                                    placeholder={data.developer ? "Search project" : "Select a developer first"}
+                                    name="project"
+                                    error={errors.developer_project_id ?? errors.project ?? null}
+                                />
+                            )}
+                            onChange={(_, v) => handleChangeProject(v)}
+                            isOptionEqualToValue={(option, value) => option.id === value.id}
+                        />
+                    </>
+                )}
+                {data.developer && (
+                    <FormHelperText sx={{ ml: 0.5 }}>
+                        {!hasProjects && data.project_not_listed
+                            ? "No projects on file for this developer."
+                            : null}
+                        {hasProjects && (
+                            <MuiLink
+                                component="button"
+                                type="button"
+                                onClick={toggleNotListed}
+                                sx={{ fontSize: 12, color: "var(--lr-primary)", verticalAlign: "baseline" }}
+                            >
+                                {data.project_not_listed ? "Choose from the project list" : "Project not listed?"}
+                            </MuiLink>
+                        )}
+                    </FormHelperText>
+                )}
             </Grid>
             <Grid size={{ lg: 3, md: 6, xs: 12 }}>
                 <Label text="Unit No. / Block and Lot No." required />
@@ -92,7 +170,8 @@ export default function ProjectSaleForm({
                         <StyledTextField
                             params={params}
                             name="property_type"
-                            error={errors.property_type ?? null}
+                            placeholder="Select property type"
+                            error={errors.project_property_type_id ?? errors.property_type ?? null}
                         />
                     )}
                     onChange={(_, v) => setData("property_type", v)}

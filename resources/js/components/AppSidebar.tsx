@@ -159,7 +159,7 @@ export default function AppSidebar() {
                             // glyph is centered in its box; pull it to the icon column's edge
                             ml: -0.5,
                             mr: 0.5,
-                            color: "#5f6368",
+                            color: "var(--lr-text-secondary)",
                             transition: "transform 0.15s",
                             transform: onlineOpen
                                 ? "rotate(90deg)"
@@ -168,7 +168,7 @@ export default function AppSidebar() {
                     />
                     <Typography
                         variant="caption"
-                        sx={{ color: "#5f6368", fontWeight: 500 }}
+                        sx={{ color: "var(--lr-text-secondary)", fontWeight: 500 }}
                     >
                         Online users ({users.length})
                     </Typography>
@@ -189,7 +189,7 @@ export default function AppSidebar() {
                     </Box>
                 </Collapse>
 
-                <Divider sx={{ my: 1, borderColor: "#e8eaed", ml: 3 }} />
+                <Divider sx={{ my: 1, borderColor: "var(--lr-border)", ml: 3 }} />
 
                 <Box
                     role="button"
@@ -204,13 +204,13 @@ export default function AppSidebar() {
                         userSelect: "none",
                         borderTopRightRadius: 99,
                         borderBottomRightRadius: 99,
-                        ":hover": { backgroundColor: "#fce8e6" },
+                        ":hover": { backgroundColor: "var(--lr-error-soft)" },
                     }}
                 >
-                    <LogoutRounded fontSize="small" sx={{ color: "#d93025" }} />
+                    <LogoutRounded fontSize="small" sx={{ color: "var(--lr-error)" }} />
                     <Typography
                         variant="caption"
-                        sx={{ color: "#d93025", fontWeight: 500 }}
+                        sx={{ color: "var(--lr-error)", fontWeight: 500 }}
                     >
                         Logout
                     </Typography>

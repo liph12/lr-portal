@@ -6,19 +6,27 @@ import RecordSaleStepperLayout from "../../../../components/layouts/RecordSaleSt
 import ClientForm from "../../../../components/utils/forms/ClientForm";
 import ProjectSaleForm from "../../../../components/utils/forms/ProjectSaleForm";
 import UploadPOTForm from "../../../../components/utils/forms/UploadPOTForm";
-import { ProjectSaleFormData, SalesSource } from "../../../../types/app-data-types";
+import {
+    DeveloperProjectOption,
+    ProjectSaleFormData,
+    PropertyTypeOption,
+    SalesSource,
+} from "../../../../types/app-data-types";
 import { FormErrors } from "../../../../types";
 import { useRecordSaleSteps } from "../../../../app-data";
 import { showsFloorArea, showsLotArea, showsUnitType } from "../../../../helpers/projectSaleFields";
 
 interface ProjectProps {
     developers: SalesSource[];
+    projects: DeveloperProjectOption[];
+    propertyTypes: PropertyTypeOption[];
+    maxFileKb: number;
 }
 
 // Which step owns each server-side field, so a failed submit lands on the step to fix.
 const STEP_FIELDS: string[][] = [
     ["client_firstname", "client_middlename", "client_lastname", "client_email", "client_mobile", "client_birthdate", "client_gender", "client_country", "client_address"],
-    ["developer", "developer_id", "project_name", "unit_no", "property_type", "unit_type", "floor_area", "lot_area", "total_contract_price", "reservation_date", "payment_terms", "remarks", "commission_status"],
+    ["developer", "developer_id", "project", "developer_project_id", "project_name", "unit_no", "property_type", "project_property_type_id", "unit_type", "floor_area", "lot_area", "total_contract_price", "reservation_date", "payment_terms", "remarks", "commission_status"],
     ["files"],
 ];
 
@@ -31,7 +39,6 @@ const REQUIRED: Record<number, [keyof ProjectSaleFormData, string][]> = {
     ],
     1: [
         ["developer", "Select a developer."],
-        ["project_name", "Enter the project name."],
         ["unit_no", "Enter the unit or block and lot number."],
         ["property_type", "Select a property type."],
         ["total_contract_price", "Enter the total contract price."],
@@ -47,11 +54,16 @@ const stepOfError = (key: string) =>
 
 const toAmount = (value: string) => value.replace(/,/g, "").trim();
 
-function Project({ developers }: ProjectProps) {
+function Project({ developers, projects, propertyTypes, maxFileKb }: ProjectProps) {
     const [activeStep, setActiveStep] = useState(0);
+    const [compressing, setCompressing] = useState(false);
     const developerOptions = useMemo(
         () => developers.map((d) => ({ id: d.id, label: d.name })),
         [developers],
+    );
+    const propertyTypeOptions = useMemo(
+        () => propertyTypes.map((t) => ({ id: t.id, label: t.name })),
+        [propertyTypes],
     );
 
     const form = useForm<ProjectSaleFormData>({
@@ -65,9 +77,11 @@ function Project({ developers }: ProjectProps) {
         client_country: { id: "PH", label: "Philippines" },
         client_address: "",
         developer: null,
+        project: null,
+        project_not_listed: false,
         project_name: "",
         unit_no: "",
-        property_type: { id: 1, label: "Condominiums" },
+        property_type: null,
         unit_type: { id: 1, label: "Studio" },
         floor_area: "",
         lot_area: "",
@@ -94,7 +108,20 @@ function Project({ developers }: ProjectProps) {
         });
 
         missing.forEach(([key, message]) => form.setError(key, message));
-        return missing.length === 0;
+
+        // Either a catalogue project or, when it isn't listed, a typed name.
+        let projectOk = true;
+        if (step === 1 && form.data.developer) {
+            if (form.data.project_not_listed && !form.data.project_name.trim()) {
+                form.setError("project_name", "Enter the project name.");
+                projectOk = false;
+            } else if (!form.data.project_not_listed && !form.data.project) {
+                form.setError("project", "Select a project.");
+                projectOk = false;
+            }
+        }
+
+        return missing.length === 0 && projectOk;
     };
 
     const handleNext = () => {
@@ -115,9 +142,10 @@ function Project({ developers }: ProjectProps) {
             client_country: String(d.client_country?.id ?? ""),
             client_address: d.client_address,
             developer_id: d.developer?.id ?? "",
-            project_name: d.project_name,
+            developer_project_id: d.project_not_listed ? "" : (d.project?.id ?? ""),
+            project_name: d.project_not_listed ? d.project_name.trim() : "",
             unit_no: d.unit_no,
-            property_type: d.property_type?.label ?? "",
+            project_property_type_id: d.property_type?.id ?? "",
             unit_type: showsUnitType(d.property_type) ? (d.unit_type?.label ?? "") : "",
             floor_area: showsFloorArea(d.property_type) ? toAmount(d.floor_area) : "",
             lot_area: showsLotArea(d.property_type) ? toAmount(d.lot_area) : "",
@@ -153,6 +181,7 @@ function Project({ developers }: ProjectProps) {
                 onNext={handleNext}
                 onSubmit={handleSubmit}
                 processing={form.processing}
+                busy={compressing}
                 uploadPercentage={form.progress?.percentage}
             >
                 {activeStep === 0 && <ClientForm data={form.data} setData={setField} errors={errors} />}
@@ -162,6 +191,8 @@ function Project({ developers }: ProjectProps) {
                         setData={setField}
                         errors={errors}
                         developers={developerOptions}
+                        projects={projects}
+                        propertyTypes={propertyTypeOptions}
                     />
                 )}
                 {activeStep === 2 && (
@@ -169,6 +200,8 @@ function Project({ developers }: ProjectProps) {
                         value={form.data.files}
                         onChange={(files) => setField("files", files)}
                         error={fileError}
+                        maxFileKb={maxFileKb}
+                        onCompressingChange={setCompressing}
                     />
                 )}
             </RecordSaleStepperLayout>

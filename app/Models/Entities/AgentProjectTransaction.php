@@ -11,7 +11,7 @@ class AgentProjectTransaction extends Model
         'agent_transaction_id',
         'developer_id',
         'project_name',
-        'property_type',
+        'project_property_type_id',
         'unit_type',
         'floor_area',
         'lot_area',
@@ -38,5 +38,15 @@ class AgentProjectTransaction extends Model
     public function developer(): BelongsTo
     {
         return $this->belongsTo(Developer::class);
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(DeveloperProject::class, 'developer_project_id');
+    }
+
+    public function propertyType(): BelongsTo
+    {
+        return $this->belongsTo(ProjectPropertyType::class, 'project_property_type_id');
     }
 }

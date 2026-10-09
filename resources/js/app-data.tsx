@@ -117,23 +117,6 @@ export const useRecordSaleSteps = [
     "Upload POT",
 ];
 
-export const propertyTypes = [
-    { id: 1, label: "Condominiums" },
-    { id: 3, label: "Commercial" },
-    { id: 4, label: "Industrial" },
-    { id: 8, label: "Apartment" },
-    { id: 9, label: "Beach House" },
-    { id: 10, label: "House & Lot" },
-    { id: 11, label: "Townhouse" },
-    { id: 12, label: "Lot Only" },
-    { id: 13, label: "Farm Land" },
-    { id: 14, label: "Warehouse" },
-    { id: 15, label: "Colombary" },
-    { id: 16, label: "Dormitory" },
-    { id: 17, label: "Office Space" },
-    { id: 18, label: "Parking" },
-];
-
 export const condoTypes = [
     { id: 1, label: "Studio" },
     { id: 2, label: "Parking" },
