@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\Management\ChangeAgentStatusRequest;
+use App\Http\Requests\Portal\Management\ChangeAgentTypeRequest;
 use App\Http\Requests\Portal\Management\ChangeTeamStatusRequest;
 use App\Http\Requests\Portal\Management\SaveSubTeamRequest;
 use App\Http\Requests\Portal\Management\SaveTeamRequest;
@@ -48,13 +49,15 @@ class ManagementController extends Controller
 
     public function agents(Request $request)
     {
-        $filters = $request->only(['q', 'status', 'team_id', 'sort', 'dir', 'per_page']);
+        $filters = $request->only(['q', 'status', 'team_id', 'agent_type', 'sort', 'dir', 'per_page']);
 
         return inertia('Portal/Management/Agents', [
             'agents' => $this->page($this->directory->agents($filters)),
             'filters' => $filters,
             'teams' => $this->directory->teamOptions(),
             'statuses' => User::STATUSES,
+            'agentTypes' => Agent::TYPES,
+            'areas' => collect(config('areas'))->map(fn ($a) => $a['name']),
         ]);
     }
 
@@ -130,6 +133,13 @@ class ManagementController extends Controller
         $accounts->changeStatus($request->user(), $agent->user, $request->validated('status'));
 
         return back()->with('success', "{$agent->user->name} is now {$request->validated('status')}.");
+    }
+
+    public function agentType(ChangeAgentTypeRequest $request, Agent $agent)
+    {
+        $this->teams->changeAgentType($agent, $request->validated('agent_type'));
+
+        return back()->with('success', "{$agent->user?->name} is now a ".str_replace('_', ' ', $agent->agent_type).'.');
     }
 
     public function agentPhoto(UploadPhotoRequest $request, Agent $agent, ProfilePhotoService $photos)

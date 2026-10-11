@@ -30,7 +30,7 @@ export default function AppSidebar() {
                 {routes.map((r, k) => {
                     // Group headings belong to the superadmin menu's layout; other portals' menus are short and flat.
                     const ADMINISTRATOR_GROUP = isSuperadmin && k === 0;
-                    const STAFF_GROUP = isSuperadmin && k === 3;
+                    const STAFF_GROUP = isSuperadmin && r.path === "/superadmin/accounting";
 
                     return (
                         <Box key={k}>

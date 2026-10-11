@@ -2,6 +2,8 @@ import { ReactNode, useMemo, useState } from "react";
 import { Container, Typography } from "@mui/material";
 import { useForm } from "@inertiajs/react";
 import useSaleSteps from "../../../../hooks/useSaleSteps";
+import SalesEncodingNotice from "../../../../components/utils/SalesEncodingNotice";
+import { closedMessage } from "../../../../helpers/salesCutoff";
 import DashboardLayout from "../../../../components/layouts/DashboardLayout";
 import RecordSaleStepperLayout from "../../../../components/layouts/RecordSaleStepperLayout";
 import ClientForm from "../../../../components/utils/forms/ClientForm";
@@ -12,12 +14,16 @@ import {
     ProjectSaleFormData,
     PropertyTypeOption,
     SalesSource,
+    SalesCutoffTimes,
+    SalesEncodingState,
 } from "../../../../types/app-data-types";
 import { FormErrors } from "../../../../types";
 import { useRecordSaleSteps } from "../../../../app-data";
 import { MEASUREMENT_KEYS, missingMeasurements, showsFloorArea, showsLotArea, showsUnitType } from "../../../../helpers/projectSaleFields";
 
 interface ProjectProps {
+    encoding: SalesEncodingState;
+    cutoffs: SalesCutoffTimes;
     developers: SalesSource[];
     projects: DeveloperProjectOption[];
     propertyTypes: PropertyTypeOption[];
@@ -55,7 +61,7 @@ const stepOfError = (key: string) =>
 
 const toAmount = (value: string) => value.replace(/,/g, "").trim();
 
-function Project({ developers, projects, propertyTypes, maxFileKb }: ProjectProps) {
+function Project({ developers, projects, propertyTypes, maxFileKb, encoding, cutoffs }: ProjectProps) {
     const [compressing, setCompressing] = useState(false);
     const developerOptions = useMemo(
         () => developers.map((d) => ({ id: d.id, label: d.name })),
@@ -110,6 +116,9 @@ function Project({ developers, projects, propertyTypes, maxFileKb }: ProjectProp
         });
 
         if (step === 1) missing.push(...missingMeasurements(form.data));
+
+        const closed = step === 1 && form.data.reservation_date ? closedMessage(form.data.reservation_date, cutoffs) : null;
+        if (closed) missing.push(["reservation_date", closed]);
 
         missing.forEach(([key, message]) => form.setError(key, message));
 
@@ -175,6 +184,7 @@ function Project({ developers, projects, propertyTypes, maxFileKb }: ProjectProp
             <Typography variant="h6" fontWeight="bold" textAlign="center">
                 Record Project Sale
             </Typography>
+            <SalesEncodingNotice encoding={encoding} error={errors.sales_encoding ?? null} />
             <RecordSaleStepperLayout
                 steps={useRecordSaleSteps}
                 activeStep={activeStep}
@@ -186,6 +196,7 @@ function Project({ developers, projects, propertyTypes, maxFileKb }: ProjectProp
                 processing={form.processing}
                 busy={compressing}
                 uploadPercentage={form.progress?.percentage}
+                submitDisabled={!encoding.enabled}
             >
                 {activeStep === 0 && <ClientForm data={form.data} setData={setField} errors={errors} />}
                 {activeStep === 1 && (

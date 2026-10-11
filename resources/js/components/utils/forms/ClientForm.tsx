@@ -41,7 +41,12 @@ function Label({ text, required }: { text: string; required?: boolean }) {
     );
 }
 
-export default function ClientForm({ data, setData, errors }: SaleStepProps<ClientFields>) {
+interface ClientFormProps extends SaleStepProps<ClientFields> {
+    // International sales also record the client's age.
+    withAge?: boolean;
+}
+
+export default function ClientForm({ data, setData, errors, withAge = false }: ClientFormProps) {
     const handleChangeTextField = (e: ChangeEvent<HTMLInputElement>) =>
         setData(e.target.name as keyof ClientFields, e.target.value as never);
 
@@ -59,6 +64,19 @@ export default function ClientForm({ data, setData, errors }: SaleStepProps<Clie
                     />
                 </Grid>
             ))}
+
+            {withAge && (
+                <Grid size={{ lg: 3, md: 6, xs: 12 }}>
+                    <Label text="Client Age" />
+                    <StyledTextField
+                        name="client_age"
+                        value={data.client_age ?? ""}
+                        error={errors.client_age ?? null}
+                        handleChange={handleChangeTextField}
+                        props={{ slotProps: { htmlInput: { inputMode: "numeric" } } }}
+                    />
+                </Grid>
+            )}
 
             <Grid size={{ lg: 3, md: 6, xs: 12 }}>
                 <Label text="Client Gender" />

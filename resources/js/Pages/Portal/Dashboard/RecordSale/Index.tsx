@@ -3,6 +3,8 @@ import DashboardLayout from "../../../../components/layouts/DashboardLayout";
 import { Container, Box, Grid, Typography } from "@mui/material";
 import FlashBanner from "../../../../components/utils/FlashBanner";
 import SectionTitle from "../../../../components/utils/SectionTitle";
+import SalesEncodingNotice from "../../../../components/utils/SalesEncodingNotice";
+import { SalesEncodingState } from "../../../../types/app-data-types";
 import FhDevelopersLogo from "../../../../../assets/fh-logo-dark.png";
 import RentphLogo from "../../../../../assets/rentph-logo.png";
 import LrLogo from "../../../../../assets/lr-logo.svg";
@@ -15,6 +17,8 @@ interface SaleOption {
     subTitle: string;
     logo: string;
     href: string;
+    // Which recording permission the card needs.
+    kind: "local" | "international";
 }
 
 const SALE_OPTIONS: SaleOption[] = [
@@ -23,18 +27,28 @@ const SALE_OPTIONS: SaleOption[] = [
         subTitle: "Developer",
         logo: FhDevelopersLogo,
         href: "/dashboard/record-sale/project",
+        kind: "local",
     },
     {
         title: "Rental Sale",
         subTitle: "Rent PH",
         logo: RentphLogo,
         href: "/dashboard/record-sale/rental",
+        kind: "local",
     },
     {
         title: "Brokerage Sale",
         subTitle: "Leuterio Realty",
         logo: LrLogo,
         href: "/dashboard/record-sale/brokerage",
+        kind: "local",
+    },
+    {
+        title: "International Sale",
+        subTitle: "Global Partner",
+        logo: LrLogo,
+        href: "/dashboard/record-sale/international",
+        kind: "international",
     },
 ];
 
@@ -123,16 +137,22 @@ function SaleCard({ title, subTitle, logo, href }: SaleOption) {
     );
 }
 
-function RecordSale() {
+interface RecordSaleProps {
+    encoding: SalesEncodingState;
+    can: { local: boolean; international: boolean };
+}
+
+function RecordSale({ encoding, can }: RecordSaleProps) {
     return (
         <Container sx={{ py: { xs: 3, sm: 4 } }} maxWidth="lg">
             <FlashBanner />
+            <SalesEncodingNotice encoding={encoding} />
             <SectionTitle
                 title="Record your sale"
                 subtitle="Choose the type of sale you closed."
             />
             <Grid container spacing={2}>
-                {SALE_OPTIONS.map((opt) => (
+                {SALE_OPTIONS.filter((opt) => can[opt.kind]).map((opt) => (
                     <Grid key={opt.href} size={{ lg: 4, sm: 6, xs: 12 }}>
                         <SaleCard {...opt} />
                     </Grid>

@@ -13,8 +13,8 @@ class ApplyViewAsRole
 
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->hasSession() && $request->user()) {
-            $this->viewAs->apply($request->user(), $request->session());
+        if ($request->user()) {
+            $this->viewAs->apply($request->user(), $request);
         }
 
         return $next($request);

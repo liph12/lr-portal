@@ -27,7 +27,7 @@ export default function LeaderboardList({ entries, kind }: LeaderboardListProps)
                 <Box
                     component="li"
                     key={`${e.id ?? ""}${e.name}`}
-                    title={`${e.name}: ${formatPeso(e.value)}`}
+                    title={e.value === undefined ? e.name : `${e.name}: ${formatPeso(e.value)}`}
                     sx={{ display: "flex", alignItems: "center", gap: 1.25, px: 1, py: 0.75, borderRadius: 2, ":hover": { backgroundColor: "var(--lr-surface-dim)" } }}
                 >
                     <Typography variant="caption" sx={{ width: 16, textAlign: "center", fontWeight: 700, color: MEDALS[i] ?? "var(--lr-text-secondary)" }}>
@@ -59,9 +59,11 @@ export default function LeaderboardList({ entries, kind }: LeaderboardListProps)
                         >
                             {e.name}
                         </Typography>
-                        <Typography variant="caption" fontFamily="Google Sans Code" sx={{ color: "var(--lr-text-secondary)", fontSize: 11 }}>
-                            {formatPesoCompact(e.value)}
-                        </Typography>
+                        {e.value !== undefined && (
+                            <Typography variant="caption" fontFamily="Google Sans Code" sx={{ color: "var(--lr-text-secondary)", fontSize: 11 }}>
+                                {formatPesoCompact(e.value)}
+                            </Typography>
+                        )}
                     </Box>
                 </Box>
             ))}

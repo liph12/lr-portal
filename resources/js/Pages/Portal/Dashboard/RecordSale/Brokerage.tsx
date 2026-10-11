@@ -2,17 +2,21 @@ import { ReactNode, useMemo, useState } from "react";
 import { Container, Typography } from "@mui/material";
 import { useForm } from "@inertiajs/react";
 import useSaleSteps from "../../../../hooks/useSaleSteps";
+import SalesEncodingNotice from "../../../../components/utils/SalesEncodingNotice";
+import { closedMessage } from "../../../../helpers/salesCutoff";
 import DashboardLayout from "../../../../components/layouts/DashboardLayout";
 import RecordSaleStepperLayout from "../../../../components/layouts/RecordSaleStepperLayout";
 import ClientForm from "../../../../components/utils/forms/ClientForm";
 import BrokerageSaleForm from "../../../../components/utils/forms/BrokerageSaleForm";
 import SaleSlipsForm from "../../../../components/utils/forms/SaleSlipsForm";
-import { BrokerageSaleFormData, PropertyTypeOption, SalesSource } from "../../../../types/app-data-types";
+import { BrokerageSaleFormData, PropertyTypeOption, SalesSource, SalesCutoffTimes, SalesEncodingState } from "../../../../types/app-data-types";
 import { FormErrors } from "../../../../types";
 import { useSlipSaleSteps } from "../../../../app-data";
 import { MEASUREMENT_KEYS, missingMeasurements, showsFloorArea, showsLotArea, showsUnitType } from "../../../../helpers/projectSaleFields";
 
 interface BrokerageProps {
+    encoding: SalesEncodingState;
+    cutoffs: SalesCutoffTimes;
     brokerageAreas: SalesSource[];
     propertyTypes: PropertyTypeOption[];
     maxFileKb: number;
@@ -51,7 +55,7 @@ const stepOfError = (key: string) =>
 
 const toAmount = (value: string) => value.replace(/,/g, "").trim();
 
-function Brokerage({ brokerageAreas, propertyTypes, maxFileKb }: BrokerageProps) {
+function Brokerage({ brokerageAreas, propertyTypes, maxFileKb, encoding, cutoffs }: BrokerageProps) {
     const [compressing, setCompressing] = useState({ remittance_slip: false, deposit_slip: false });
     const propertyTypeOptions = useMemo(() => propertyTypes.map((t) => ({ id: t.id, label: t.name })), [propertyTypes]);
     const brokerageAreaOptions = useMemo(() => brokerageAreas.map((a) => ({ id: a.id, label: a.name })), [brokerageAreas]);
@@ -99,6 +103,9 @@ function Brokerage({ brokerageAreas, propertyTypes, maxFileKb }: BrokerageProps)
         });
 
         if (step === 1) missing.push(...missingMeasurements(form.data));
+
+        const closed = step === 1 && form.data.reservation_date ? closedMessage(form.data.reservation_date, cutoffs) : null;
+        if (closed) missing.push(["reservation_date", closed]);
 
         missing.forEach(([key, message]) => form.setError(key, message));
 
@@ -150,6 +157,7 @@ function Brokerage({ brokerageAreas, propertyTypes, maxFileKb }: BrokerageProps)
             <Typography variant="h6" fontWeight="bold" textAlign="center">
                 Record Brokerage Sale
             </Typography>
+            <SalesEncodingNotice encoding={encoding} error={errors.sales_encoding ?? null} />
             <RecordSaleStepperLayout
                 steps={useSlipSaleSteps}
                 activeStep={activeStep}
@@ -161,6 +169,7 @@ function Brokerage({ brokerageAreas, propertyTypes, maxFileKb }: BrokerageProps)
                 processing={form.processing}
                 busy={compressing.remittance_slip || compressing.deposit_slip}
                 uploadPercentage={form.progress?.percentage}
+                submitDisabled={!encoding.enabled}
             >
                 {activeStep === 0 && <ClientForm data={form.data} setData={setField} errors={errors} />}
                 {activeStep === 1 && (

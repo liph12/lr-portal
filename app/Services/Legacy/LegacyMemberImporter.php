@@ -2,6 +2,8 @@
 
 namespace App\Services\Legacy;
 
+use App\Models\Entities\Agent;
+use App\Support\Areas;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\ConnectionInterface;
@@ -39,6 +41,9 @@ class LegacyMemberImporter
         'ADMIN' => ['admin', 'Admin'],
     ];
 
+    // Agents whose legacy national_intern is "international".
+    private const GLOBAL_PARTNER_ROLE = ['global_partner', 'Global Partner'];
+
     // For members without a legacy users row, members.membertype stands in for the role.
     private const MEMBERTYPE_TO_ROLE = [
         'agent' => 'AGENT',
@@ -67,7 +72,7 @@ class LegacyMemberImporter
         'hashpass', 'password', 'gender', 'maritalstatus', 'phone', 'mobile', 'address', 'city', 'state',
         'photo', 'aboutyourself', 'specialskills', 'workexperience', 'fblink', 'tin', 'dateactivated',
         'nao_video_tracker', 'nao_proof_of_attendance', 'nao_attendance_confirmation', 'nao_date_attended',
-        'fire_certs_count', 'prc_expiry', 'dshud_expiry', 'created_at', 'updated_at',
+        'fire_certs_count', 'prc_expiry', 'dshud_expiry', 'national_intern', 'country', 'lr_joined', 'created_at', 'updated_at',
     ];
 
     private ConnectionInterface $legacy;
@@ -198,7 +203,7 @@ class LegacyMemberImporter
 
     private function ensureRoles(): void
     {
-        foreach (self::ROLE_MAP as [$name, $label]) {
+        foreach ([...self::ROLE_MAP, self::GLOBAL_PARTNER_ROLE] as [$name, $label]) {
             $this->roleIds[$name] = Role::firstOrCreate(['name' => $name], ['label' => $label])->id;
         }
     }
@@ -331,6 +336,11 @@ class LegacyMemberImporter
             return $this->reject($m->id, $email, "legacy role {$legacyRole} is not an agent");
         }
         $role = (self::ROLE_MAP[$legacyRole] ?? self::ROLE_MAP['AGENT'])[0];
+        // Plain agents selling from abroad get their own role; other roles stay (one role per user).
+        $origin = LegacyAgentOrigin::of($m);
+        if ($role === 'agent' && $origin['agent_type'] === Agent::TYPE_GLOBAL_PARTNER) {
+            $role = self::GLOBAL_PARTNER_ROLE[0];
+        }
 
         [$first, $middle, $last] = $this->names($m);
         $password = $this->bcryptFrom($account['password'] ?? null) ?? $this->bcryptFrom($m->hashpass) ?? $this->bcryptFrom($m->password);
@@ -379,6 +389,8 @@ class LegacyMemberImporter
                 'gender' => $gender ?? true,
                 'avatar' => $avatar,
                 'marital_status' => in_array(trim((string) $m->maritalstatus), self::MARITAL_STATUSES, true) ? trim($m->maritalstatus) : null,
+                ...$origin,
+                'area' => Areas::forAgent($this->clean($m->state), $this->clean($m->city), $origin['country_code']),
             ],
             'profile' => [
                 'about' => $this->clean($m->aboutyourself, 255, true),

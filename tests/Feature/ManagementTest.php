@@ -160,3 +160,16 @@ test('sub-teams are created under a team and can be deactivated', function () {
         ->assertInertia(fn ($page) => $page->component('Portal/Management/SubTeams')
             ->where('subTeams', fn ($rows) => collect($rows)->firstWhere('name', 'Alpha Unit')['status'] === 'deactivated'));
 });
+
+test('admins set an agent as local or global partner and filter by it', function () {
+    $this->actingAs($this->admin)->patch("/admin/management/agents/{$this->ana}/type", ['agent_type' => 'global_partner'])->assertSessionHasNoErrors();
+    expect(DB::table('agents')->where('id', $this->ana)->value('agent_type'))->toBe('global_partner');
+
+    $this->actingAs($this->admin)->patch("/admin/management/agents/{$this->ana}/type", ['agent_type' => 'alien'])->assertSessionHasErrors('agent_type');
+
+    $this->actingAs($this->admin)->get('/admin/management/agents?agent_type=global_partner')
+        ->assertInertia(fn ($page) => $page->where('agents.total', 1)->where('agents.data.0.name', 'Ana Reyes')->where('agentTypes', ['local', 'global_partner']));
+
+    $superAgent = DB::table('agents')->where('user_id', $this->superadmin->id)->value('id');
+    $this->actingAs($this->admin)->patch("/admin/management/agents/{$superAgent}/type", ['agent_type' => 'global_partner'])->assertForbidden();
+});

@@ -22,6 +22,7 @@ import {
     Android,
     LinkRounded,
 } from "@mui/icons-material";
+import { hasAnyPermission, RECORD_PERMISSIONS } from "../../../helpers/permissions";
 import SectionTitle from "../../../components/utils/SectionTitle";
 import useAuthUser from "../../../hooks/useAuthUser";
 import { buildUserLinks } from "../../../helpers/userLinks";
@@ -150,7 +151,7 @@ function Dashboard() {
                         gap: { xs: 1, sm: 2 },
                     }}
                 >
-                    {(user?.permissions ?? []).indexOf("record_sales") !== -1 && (
+                    {hasAnyPermission(user?.permissions, RECORD_PERMISSIONS) && (
                         <StyledButton
                             variant="contained"
                             size="small"

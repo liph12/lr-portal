@@ -5,7 +5,9 @@ namespace App\Http\Requests\Portal\Sales;
 use App\Models\Entities\AgentTransaction;
 use App\Models\Entities\ProjectPropertyType;
 use Illuminate\Foundation\Http\FormRequest;
+use App\Services\SalesEncodingService;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 // Rules every sale category shares: the client, the property and its measurements, and uploads.
 abstract class SaleRequest extends FormRequest
@@ -47,6 +49,57 @@ abstract class SaleRequest extends FormRequest
      */
     protected function propertyRules(): array
     {
+        return [
+            ...$this->unitRules(),
+            'total_contract_price' => ['required', 'numeric', 'gt:0'],
+            'reservation_date' => ['required', 'date'],
+            'payment_terms' => ['required', 'string', 'max:50'],
+            'remarks' => ['nullable', 'string', 'max:1000'],
+            'commission_status' => ['required', Rule::in(self::COMMISSION_STATUSES)],
+        ];
+    }
+
+    /**
+     * Recording has to be switched on (Settings › Sales cutoff), and the sale's month must still be open.
+     *
+     * @return array<int, callable>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator) {
+                $encoding = app(SalesEncodingService::class);
+
+                if (! $encoding->isEnabled()) {
+                    $validator->errors()->add('sales_encoding', $encoding->state()['message'] ?: 'Recording sales is turned off right now. Try again later.');
+
+                    return;
+                }
+
+                $date = $this->input('reservation_date');
+                if ($validator->errors()->has('reservation_date') || ! is_string($date) || strtotime($date) === false) {
+                    return;
+                }
+
+                $date = date('Y-m-d', strtotime($date));
+                if ($cutoff = $encoding->closedBy($date)) {
+                    $validator->errors()->add('reservation_date', sprintf(
+                        'Sales reserved in %s closed on %s. Ask a superadmin to move the cutoff if it still needs recording.',
+                        $encoding->monthLabel(substr($date, 0, 7)),
+                        $cutoff->cutoff_at->format('M j, Y g:i A'),
+                    ));
+                }
+            },
+        ];
+    }
+
+    /**
+     * The unit, its property type and the measurements that type has.
+     *
+     * @return array<string, array<mixed>>
+     */
+    protected function unitRules(): array
+    {
         $type = $this->integer('project_property_type_id');
 
         return [
@@ -55,11 +108,6 @@ abstract class SaleRequest extends FormRequest
             'unit_type' => [Rule::requiredIf(in_array($type, ProjectPropertyType::WITH_UNIT_TYPE, true)), 'nullable', 'string', 'max:100'],
             'floor_area' => [Rule::requiredIf(in_array($type, ProjectPropertyType::WITH_FLOOR_AREA, true)), 'nullable', 'numeric', 'gt:0', 'max:99999999'],
             'lot_area' => [Rule::requiredIf(in_array($type, ProjectPropertyType::WITH_LOT_AREA, true)), 'nullable', 'numeric', 'gt:0', 'max:99999999'],
-            'total_contract_price' => ['required', 'numeric', 'gt:0'],
-            'reservation_date' => ['required', 'date'],
-            'payment_terms' => ['required', 'string', 'max:50'],
-            'remarks' => ['nullable', 'string', 'max:1000'],
-            'commission_status' => ['required', Rule::in(self::COMMISSION_STATUSES)],
         ];
     }
 

@@ -1,0 +1,258 @@
+import { ArrowBackRounded, ChevronRightRounded } from "@mui/icons-material";
+import { Link, router } from "@inertiajs/react";
+import { Box, Chip, Container, LinearProgress, MenuItem, TextField, Typography } from "@mui/material";
+import { GridColDef } from "@mui/x-data-grid";
+import SectionTitle from "../utils/SectionTitle";
+import DataTable from "../utils/tables/DataTable";
+import TableToolbar from "../utils/tables/TableToolbar";
+import PersonCell from "../utils/tables/PersonCell";
+import StyledButton from "../utils/StyledButton";
+import DateRangeField from "../utils/DateRangeField";
+import ReportStatistics, { CATEGORY_LABELS, ReportSummary } from "./ReportStatistics";
+import useServerTable, { ServerPage, TableFilters } from "../../hooks/useServerTable";
+import { formatPeso } from "../../helpers/formatNumber";
+import { reportPresets } from "../../helpers/dateRanges";
+
+export type { ReportSummary } from "./ReportStatistics";
+
+export interface ReportRow {
+    // Areas use their key ("cebu"); everything else a numeric id.
+    id: number | string;
+    name: string;
+    detail: string | null;
+    avatar: string | null;
+    // Where the row belongs: the agent's (or team leader's) area, and the agent's current / sub-team's team.
+    area: string | null;
+    team: string | null;
+    value: number;
+}
+
+export interface ReportFilters extends TableFilters {
+    from: string;
+    to: string;
+    category: string | null;
+    status: string;
+    view: string;
+}
+
+// The group a drill-down is limited to (clicked from the Teams / Sub-teams / Developers / Areas table).
+export interface ReportScope {
+    type: "team" | "sub_team" | "developer" | "area";
+    id: number | string;
+    name: string;
+}
+
+export interface SalesReportViewProps {
+    filters: ReportFilters;
+    scope?: ReportScope | null;
+    summary: ReportSummary;
+    breakdown: ServerPage<ReportRow>;
+    options: { categories: string[]; statuses: string[]; views: string[] };
+    title: string;
+    subtitle: string;
+    // A single report (Reports › …): no view tabs; otherwise tabs switch between views.
+    fixedView?: boolean;
+    // Shown as a back link above the title.
+    backHref?: string;
+}
+
+const VIEWS: Record<string, { label: string; column: string; search: string }> = {
+    agents: { label: "Agents", column: "Agent", search: "Search agents" },
+    teams: { label: "Teams", column: "Team", search: "Search teams" },
+    sub_teams: { label: "Sub-teams", column: "Sub-team", search: "Search sub-teams" },
+    areas: { label: "Areas", column: "Area", search: "Search areas" },
+    developers: { label: "Developers", column: "Developer", search: "Search developers" },
+    brokerage: { label: "Brokerage", column: "Agent", search: "Search agents" },
+    rental: { label: "Rental", column: "Agent", search: "Search agents" },
+    unit_managers: { label: "Unit managers", column: "Unit manager", search: "Search unit managers" },
+};
+
+// Rows of these views open that group's top agents.
+const DRILL: Record<string, { key: string; label: string; hint: string }> = {
+    teams: { key: "team_id", label: "Team", hint: "Click a team to see its top agents." },
+    sub_teams: { key: "sub_team_id", label: "Sub-team", hint: "Click a sub-team to see its top agents." },
+    developers: { key: "developer_id", label: "Developer", hint: "Click a developer to see the top agents selling its projects." },
+    areas: { key: "area", label: "Area", hint: "Click an area to see its top agents." },
+};
+const SCOPE_KEYS = { team: "team_id", sub_team: "sub_team_id", developer: "developer_id", area: "area" } as const;
+const NO_SCOPE = { team_id: "", sub_team_id: "", developer_id: "", area: "" };
+
+// Rows of these views are people: clicking opens the agent's profile.
+const PEOPLE = ["agents", "rental", "brokerage", "unit_managers"];
+
+// Which "where they belong" columns make sense per view.
+const SHOW_AREA = ["agents", "rental", "brokerage", "unit_managers", "teams", "sub_teams"];
+const SHOW_TEAM = ["agents", "rental", "brokerage", "unit_managers", "sub_teams"];
+
+// Views tied to one category; the category filter is fixed while they're open.
+const VIEW_CATEGORY: Record<string, string> = { developers: "project", brokerage: "brokerage", rental: "rental" };
+
+const selectSx = {
+    minWidth: 150,
+    "& .MuiOutlinedInput-root": { borderRadius: 99, backgroundColor: "var(--lr-surface-container)", fontSize: 14 },
+    "& fieldset": { border: "none" },
+};
+
+// The sales report body: filters, the ranked table first, then the statistics underneath.
+// Used by Dashboard › View Sales (with view tabs) and by each card under Reports (one view).
+export default function SalesReportView({ filters, scope = null, summary, breakdown, options, title, subtitle, fixedView = false, backHref }: SalesReportViewProps) {
+    const table = useServerTable("breakdown", breakdown, filters, ["summary"]);
+
+    const view = VIEWS[filters.view] ?? VIEWS.agents;
+    const lockedCategory = VIEW_CATEGORY[filters.view] ?? (scope?.type === "developer" ? "project" : undefined);
+    const drill = DRILL[filters.view];
+    const isPeople = PEOPLE.indexOf(filters.view) !== -1;
+    const clickable = isPeople || !!drill;
+
+    // Same dates and status, limited to the clicked group. A single report jumps to Top Agents; View Sales switches tab.
+    const openRow = (row: ReportRow) => {
+        if (!row.id) return;
+        if (isPeople) {
+            router.visit(`/agents/${row.id}?from=${filters.from}&to=${filters.to}`);
+            return;
+        }
+        if (!drill) return;
+        const keep = { from: filters.from, to: filters.to, status: filters.status, category: filters.category ?? "" };
+        if (fixedView) {
+            router.get("/reports/top-agents", Object.fromEntries(Object.entries({ ...keep, [drill.key]: row.id }).filter(([, v]) => v !== "")));
+        } else {
+            table.setFilters({ ...NO_SCOPE, view: "agents", [drill.key]: row.id, sort: "", dir: "" });
+        }
+    };
+
+    const columns: GridColDef<ReportRow>[] = [
+        {
+            field: "name",
+            headerName: view.column,
+            flex: 1.6,
+            minWidth: 240,
+            renderCell: ({ row }) => (
+                <PersonCell name={row.name} avatar={row.avatar} secondary={row.detail ?? undefined} hideAvatar={!isPeople && filters.view !== "teams" && filters.view !== "sub_teams"} />
+            ),
+        },
+        ...(SHOW_AREA.indexOf(filters.view) !== -1
+            ? [{ field: "area", headerName: "Area / location", flex: 1, minWidth: 150, sortable: false, valueGetter: (_: unknown, row: ReportRow) => row.area ?? "—" } as GridColDef<ReportRow>]
+            : []),
+        ...(SHOW_TEAM.indexOf(filters.view) !== -1
+            ? [{ field: "team", headerName: "Team", flex: 1, minWidth: 160, sortable: false, valueGetter: (_: unknown, row: ReportRow) => row.team ?? "—" } as GridColDef<ReportRow>]
+            : []),
+        { field: "value", headerName: "Total sales", type: "number", flex: 1, minWidth: 170, valueFormatter: (v: number) => formatPeso(v) },
+        ...(clickable
+            ? [{ field: "open", headerName: "", width: 56, sortable: false, renderCell: () => <ChevronRightRounded sx={{ color: "var(--lr-text-secondary)" }} /> } as GridColDef<ReportRow>]
+            : []),
+    ];
+
+    const hint = isPeople ? "Click an agent to open their profile." : drill?.hint;
+
+    return (
+        <Container sx={{ py: { xs: 3, sm: 4 } }} maxWidth="xl">
+            {backHref && (
+                <Link href={backHref} style={{ textDecoration: "none" }}>
+                    <StyledButton size="small" variant="text" startIcon={<ArrowBackRounded />} sx={{ mb: 1, px: 1, color: "var(--lr-primary)" }}>
+                        All reports
+                    </StyledButton>
+                </Link>
+            )}
+            <SectionTitle title={title} subtitle={subtitle} />
+
+            {/* Filters: date range (with quick ranges), category and status */}
+            <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5, mb: 3 }}>
+                <DateRangeField value={{ from: filters.from, to: filters.to }} presets={reportPresets()} onChange={(range) => table.setFilters({ ...range })} />
+                <TextField
+                    select
+                    size="small"
+                    label="Category"
+                    value={lockedCategory ?? filters.category ?? ""}
+                    disabled={!!lockedCategory}
+                    onChange={(e) => table.setFilter("category", e.target.value)}
+                    slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+                    sx={selectSx}
+                >
+                    <MenuItem value="">All categories</MenuItem>
+                    {options.categories.map((c) => (
+                        <MenuItem key={c} value={c}>
+                            {CATEGORY_LABELS[c] ?? c}
+                        </MenuItem>
+                    ))}
+                </TextField>
+                <TextField
+                    select
+                    size="small"
+                    label="Status"
+                    value={filters.status}
+                    onChange={(e) => table.setFilter("status", e.target.value)}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                    sx={selectSx}
+                >
+                    <MenuItem value="all">All statuses</MenuItem>
+                    {options.statuses.map((s) => (
+                        <MenuItem key={s} value={s} sx={{ textTransform: "capitalize" }}>
+                            {s}
+                        </MenuItem>
+                    ))}
+                </TextField>
+            </Box>
+            {table.loading && <LinearProgress sx={{ height: 2, mb: 2 }} />}
+
+            {/* The ranked table comes first */}
+            {!fixedView && (
+                <Box component="nav" aria-label="Report views" sx={{ display: "flex", gap: 1, mb: 2, overflowX: "auto", scrollbarWidth: "none" }}>
+                    {options.views.map((v) => {
+                        const active = v === filters.view;
+                        return (
+                            <StyledButton
+                                key={v}
+                                size="small"
+                                variant="text"
+                                aria-pressed={active}
+                                onClick={() => table.setFilters({ ...NO_SCOPE, view: v, sort: "", dir: "" })}
+                                sx={{
+                                    borderRadius: 99,
+                                    px: 2,
+                                    fontWeight: 500,
+                                    whiteSpace: "nowrap",
+                                    color: active ? "var(--lr-primary)" : "var(--lr-text-secondary)",
+                                    backgroundColor: active ? "var(--lr-primary-soft)" : "transparent",
+                                    ":hover": { backgroundColor: active ? "var(--lr-primary-soft)" : "var(--lr-surface-container)" },
+                                }}
+                            >
+                                {VIEWS[v]?.label ?? v}
+                            </StyledButton>
+                        );
+                    })}
+                </Box>
+            )}
+            {scope && (
+                <Chip
+                    label={`${DRILL[`${scope.type}s`]?.label ?? scope.type}: ${scope.name}`}
+                    onDelete={() => table.setFilter(SCOPE_KEYS[scope.type], "")}
+                    sx={{ mb: 2, backgroundColor: "var(--lr-primary-soft)", color: "var(--lr-primary)", fontWeight: 500, "& .MuiChip-deleteIcon": { color: "var(--lr-primary)" } }}
+                />
+            )}
+            {hint && (
+                <Typography variant="body2" sx={{ mb: 1, color: "var(--lr-text-secondary)" }}>
+                    {hint}
+                </Typography>
+            )}
+            <TableToolbar search={table.search} onSearch={table.setSearch} placeholder={view.search} />
+            <DataTable
+                {...table.gridProps}
+                columns={columns}
+                getRowHeight={() => 56}
+                aria-label={`Sales by ${view.label.toLowerCase()}`}
+                onRowClick={clickable ? ({ row }) => openRow(row as ReportRow) : undefined}
+                sx={clickable ? { "& .MuiDataGrid-row": { cursor: "pointer" } } : undefined}
+            />
+            {(filters.view === "teams" || filters.view === "sub_teams" || !fixedView) && (
+                <Typography variant="caption" component="p" sx={{ mt: 1, color: "var(--lr-text-secondary)" }}>
+                    Teams and sub-teams credit each sale to the team its agent was on at the reservation date. A team's area is its leader's.
+                </Typography>
+            )}
+
+            {/* Statistics underneath, so the table stays the focus */}
+            <Box sx={{ mt: 5 }}>
+                <ReportStatistics summary={summary} showCategories={!lockedCategory} showAreas={filters.view !== "areas" && scope?.type !== "area"} />
+            </Box>
+        </Container>
+    );
+}

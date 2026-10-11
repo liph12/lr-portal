@@ -28,6 +28,7 @@ return function (string $portal) {
             Route::post('/sub-teams/{subTeam}/photo', 'subTeamLogo')->name('sub-teams.photo');
 
             Route::patch('/agents/{agent}/status', 'agentStatus')->name('agents.status');
+            Route::patch('/agents/{agent}/type', 'agentType')->name('agents.type');
             Route::post('/agents/{agent}/photo', 'agentPhoto')->name('agents.photo');
             Route::post('/agents/{agent}/transfer', 'transfer')->name('agents.transfer');
         });

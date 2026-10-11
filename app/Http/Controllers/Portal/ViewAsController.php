@@ -15,7 +15,7 @@ class ViewAsController extends Controller
     public function store(StartViewAsRequest $request)
     {
         $role = Role::where('name', $request->validated('role'))->firstOrFail();
-        $this->viewAs->start($request->user(), $role, $request->session());
+        $this->viewAs->start($request->user(), $role);
 
         // Land where that role lands, the same way sign-in does.
         $request->user()->viewAs($role);
@@ -25,7 +25,7 @@ class ViewAsController extends Controller
 
     public function destroy(StopViewAsRequest $request)
     {
-        $this->viewAs->stop($request->user(), $request->session());
+        $this->viewAs->stop($request->user(), $request);
 
         return redirect()->route('dashboard.index')->with('success', "You're back to Superadmin.");
     }

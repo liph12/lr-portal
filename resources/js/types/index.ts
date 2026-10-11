@@ -54,8 +54,9 @@ export interface LeaderboardEntry {
     id?: number;
     name: string;
     avatar?: string | null;
-    sales: number;
-    value: number;
+    // Only sent to superadmin, admin and staff; other roles see the ranking without figures.
+    sales?: number;
+    value?: number;
 }
 
 export interface LeaderboardMonth {

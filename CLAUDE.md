@@ -132,6 +132,19 @@ at the matching path. Nothing else.
   URL is stored in `agents.avatar` (shared as `auth.avatar`). Render people with
   `components/utils/user/UserAvatar.tsx` (photo, falling back to initials). Flash messages:
   `components/utils/FlashBanner.tsx`; titled panels: `components/cards/SectionCard.tsx`.
+- **Sales cutoff & recording switch** (Settings › Sales cutoff, superadmin only; `SalesCutoffController`,
+  `SalesEncodingService`, `SalesCutoffPolicy`): monthly `sales_cutoffs` (month `YYYY-MM` → `cutoff_at`) and an
+  on/off switch in `app_settings` (`sales_encoding`). Enforced for **every role** in `SaleRequest::after()`:
+  recording off → `sales_encoding` error; a reservation month is closed from its own cutoff, or — if it has
+  none — once any later month's cutoff has passed (`closedBy`, mirrored in `helpers/salesCutoff.ts` for the
+  form warning). Record pages receive `encoding` + `cutoffs`; `SalesEncodingNotice` shows the switch state.
+  App timezone is **Asia/Manila** (`APP_TIMEZONE`): cutoffs and legacy dates are Philippine local time.
+- **International sales** (global partners): `international_sales` + 1:1 `international_sale_clients`
+  (separate from `agent_transactions`), recorded at `/dashboard/record-sale/international`
+  (`StoreInternationalSaleRequest` extends `SaleRequest`, so cutoffs/switch apply; `InternationalSaleService`;
+  `InternationalSalePolicy` → `record_international_sales`, granted to role `global_partner`). Menu
+  `permission` may be a list of alternatives (`helpers/permissions.ts`). Not yet in leaderboards/statistics.
+  Legacy: `legacy:import-international-sales`, see `docs/legacy-migration/international-sales.md`.
 - **Dashboard (shared)**: `/dashboard/{main,overview,view-sales,record-sale/...}` (`routes/dashboard.php`,
   `Portal\DashboardController`, pages in `Pages/Portal/Dashboard/`) is the **same for every role** and is
   everyone's home (`User::homeUrl()` → `dashboard.index`; old `/superadmin/dashboard/*`, `/admin/dashboard`,
@@ -186,7 +199,8 @@ at the matching path. Nothing else.
   (`team-logos/`). Agent status/photo: admins may change agents and staff but not admins/superadmins
   (`UserPolicy::updateStatus/updatePhoto`).
 - **View as role** (superadmin testing): profile menu → "View the portal as …" (`POST/DELETE /view-as`,
-  `ViewAsService`, session key `view_as_role`). `ApplyViewAsRole` middleware (before
+  `ViewAsService`, encrypted cookie `lr_view_as` — **not** the session: the database session is rewritten whole by
+  every request, so a slow background request would end the preview). `ApplyViewAsRole` middleware (before
   `HandleInertiaRequests`) calls `User::viewAs($role)`, after which `hasRole`, `hasAnyRole`, `portal`,
   `permissions` and every gate/policy act as that role; `User::reallyHasRole()` ignores the preview (only
   for starting/stopping it). Shared: `auth.viewing_as`, `auth.view_as_roles`, `auth.can.view_as`;
@@ -200,6 +214,32 @@ at the matching path. Nothing else.
   members see id/name/avatar/role). The client joins once per tab in `helpers/presence.ts` (outside
   React, so page visits don't rejoin) and authorizes with the fresh `XSRF-TOKEN` cookie. If the socket
   is down, `hooks/useOnlineUsers.ts` falls back to the 60s partial-reload poll.
+- **Sales report** (Dashboard › View Sales, `/dashboard/view-sales`, `can:view_reports`; `SalesReportController` →
+  `SalesReportService`): one UNION of all four categories (project, rental, brokerage, international; date +
+  status filtered inside each branch, uses the `reservation_date` / `sale_status` indexes) feeds KPIs (vs the
+  same-length previous period), a monthly trend (yearly past 36 months) and a server-paged breakdown by view:
+  agents, teams / sub-teams (team at the reservation date, same rule as Top Teams), developers (project),
+  brokerage (agents, brokerage only), rental (agents, rental only). Filters live in the URL; the page reloads
+  `breakdown` + `summary` via `useServerTable(..., ['summary'])`. Default: this year, valid sales.
+  **Reports** (`/reports`, sidebar item for every portal, `can:view_reports`; `ReportsController`): cards from
+  `components/reports/reportCatalog.ts` → `/reports/{slug}`, each one view of the same service (Top Agents, Top Unit
+  Managers = agents with role `unit_manager`, own sales; Top Teams, Top Sub-teams, Developer / Brokerage / Rental
+  Sales — brokerage and rental rank agents). Both pages render `components/reports/SalesReportView.tsx` (View Sales with view tabs, a report without).
+  Drill-down: Teams / Sub-teams / Developers rows open that group's top agents (`team_id` / `sub_team_id` /
+  `developer_id` filter → `SalesReportService::sales()` scope; teams by the stint covering each reservation date;
+  shared `scope` prop names it for the chip).
+- **Areas** (offices): `config/areas.php` (legacy LOCATIONS_LATEST + `abroad`) → `agents.area` via `App\Support\Areas`
+  (state, then city: own area name > listed place > contains name > contains place; non-PH country → abroad).
+  The `Agent` model re-derives it when state/city/country_code change; rows written with `DB::table` (imports)
+  must set it themselves or run `php artisan agents:assign-areas`. Reports: `areas` view / "Sales by Area" card,
+  drill by `area` (`unassigned` for agents without one); Management › Agents shows it.
+- **Report layout**: the ranked table comes first (name, Area / location, Team where relevant, Total sales — no
+  count / average / share columns); statistics (`components/reports/ReportStatistics.tsx`: tiles, trend, by
+  category, by area, by client country — codes and legacy names merged via `Countries::resolve`, top 10 + Other —
+  by client gender, by property type) sit underneath. People rows open the read-only agent profile `/agents/{agent}`
+  (`AgentProfileController`, view_reports or team managers; same service with an `agent_id` scope).
+  Date ranges use `components/utils/DateRangeField.tsx` (free `@mui/x-date-pickers` DateCalendar + dayjs, quick
+  ranges + click first/last day) — MUI's DateRangePicker is Pro-only, don't add it.
 - **Charts / statistics**: `/superadmin/statistics` (`StatisticsController` → `StatisticsService`,
   sales dated by `reservation_date`). Charts are plain MUI in `components/charts/` (`StatTile`,
   `MonthlyColumnChart`, `BarList`, `ShareBar`) — no chart library. Series colours are the validated
@@ -211,7 +251,9 @@ at the matching path. Nothing else.
   `router.reload({ only: ["leaderboards"] })` — use the same pattern for other heavy side panels.
   Optional props are dropped on the next visit, so `hooks/useLeaderboards.ts` keeps the last result
   in a module cache (refetched only when older than 5 min).
-  Boards: agents, brokerage (agents by brokerage sales), teams, projects, developers for this and last month. A month = valid sales
+  Boards: agents, brokerage (agents by brokerage sales), teams, projects, developers for this and last month.
+  Sale counts/amounts are sent only to `LeaderboardService::AMOUNT_ROLES` (superadmin, admin, staff); other roles
+  get names in rank order (stripped server-side, never just hidden in the UI). A month = valid sales
   **reserved** in it and **encoded** (`agent_transactions.created_at`) by its cutoff in
   `sales_cutoffs` (imported by `legacy:import-sales-cutoffs`; no row = month still open). Top Teams
   credits a sale to the team its agent was on at the reservation date (`team_agents` history).
@@ -219,6 +261,10 @@ at the matching path. Nothing else.
   read-only use). Imports are artisan commands backed by services in `app/Services/Legacy/`
   (`legacy:import-members`; legacy SUPERVISOR = `team_leader`, there is no supervisor role): idempotent by email, `--dry-run` rolls back, rejects go to
   `storage/app/private/legacy-import/`. Mapping and decisions: `docs/legacy-migration/`.
+  `agents.agent_type` is `Agent::TYPES` (local, global_partner): global = legacy `national_intern` international
+  + joined ≥ 2024-02-01 + country not PH (`Agent::typeFromLegacy`, `LegacyAgentOrigin`, `legacy:import-agent-types`
+  re-applies it and syncs the `global_partner` role). `agents.country` / `country_code` via `App\Support\Countries`
+  (`config/countries.php` mirrors `countries` in app-data.tsx — change both); show with `CountryFlag`.
   **`agents.id` = legacy `members.id`** (and is the agent's referral number), so later imports
   (teams, sales) join legacy member ids straight onto `agents.id` — never via a lookup table.
   Sales (`legacy:import-sales`): `agent_transactions.id` = `salesreport.id`; category from legacy

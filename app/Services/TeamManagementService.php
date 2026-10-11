@@ -170,6 +170,20 @@ class TeamManagementService
         ]);
     }
 
+    public function changeAgentType(Agent $agent, string $type): void
+    {
+        $previous = $agent->agent_type;
+
+        if ($previous === $type) {
+            return;
+        }
+
+        $agent->forceFill(['agent_type' => $type])->save();
+
+        $name = $agent->user?->name ?? "agent #{$agent->id}";
+        $this->activity->describe('agent.type_changed', "Changed {$name} from {$previous} to {$type}", $agent, ['from' => $previous, 'to' => $type]);
+    }
+
     // Deactivating closes the team for good: its members and sub-teams are let go from today.
     private function applyTeamStatus(Team $team, string $status, ?string $previous): void
     {

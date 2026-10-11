@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Models\Entities\AgentTransaction;
+use App\Models\Entities\InternationalSale;
+use App\Services\SalesEncodingService;
+use Illuminate\Http\Request;
 
 // The dashboard every signed-in role shares (/dashboard/...); only Record Your Sale is permission-gated.
 class DashboardController extends Controller
@@ -36,18 +40,14 @@ class DashboardController extends Controller
         return inertia('Portal/Dashboard/Overview/Index', ['recruits' => $recruits]);
     }
 
-    public function viewSales()
+    public function recordSale(Request $request, SalesEncodingService $encoding)
     {
-        return inertia('Portal/Dashboard/Reports/Index');
-    }
+        $can = [
+            'local' => $request->user()->can('create', AgentTransaction::class),
+            'international' => $request->user()->can('create', InternationalSale::class),
+        ];
+        abort_unless($can['local'] || $can['international'], 403);
 
-    public function developerSales()
-    {
-        return inertia('Portal/Dashboard/Reports/Developer');
-    }
-
-    public function recordSale()
-    {
-        return inertia('Portal/Dashboard/RecordSale/Index');
+        return inertia('Portal/Dashboard/RecordSale/Index', ['encoding' => $encoding->state(), 'can' => $can]);
     }
 }

@@ -28,6 +28,7 @@ Route::middleware(['auth', 'active'])->group(function(){
 
     require base_path('routes/profile.php');
     require base_path('routes/dashboard.php');
+    require base_path('routes/reports.php');
     require base_path('routes/search.php');
 
     // Superadmin role preview; the requests check the real role, so the way back always works.

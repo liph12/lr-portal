@@ -5,6 +5,7 @@ import OnlineUsersPanel from "../utils/user/OnlineUsersPanel";
 import useAuthUser from "../../hooks/useAuthUser";
 import useOnlineUsers from "../../hooks/useOnlineUsers";
 import { dashboardRoute } from "../../app-data";
+import { hasAnyPermission } from "../../helpers/permissions";
 import { isRouteActive } from "../../helpers/routeMatch";
 import StyledButton from "../utils/StyledButton";
 import AppLayout from "./AppLayout";
@@ -17,8 +18,8 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     const showOnlineStrip = !!authUser?.portal && !desktop;
     const { users: onlineUsers, live } = useOnlineUsers(showOnlineStrip);
     const { url } = usePage();
-    // Tabs the role may open (Record Your Sale needs `record_sales`).
-    const tabs = dashboardRoute.children.filter((r: { permission?: string }) => !r.permission || (authUser?.permissions ?? []).indexOf(r.permission) !== -1);
+    // Tabs the role may open (Record Your Sale needs a recording permission).
+    const tabs = dashboardRoute.children.filter((r: { permission?: string | string[] }) => hasAnyPermission(authUser?.permissions, r.permission));
 
     return (
         <AppLayout>

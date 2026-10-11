@@ -8,12 +8,13 @@ import TableToolbar from "../../../components/utils/tables/TableToolbar";
 import FilterSelect from "../../../components/utils/tables/FilterSelect";
 import PersonCell from "../../../components/utils/tables/PersonCell";
 import StatusMenu from "../../../components/utils/StatusMenu";
+import CountryFlag from "../../../components/utils/CountryFlag";
 import PhotoUploadButton from "../../../components/utils/PhotoUploadButton";
 import UserAvatar from "../../../components/utils/user/UserAvatar";
 import TransferDialog from "../../../components/utils/forms/TransferDialog";
 import useAuthUser from "../../../hooks/useAuthUser";
 import useServerTable, { ServerPage, TableFilters } from "../../../hooks/useServerTable";
-import { AgentRow, TeamOption } from "../../../types/app-data-types";
+import { AGENT_TYPE_LABELS, AgentRow, TeamOption } from "../../../types/app-data-types";
 import { formatDate } from "../../../helpers/formatDate";
 
 interface AgentsProps {
@@ -21,13 +22,16 @@ interface AgentsProps {
     filters: TableFilters;
     teams: TeamOption[];
     statuses: string[];
+    agentTypes: string[];
+    // area key => name
+    areas: Record<string, string>;
 }
 
 // Admins manage agents and staff; only superadmins manage admins and other superadmins (UserPolicy).
 const MANAGER_ROLES = ["superadmin", "admin"];
 const SIGN_OUT_NOTE = "They're signed out right away and can't sign in until set back to active.";
 
-function Agents({ agents, filters, teams, statuses }: AgentsProps) {
+function Agents({ agents, filters, teams, statuses, agentTypes, areas }: AgentsProps) {
     const me = useAuthUser();
     const baseUrl = `/${me?.portal ?? "superadmin"}/management`;
     const table = useServerTable("agents", agents, filters);
@@ -58,6 +62,24 @@ function Agents({ agents, filters, teams, statuses }: AgentsProps) {
             ),
         },
         { field: "id", headerName: "Agent ID", width: 110, renderCell: ({ row }) => `#${row.id}` },
+        {
+            field: "agent_type",
+            headerName: "Type",
+            width: 160,
+            renderCell: ({ row }) => (
+                <StatusMenu
+                    status={row.agent_type}
+                    statuses={agentTypes}
+                    labels={AGENT_TYPE_LABELS}
+                    field="agent_type"
+                    url={`${baseUrl}/agents/${row.id}/type`}
+                    subject={row.name}
+                    disabled={!canManage(row)}
+                />
+            ),
+        },
+        { field: "area", headerName: "Area", width: 130, valueGetter: (_, row) => (row.area ? (areas[row.area] ?? row.area) : "Unassigned") },
+        { field: "country", headerName: "Country", width: 170, renderCell: ({ row }) => <CountryFlag code={row.country_code} country={row.country} /> },
         { field: "role_label", headerName: "Role", width: 130, valueGetter: (_, row) => row.role_label ?? "—" },
         {
             field: "team_name",
@@ -106,6 +128,12 @@ function Agents({ agents, filters, teams, statuses }: AgentsProps) {
                 filters={
                     <>
                         <FilterSelect label="Statuses" value={filters.status} options={statuses.map((s) => ({ value: s, label: s }))} onChange={(v) => table.setFilter("status", v)} />
+                        <FilterSelect
+                            label="Types"
+                            value={filters.agent_type}
+                            options={agentTypes.map((t) => ({ value: t, label: AGENT_TYPE_LABELS[t] ?? t }))}
+                            onChange={(v) => table.setFilter("agent_type", v)}
+                        />
                         <FilterSelect label="Teams" value={filters.team_id} options={teams.map((t) => ({ value: String(t.id), label: t.name }))} onChange={(v) => table.setFilter("team_id", v)} />
                     </>
                 }

@@ -10,6 +10,7 @@ export interface ClientFields {
     client_gender: AutoCompleteValue | null;
     client_country: AutoCompleteValue | null;
     client_address: string;
+    client_age?: string;
 }
 
 // Which of these apply depends on the property type (helpers/projectSaleFields.ts).
@@ -211,6 +212,11 @@ export interface AgentRow {
     email: string;
     avatar: string | null;
     status: string;
+    agent_type: "local" | "global_partner";
+    country: string | null;
+    country_code: string | null;
+    // config/areas.php key; null when unassigned.
+    area: string | null;
     role: string | null;
     role_label: string | null;
     team_id: number | null;
@@ -232,3 +238,28 @@ export interface TransferRow {
     status: string;
     changed_on: string | null;
 }
+
+export interface SalesEncodingState {
+    enabled: boolean;
+    // Shown to people trying to record while recording is off.
+    message: string | null;
+    changed_at: string | null;
+}
+
+// month (YYYY-MM) => cutoff time (ISO 8601)
+export type SalesCutoffTimes = Record<string, string>;
+
+export const AGENT_TYPE_LABELS: Record<string, string> = { local: "Local agent", global_partner: "Global partner" };
+
+export interface InternationalFields extends MeasurementFields {
+    unit_no: string;
+    unit_quantity: string;
+    total_contract_price: string;
+    reservation_date: string;
+    remarks: string;
+}
+
+export type InternationalSaleFormData = ClientFields &
+    InternationalFields & {
+        proof_of_transaction: File | null;
+    };

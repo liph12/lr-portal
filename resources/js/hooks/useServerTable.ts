@@ -15,7 +15,8 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 // Drives a server-paged DataTable from Inertia: page, sort, search and filters live in the URL query and
 // are applied with a partial reload of just `prop`, so the rest of the page (and its layout) stays put.
-export default function useServerTable<R>(prop: string, page: ServerPage<R>, filters: TableFilters) {
+// `alsoReload` lists other props that depend on the same filters (e.g. a report's totals and chart).
+export default function useServerTable<R>(prop: string, page: ServerPage<R>, filters: TableFilters, alsoReload: string[] = []) {
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState(String(filters.q ?? ""));
     const first = useRef(true);
@@ -26,7 +27,7 @@ export default function useServerTable<R>(prop: string, page: ServerPage<R>, fil
         );
 
         router.get(window.location.pathname, query, {
-            only: [prop, "filters"],
+            only: [prop, "filters", ...alsoReload],
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -65,5 +66,7 @@ export default function useServerTable<R>(prop: string, page: ServerPage<R>, fil
             onSortModelChange: (m: GridSortModel) => visit({ sort: m[0]?.field ?? "", dir: m[0]?.sort ?? "", page: 1 }),
         },
         setFilter: (key: string, value: string | number | null) => visit({ [key]: value ?? "", page: 1 }),
+        // Several filters at once (e.g. a date range).
+        setFilters: (changes: TableFilters) => visit({ ...changes, page: 1 }),
     };
 }

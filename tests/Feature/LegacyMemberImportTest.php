@@ -3,6 +3,7 @@
 use App\Models\Entities\Agent;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\Legacy\LegacyAgentTypeImporter;
 use App\Services\Legacy\LegacyMemberImporter;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -35,7 +36,7 @@ beforeEach(function () {
         }
         foreach (['email', 'fn', 'mn', 'ln', 'completename', 'status', 'membertype', 'hashpass', 'password', 'maritalstatus',
             'phone', 'mobile', 'address', 'city', 'state', 'photo', 'aboutyourself', 'specialskills', 'workexperience',
-            'fblink', 'tin', 'nao_proof_of_attendance', 'nao_attendance_confirmation', 'nao_date_attended', 'prc_expiry', 'dshud_expiry'] as $c) {
+            'fblink', 'tin', 'nao_proof_of_attendance', 'nao_attendance_confirmation', 'nao_date_attended', 'prc_expiry', 'dshud_expiry', 'national_intern', 'country', 'lr_joined'] as $c) {
             $t->text($c)->nullable();
         }
         $t->timestamps();
@@ -222,4 +223,35 @@ test('legacy supervisors become team leaders', function () {
     expect(User::where('email', 'lead@example.com')->sole()->roles()->pluck('name')->all())->toBe(['team_leader'])
         ->and(User::where('email', 'old-lead@example.com')->sole()->roles()->pluck('name')->all())->toBe(['team_leader'])
         ->and(Role::where('name', 'supervisor')->exists())->toBeFalse();
+});
+
+test('global partners are international, joined since 2024-02-01 and based abroad; everyone else is local', function () {
+    $abroad = ['national_intern' => 'international', 'country' => 'United Arab Erimates', 'lr_joined' => '2024-03-10'];
+    $global = ($this->member)(['email' => 'abroad@example.com', 'fn' => 'Abroad'] + $abroad);
+    $typo = ($this->member)(['email' => 'typo@example.com', 'fn' => 'Typo', 'national_intern' => 'Internationa', 'country' => 'Japan', 'lr_joined' => null, 'created_at' => '2025-01-01 08:00:00']);
+    $early = ($this->member)(['email' => 'early@example.com', 'fn' => 'Early', 'lr_joined' => '2024-01-31'] + $abroad);
+    $inPh = ($this->member)(['email' => 'inph@example.com', 'fn' => 'InPh', 'country' => 'phillipines'] + $abroad);
+    $noCountry = ($this->member)(['email' => 'nocountry@example.com', 'fn' => 'NoCountry', 'country' => ''] + $abroad);
+    $national = ($this->member)(['email' => 'home@example.com', 'fn' => 'Home', 'national_intern' => 'national', 'country' => 'Philippines', 'lr_joined' => '2025-01-01']);
+
+    ($this->import)();
+
+    $agents = Agent::whereIn('id', [$global, $typo, $early, $inPh, $noCountry, $national])->get()->keyBy('id');
+    expect($agents->map->agent_type->all())->toEqual([
+        $global => 'global_partner', $typo => 'global_partner', $early => 'local', $inPh => 'local', $noCountry => 'local', $national => 'local',
+    ])
+        ->and($agents[$global]->only(['country', 'country_code']))->toBe(['country' => 'United Arab Emirates', 'country_code' => 'AE'])
+        ->and($agents[$inPh]->only(['country', 'country_code']))->toBe(['country' => 'Philippines', 'country_code' => 'PH'])
+        ->and($agents[$noCountry]->country)->toBeNull()
+        // Plain agents abroad get the Global Partner role.
+        ->and(User::where('email', 'abroad@example.com')->sole()->roles()->pluck('name')->all())->toBe(['global_partner'])
+        ->and(User::where('email', 'early@example.com')->sole()->roles()->pluck('name')->all())->toBe(['agent']);
+
+    // The backfill reaches the same answer, and puts roles back in step with the type.
+    DB::table('agents')->update(['agent_type' => 'global_partner', 'country' => null, 'country_code' => null]);
+    $stats = (new LegacyAgentTypeImporter)->run();
+
+    expect(Agent::where('agent_type', 'global_partner')->pluck('id')->sort()->values()->all())->toBe(collect([$global, $typo])->sort()->values()->all())
+        ->and(Agent::find($global)->country_code)->toBe('AE')
+        ->and($stats)->toMatchArray(['global_partner' => 2, 'local' => 4]);
 });

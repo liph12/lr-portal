@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ViewAsService;
 use Illuminate\Http\Request;
 use App\Services\ActivityLogger;
 use App\Services\AuthUserService;
@@ -88,6 +89,8 @@ class UserController extends Controller
 
         Auth::logout();
         $request->session()->invalidate();
+        // A superadmin's role preview ends with the sign-in.
+        app(ViewAsService::class)->forget();
         
         return redirect('/login');
     }

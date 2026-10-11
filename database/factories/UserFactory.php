@@ -25,7 +25,8 @@ class UserFactory extends Factory
     {
         return [
             'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
+            // Neutral, so a test searching for a name ("ana", "juan") never matches a random email.
+            'email' => fake()->unique()->numerify('user-#######@example.test'),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),

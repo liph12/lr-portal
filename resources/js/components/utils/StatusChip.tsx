@@ -11,6 +11,8 @@ const TONES: Record<string, [string, string]> = {
     resigned: ["var(--lr-warning-soft)", "var(--lr-warning)"],
     deactivated: ["var(--lr-error-soft)", "var(--lr-error)"],
     terminated: ["var(--lr-error-soft)", "var(--lr-error)"],
+    local: ["var(--lr-surface-container)", "var(--lr-text-body)"],
+    global_partner: ["var(--lr-primary-soft)", "var(--lr-primary)"],
 };
 
 export default function StatusChip({ status, sx, ...props }: StatusChipProps) {

@@ -15,6 +15,8 @@ interface RecordSaleStepperLayoutProps {
     processing: boolean;
     // Holds the primary button while something on the step (e.g. photo compression) is still running.
     busy?: boolean;
+    // Blocks only the final submit (e.g. recording switched off), not moving between steps.
+    submitDisabled?: boolean;
     uploadPercentage?: number;
     onStepClick?: (step: number) => void;
     errorSteps?: number[];
@@ -29,6 +31,7 @@ export default function RecordSaleStepperLayout({
     onSubmit,
     processing,
     busy = false,
+    submitDisabled = false,
     uploadPercentage,
     onStepClick,
     errorSteps,
@@ -92,7 +95,7 @@ export default function RecordSaleStepperLayout({
                     variant="contained"
                     onClick={isLastStep ? onSubmit : onNext}
                     loading={processing}
-                    disabled={busy}
+                    disabled={busy || (isLastStep && submitDisabled)}
                     endIcon={isLastStep ? <CloudUploadRounded /> : <EastIcon />}
                     sx={{
                         px: 3,

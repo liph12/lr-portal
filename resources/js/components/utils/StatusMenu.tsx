@@ -8,8 +8,11 @@ import ConfirmDialog from "./ConfirmDialog";
 interface StatusMenuProps {
     status: string | null;
     statuses: string[];
-    // PATCHed as { status }.
+    // PATCHed as { [field]: value }.
     url: string;
+    field?: string;
+    // Display names for values that aren't readable as-is (e.g. global_partner → "Global partner").
+    labels?: Record<string, string>;
     subject: string;
     disabled?: boolean;
     // Statuses that need a confirm first, with what they will do.
@@ -17,14 +20,15 @@ interface StatusMenuProps {
 }
 
 // A status chip that opens a menu of the other statuses.
-export default function StatusMenu({ status, statuses, url, subject, disabled = false, confirm = {} }: StatusMenuProps) {
+export default function StatusMenu({ status, statuses, url, field = "status", labels = {}, subject, disabled = false, confirm = {} }: StatusMenuProps) {
+    const label = (value: string | null) => (value ? (labels[value] ?? value) : "—");
     const [anchor, setAnchor] = useState<HTMLElement | null>(null);
     const [pending, setPending] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
     const save = (next: string) => {
         setPending(null);
-        router.patch(url, { status: next }, {
+        router.patch(url, { [field]: next }, {
             preserveScroll: true,
             onStart: () => setSaving(true),
             onFinish: () => setSaving(false),
@@ -41,7 +45,7 @@ export default function StatusMenu({ status, statuses, url, subject, disabled = 
         <>
             <ButtonBase
                 disabled={disabled || saving}
-                aria-label={`Change status of ${subject}`}
+                aria-label={`Change ${field.replace("_", " ")} of ${subject}`}
                 aria-haspopup="menu"
                 onClick={(e: MouseEvent<HTMLElement>) => {
                     e.stopPropagation();
@@ -50,22 +54,22 @@ export default function StatusMenu({ status, statuses, url, subject, disabled = 
                 sx={{ borderRadius: 99, lineHeight: 1, alignSelf: "center", opacity: saving ? 0.6 : 1 }}
             >
                 <StatusChip status={status} sx={{ pr: disabled ? 1.25 : 0.5 }}>
-                    {status}
+                    {label(status)}
                     {!disabled && <ExpandMoreRounded sx={{ fontSize: 16, ml: 0.25 }} />}
                 </StatusChip>
             </ButtonBase>
             <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)}>
                 {statuses.map((s) => (
                     <MenuItem key={s} selected={s === status} onClick={() => choose(s)} sx={{ fontSize: 14, textTransform: "capitalize" }}>
-                        <ListItemText primary={s} slotProps={{ primary: { sx: { fontSize: 14 } } }} />
+                        <ListItemText primary={label(s)} slotProps={{ primary: { sx: { fontSize: 14 } } }} />
                     </MenuItem>
                 ))}
             </Menu>
             <ConfirmDialog
                 open={pending !== null}
-                title={`Set ${subject} to ${pending}?`}
+                title={`Set ${subject} to ${label(pending)}?`}
                 message={pending ? confirm[pending] : null}
-                confirmLabel={`Set to ${pending ?? ""}`}
+                confirmLabel={`Set to ${pending ? label(pending) : ""}`}
                 onConfirm={() => pending && save(pending)}
                 onClose={() => setPending(null)}
             />

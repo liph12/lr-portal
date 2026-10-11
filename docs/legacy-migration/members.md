@@ -162,3 +162,21 @@ Any of these can be added back — say which (Q9).
    or leave them out?
 9. Any of these worth keeping: `secondary_email`, `website`, `office`, secretary info (`sec_*`),
    `degree`/`institution`, `remarks`?
+
+## Agent type (local / global partner) and country
+
+- `agents.country` / `country_code` come from legacy `members.country`, normalised by `App\Support\Countries`
+  (canonical names from `config/countries.php`, the same list as the UI's country picker): every spelling of
+  the Philippines ("phillipines", "Phils.", "Pilipinas", "Manila, Philippines", "Cebu"…) → Philippines / PH;
+  "United States of America" → United States / US, "HongKong" → Hong Kong / HK, "Dubai UAE" → AE; placeholders
+  ("0", "N/A", "none") → empty. 64,657 agents have a code; ~10 rare names keep their text without a code.
+- `agents.agent_type` is **global_partner** only when all three hold (`Agent::typeFromLegacy`):
+  1. `national_intern` is "international" (or a typo of it);
+  2. joined on/after **2024-02-01** — `lr_joined`, else the member's `created_at`;
+  3. a recorded country other than the Philippines (blank country → local).
+  Everyone else is **local**. Result: 4,054 global partners, 78,854 local agents.
+- Role: plain agents who are global partners have the **Global Partner** role; global partners who no longer
+  qualified went back to **Agent** (2,469). Other roles are never changed.
+- New member imports apply this directly (`LegacyAgentOrigin`); `php artisan legacy:import-agent-types`
+  (`--dry-run`) re-applies it to existing agents and re-syncs the role. Changeable afterwards in Management ›
+  Agents (Type column).

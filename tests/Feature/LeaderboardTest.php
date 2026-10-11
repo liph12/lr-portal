@@ -176,3 +176,24 @@ test('top brokerage ranks agents by their brokerage sales only', function () {
             ->where('leaderboards.1.boards.brokerage.1', fn ($a) => $a['name'] === 'Ana Reyes' && (float) $a['value'] === 3_000_000.0)
             ->where('leaderboards.1.boards.agents.0.name', 'Ana Reyes')));
 });
+
+test('field roles see the leaderboard ranking without any sales figures', function () {
+    $agentRole = Role::create(['name' => 'agent', 'label' => 'Agent']);
+    $agentRole->permissions()->attach(Permission::where('name', 'view_leaderboards')->value('id'));
+    $agent = User::factory()->create();
+    $agent->roles()->attach($agentRole);
+    $this->staffRole->permissions()->attach(Permission::where('name', 'view_leaderboards')->value('id'));
+
+    ($this->sale)($this->ben, 'Casa Mira', 30_000_000, '2026-10-07');
+    ($this->sale)($this->ana, 'Mivela', 20_000_000, '2026-10-01');
+
+    $this->actingAs($agent)->get('/dashboard/main')
+        ->assertInertia(fn ($page) => $page->reloadOnly('leaderboards', fn ($reload) => $reload
+            ->where('leaderboards.0.boards.agents', fn ($rows) => collect($rows)->pluck('name')->all() === ['Ben Cruz', 'Ana Reyes']
+                && collect($rows)->every(fn ($r) => ! array_key_exists('value', (array) $r) && ! array_key_exists('sales', (array) $r)))
+            ->where('leaderboards.0.boards.projects.0', fn ($p) => ! array_key_exists('value', (array) $p))));
+
+    $this->actingAs($this->staff)->get('/dashboard/main')
+        ->assertInertia(fn ($page) => $page->reloadOnly('leaderboards', fn ($reload) => $reload
+            ->where('leaderboards.0.boards.agents.0.value', 30_000_000)));
+});

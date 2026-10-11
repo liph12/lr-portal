@@ -1,6 +1,7 @@
 import { Box, Divider, Typography, Link as MuiLink } from "@mui/material";
 import { NoteAddRounded } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
+import { hasAnyPermission, RECORD_PERMISSIONS } from "../../../helpers/permissions";
 import StyledButton from "../StyledButton";
 import useAuthUser from "../../../hooks/useAuthUser";
 import UserAvatar from "./UserAvatar";
@@ -84,7 +85,7 @@ export default function SidebarProfile() {
                 >
                     Edit profile
                 </MuiLink>
-                {user.permissions.indexOf("record_sales") !== -1 && (
+                {hasAnyPermission(user.permissions, RECORD_PERMISSIONS) && (
                     <StyledButton
                         variant="contained"
                         fullWidth

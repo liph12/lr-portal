@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Entities\AgentTransaction;
+use App\Policies\UserPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -10,6 +11,9 @@ use Illuminate\Support\Facades\DB;
 class LeaderboardService
 {
     public const PERMISSION = 'view_leaderboards';
+
+    // Back-office roles see sale counts and amounts; everyone else sees names in rank order only.
+    public const AMOUNT_ROLES = UserPolicy::SEARCH_ROLES;
 
     private const LIMIT = 10;
 
@@ -27,21 +31,27 @@ class LeaderboardService
      *
      * @return array<int, array{month: string, boards: array<string, array<int, array<string, mixed>>>}>
      */
-    public function recentMonths(): array
+    public function recentMonths(bool $withAmounts = true): array
     {
         $thisMonth = CarbonImmutable::today()->startOfMonth();
 
         return array_map(fn (CarbonImmutable $month) => [
             'month' => $month->format('Y-m'),
             'cutoff_at' => $this->cutoff($month),
-            'boards' => [
+            'boards' => array_map(fn (array $board) => $withAmounts ? $board : $this->namesOnly($board), [
                 'agents' => $this->topAgents($month),
                 'brokerage' => $this->topAgents($month, ['agent_brokerage_transactions']),
                 'projects' => $this->topProjects($month),
                 'developers' => $this->topDevelopers($month),
                 'teams' => $this->topTeams($month),
-            ],
+            ]),
         ], [$thisMonth, $thisMonth->subMonth()]);
+    }
+
+    // Field roles see the ranking but not anyone's sales figures (see AMOUNT_ROLES).
+    private function namesOnly(array $board): array
+    {
+        return array_map(fn (array $entry) => array_diff_key($entry, ['sales' => true, 'value' => true]), $board);
     }
 
     // Every category (or just the given tables), as one set of (sale, date, amount) rows; the date

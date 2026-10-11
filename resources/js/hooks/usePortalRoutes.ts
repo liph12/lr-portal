@@ -1,12 +1,14 @@
 import { ElementType, useMemo } from "react";
 import useAuthUser from "./useAuthUser";
 import { memberRoutes, portalRoutes } from "../app-data";
+import { hasAnyPermission } from "../helpers/permissions";
 
 export interface PortalRoute {
     name: string;
     path: string;
     icon?: ElementType;
-    permission?: string;
+    // One permission, or several alternatives (any grants it).
+    permission?: string | string[];
     children?: PortalRoute[];
 }
 
@@ -19,7 +21,7 @@ export default function usePortalRoutes(): PortalRoute[] {
 
     return useMemo(() => {
         const granted = permissions.split(",");
-        const allowed = (route: PortalRoute) => !route.permission || granted.indexOf(route.permission) !== -1;
+        const allowed = (route: PortalRoute) => hasAnyPermission(granted, route.permission);
         const filter = (routes: PortalRoute[]): PortalRoute[] =>
             routes.filter(allowed).map((r) => ({ ...r, children: filter(r.children ?? []) }));
 

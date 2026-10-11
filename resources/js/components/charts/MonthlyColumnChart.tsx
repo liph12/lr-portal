@@ -21,7 +21,14 @@ function niceMax(max: number): number {
     return step * magnitude;
 }
 
-export default function MonthlyColumnChart({ data }: { data: MonthPoint[] }) {
+interface MonthlyColumnChartProps {
+    data: MonthPoint[];
+    // "year" for long ranges: `month` is then "YYYY-01" and bars are labelled by year.
+    bucket?: "month" | "year";
+}
+
+export default function MonthlyColumnChart({ data, bucket = "month" }: MonthlyColumnChartProps) {
+    const label = (month: string, style: "short" | "long") => (bucket === "year" ? month.slice(0, 4) : formatMonth(month, style));
     const [metric, setMetric] = useState<Metric>("value");
     const format = (n: number) => (metric === "value" ? formatPesoCompact(n) : formatCount(n));
 
@@ -35,7 +42,7 @@ export default function MonthlyColumnChart({ data }: { data: MonthPoint[] }) {
         <Box component="figure" sx={{ m: 0 }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2, flexWrap: "wrap", mb: 2 }}>
                 <Typography component="figcaption" variant="body2" sx={{ color: "var(--lr-text-secondary)" }}>
-                    {metric === "value" ? "Total contract value" : "Sales recorded"} per month, by reservation date
+                    {metric === "value" ? "Total contract value" : "Sales recorded"} per {bucket}, by reservation date
                 </Typography>
                 <ToggleButtonGroup
                     size="small"
@@ -99,7 +106,7 @@ export default function MonthlyColumnChart({ data }: { data: MonthPoint[] }) {
                                         placement="top"
                                         title={
                                             <Box>
-                                                <Box sx={{ fontWeight: 600 }}>{formatMonth(d.month, "long")}</Box>
+                                                <Box sx={{ fontWeight: 600 }}>{label(d.month, "long")}</Box>
                                                 <Box>{formatPeso(d.value)}</Box>
                                                 <Box>
                                                     {d.sales} {d.sales === 1 ? "sale" : "sales"}
@@ -132,7 +139,7 @@ export default function MonthlyColumnChart({ data }: { data: MonthPoint[] }) {
                                     variant="caption"
                                     sx={{ flex: 1, textAlign: "center", fontSize: 11, color: "var(--lr-text-secondary)", overflow: "hidden", whiteSpace: "nowrap" }}
                                 >
-                                    {i % labelEvery === 0 ? formatMonth(d.month) : ""}
+                                    {i % labelEvery === 0 ? label(d.month, "short") : ""}
                                 </Typography>
                             ))}
                         </Box>
@@ -152,7 +159,7 @@ export default function MonthlyColumnChart({ data }: { data: MonthPoint[] }) {
                 <tbody>
                     {data.map((d) => (
                         <tr key={d.month}>
-                            <th scope="row">{formatMonth(d.month, "long")}</th>
+                            <th scope="row">{label(d.month, "long")}</th>
                             <td>{d.sales}</td>
                             <td>{formatPeso(d.value)}</td>
                         </tr>

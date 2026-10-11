@@ -5,6 +5,7 @@ import AppSidebar from "../AppSidebar";
 import AppNavbar from "../AppNavbar";
 import SideRail from "./SideRail";
 import ViewAsBanner from "../utils/user/ViewAsBanner";
+import useAuthUser from "../../hooks/useAuthUser";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
     const theme = useTheme();
@@ -12,6 +13,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     const desktop = useMediaQuery(theme.breakpoints.up("lg"), { noSsr: true });
     const { url } = usePage();
     const [drawerOpen, setDrawerOpen] = useState(false);
+    const user = useAuthUser();
+    // AppLayout persists across visits; remount the role-driven panels whenever the effective role changes
+    // (sign-in as someone else, or a superadmin's "View as") so nothing from the previous role lingers.
+    // Sidebar and rail are siblings, so each needs its own key or React confuses them and duplicates one.
+    const roleKey = `${user?.id ?? ""}|${user?.viewing_as ?? ""}|${user?.role ?? ""}|${user?.permissions.join(",") ?? ""}`;
 
     // Persistent layouts survive navigation, so close the drawer once a link lands.
     useEffect(() => setDrawerOpen(false), [url]);
@@ -30,7 +36,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <ViewAsBanner />
             <Box sx={{ display: "flex", flex: 1, minHeight: 0 }}>
                 {desktop ? (
-                    <AppSidebar />
+                    <AppSidebar key={`sidebar|${roleKey}`} />
                 ) : (
                     <Drawer
                         open={drawerOpen}
@@ -38,7 +44,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                         ModalProps={{ keepMounted: true }}
                         slotProps={{ paper: { sx: { borderRight: "none" } } }}
                     >
-                        <AppSidebar />
+                        <AppSidebar key={`sidebar|${roleKey}`} />
                     </Drawer>
                 )}
                 <Box
@@ -52,9 +58,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     }}
                 >
                     {children}
-                    {!desktop && <SideRail variant="stacked" />}
+                    {!desktop && <SideRail key={`rail|${roleKey}`} variant="stacked" />}
                 </Box>
-                {desktop && <SideRail variant="rail" />}
+                {desktop && <SideRail key={`rail|${roleKey}`} variant="rail" />}
             </Box>
         </Box>
     );

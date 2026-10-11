@@ -11,9 +11,10 @@ import {
     InboxRounded,
     SettingsRounded,
     BarChartRounded,
+    AssessmentRounded,
 } from "@mui/icons-material";
 
-// The dashboard is the same for every role (shared /dashboard routes); Record Your Sale needs `record_sales`.
+// The dashboard is the same for every role (shared /dashboard routes); Record Your Sale needs a recording permission.
 export const dashboardRoute = {
     name: "Dashboard",
     path: "/dashboard/main",
@@ -34,21 +35,31 @@ export const dashboardRoute = {
         {
             name: "Record Your Sale",
             path: "/dashboard/record-sale",
-            permission: "record_sales",
+            // Any of these: local roles record project/rental/brokerage, global partners international.
+            permission: ["record_sales", "record_international_sales"],
             children: [
                 {
                     name: "Project Sale",
                     path: "/dashboard/record-sale/project",
+                    permission: "record_sales",
                     children: [],
                 },
                 {
                     name: "Rental Sale",
                     path: "/dashboard/record-sale/rental",
+                    permission: "record_sales",
                     children: [],
                 },
                 {
                     name: "Brokerage Sale",
                     path: "/dashboard/record-sale/brokerage",
+                    permission: "record_sales",
+                    children: [],
+                },
+                {
+                    name: "International Sale",
+                    path: "/dashboard/record-sale/international",
+                    permission: "record_international_sales",
                     children: [],
                 },
             ],
@@ -58,19 +69,19 @@ export const dashboardRoute = {
             name: "View Sales",
             path: "/dashboard/view-sales",
             icon: BarChart,
-            children: [
-                {
-                    name: "Developer",
-                    path: "/dashboard/view-sales/developer",
-                    children: [],
-                },
-            ],
+            // Sales figures; the route enforces the same permission.
+            permission: "view_reports",
+            children: [],
         },
     ],
 };
 
+// Shared by every portal (/reports); hidden without view_reports, which the route also requires.
+export const reportsRoute = { name: "Reports", path: "/reports", icon: AssessmentRounded, permission: "view_reports", children: [] };
+
 export const useAppRoutes = [
     dashboardRoute,
+    reportsRoute,
     {
         name: "Management",
         path: "/superadmin/management",
@@ -117,6 +128,11 @@ export const useAppRoutes = [
                 path: "/superadmin/settings/roles",
                 children: [],
             },
+            {
+                name: "Sales cutoff",
+                path: "/superadmin/settings/sales-cutoffs",
+                children: [],
+            },
         ],
     },
 ];
@@ -125,12 +141,14 @@ export const useAppRoutes = [
 // user's role has it — manage this in Settings › Roles & permissions.
 export const adminRoutes = [
     dashboardRoute,
+    reportsRoute,
     { name: "Statistics", path: "/admin/statistics", icon: BarChartRounded, permission: "view_reports", children: [] },
     { name: "Management", path: "/admin/management", icon: AdminPanelSettingsRounded, children: [] },
 ];
 
 export const staffRoutes = [
     dashboardRoute,
+    reportsRoute,
     { name: "Statistics", path: "/staff/statistics", icon: BarChartRounded, permission: "view_reports", children: [] },
 ];
 
@@ -253,6 +271,8 @@ export const countries = [
     { id: "GY", label: "Guyana" },
     { id: "HT", label: "Haiti" },
     { id: "HN", label: "Honduras" },
+    { id: "HK", label: "Hong Kong" },
+    { id: "MO", label: "Macau" },
     { id: "HU", label: "Hungary" },
     { id: "IS", label: "Iceland" },
     { id: "IN", label: "India" },

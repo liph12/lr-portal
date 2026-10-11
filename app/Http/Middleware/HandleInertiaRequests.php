@@ -79,7 +79,7 @@ class HandleInertiaRequests extends Middleware
             // Optional: never computed on normal visits, only when the leaderboard panel asks for it with a
             // partial reload — and only for roles granted the permission.
             'leaderboards' => Inertia::optional(fn () => $request->user()?->can(LeaderboardService::PERMISSION)
-                ? app(LeaderboardService::class)->recentMonths()
+                ? app(LeaderboardService::class)->recentMonths($request->user()->hasAnyRole(LeaderboardService::AMOUNT_ROLES))
                 : null),
             'flash' => fn () => [
                 'success' => $request->session()->get('success'),

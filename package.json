@@ -25,6 +25,8 @@
         "@mui/material": "^7.3.7",
         "@mui/styled-engine-sc": "^7.3.6",
         "@mui/x-data-grid": "^9.15.0",
+        "@mui/x-date-pickers": "^9.15.0",
+        "dayjs": "^1.11.23",
         "framer-motion": "^12.34.0",
         "laravel-echo": "^2.6.1",
         "pusher-js": "^8.6.0",
