@@ -12,7 +12,10 @@ import {
     SettingsRounded,
     BarChartRounded,
     AssessmentRounded,
+    Diversity3Rounded,
 } from "@mui/icons-material";
+import { REPORTS } from "./components/reports/reportCatalog";
+import { BACKOFFICE, LEADER, TEAM_LEADER } from "./helpers/permissions";
 
 // The dashboard is the same for every role (shared /dashboard routes); Record Your Sale needs a recording permission.
 export const dashboardRoute = {
@@ -29,6 +32,8 @@ export const dashboardRoute = {
         {
             name: "Overview",
             path: "/dashboard/overview",
+            // Members and recruits: the back office (everyone) and leaders (their team / sub-team).
+            permission: ["_backoffice", "_leader"],
             children: [],
             icon: StorageRounded,
         },
@@ -69,25 +74,49 @@ export const dashboardRoute = {
             name: "View Sales",
             path: "/dashboard/view-sales",
             icon: BarChart,
-            // Sales figures; the route enforces the same permission.
-            permission: "view_reports",
+            // Everything for view_reports; a leader's own team for team leaders / unit managers (server-scoped).
+            permission: ["view_reports", "_leader"],
             children: [],
         },
     ],
 };
 
-// Shared by every portal (/reports); hidden without view_reports, which the route also requires.
-export const reportsRoute = { name: "Reports", path: "/reports", icon: AssessmentRounded, permission: "view_reports", children: [] };
+// Who may open a report beyond Reports itself (ReportsController::available): Top Teams only with the whole system in
+// reach, Top Sub-teams also inside a team, Recruits for the back office and leaders.
+const REPORT_ACCESS: Record<string, string[]> = {
+    recruits: [BACKOFFICE, LEADER],
+    "recruits-progress": [BACKOFFICE, LEADER],
+    "top-teams": [BACKOFFICE],
+    "top-sub-teams": [BACKOFFICE, TEAM_LEADER],
+};
+
+// Shared by every portal (/reports); what each person sees is limited server-side (TeamLeadershipService::reportScope).
+// The children feed breadcrumbs and search only; the sidebar shows top-level items.
+export const reportsRoute = {
+    name: "Reports",
+    path: "/reports",
+    icon: AssessmentRounded,
+    permission: ["view_reports", LEADER],
+    children: REPORTS.map((r) => ({ name: r.title, path: `/reports/${r.slug}`, permission: REPORT_ACCESS[r.slug], children: [] })),
+};
+
+// The same Management pages serve /superadmin/management and /admin/management (tabs in ManagementLayout).
+const managementRoute = (base: string) => ({
+    name: "Management",
+    path: base,
+    icon: AdminPanelSettingsRounded,
+    children: [
+        { name: "Teams", path: base, children: [] },
+        { name: "Sub-teams", path: `${base}/sub-teams`, children: [] },
+        { name: "Agents", path: `${base}/agents`, children: [] },
+        { name: "Team transfers", path: `${base}/transfers`, children: [] },
+    ],
+});
 
 export const useAppRoutes = [
     dashboardRoute,
     reportsRoute,
-    {
-        name: "Management",
-        path: "/superadmin/management",
-        icon: AdminPanelSettingsRounded,
-        children: [],
-    },
+    managementRoute("/superadmin/management"),
     {
         name: "Statistics",
         path: "/superadmin/statistics",
@@ -143,7 +172,7 @@ export const adminRoutes = [
     dashboardRoute,
     reportsRoute,
     { name: "Statistics", path: "/admin/statistics", icon: BarChartRounded, permission: "view_reports", children: [] },
-    { name: "Management", path: "/admin/management", icon: AdminPanelSettingsRounded, children: [] },
+    managementRoute("/admin/management"),
 ];
 
 export const staffRoutes = [
@@ -152,8 +181,29 @@ export const staffRoutes = [
     { name: "Statistics", path: "/staff/statistics", icon: BarChartRounded, permission: "view_reports", children: [] },
 ];
 
+// Added to any menu for people who lead a team or sub-team (usePortalRoutes checks auth.leads).
+export const myTeamRoute = {
+    name: "My Team",
+    path: "/my-team",
+    icon: Diversity3Rounded,
+    children: [
+        { name: "Overview", path: "/my-team", children: [] },
+        { name: "Members", path: "/my-team/members", children: [] },
+        { name: "Recruits", path: "/my-team/recruits", children: [] },
+        // Unit managers only monitor; managing sub-teams is for team leaders.
+        { name: "Sub-teams", path: "/my-team/sub-teams", permission: TEAM_LEADER, children: [] },
+    ],
+};
+
+// Pages opened from inside other pages rather than the menu: breadcrumbs only. `:param` matches one path segment;
+// `parent` is the menu path they sit under (left out when the reader's menu doesn't have it).
+export const pagesOutsideMenu = [
+    { name: "Agent profile", path: "/agents/:agent", parent: "/reports" },
+    { name: "Edit profile", path: "/profile" },
+];
+
 // Roles without a portal (agents, team leaders, unit managers, …): the dashboard is their whole menu.
-export const memberRoutes = [dashboardRoute];
+export const memberRoutes = [dashboardRoute, reportsRoute];
 
 export const portalRoutes = {
     superadmin: useAppRoutes,

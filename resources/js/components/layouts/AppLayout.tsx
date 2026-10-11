@@ -5,6 +5,7 @@ import AppSidebar from "../AppSidebar";
 import AppNavbar from "../AppNavbar";
 import SideRail from "./SideRail";
 import ViewAsBanner from "../utils/user/ViewAsBanner";
+import ImpersonationBanner from "../utils/user/ImpersonationBanner";
 import useAuthUser from "../../hooks/useAuthUser";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -33,6 +34,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             }}
         >
             <AppNavbar onMenuClick={() => setDrawerOpen((o) => !o)} />
+            <ImpersonationBanner />
             <ViewAsBanner />
             <Box sx={{ display: "flex", flex: 1, minHeight: 0 }}>
                 {desktop ? (

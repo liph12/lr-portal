@@ -53,7 +53,7 @@ test('a superadmin previews the staff portal and returns', function () {
 test('a slow request that started before the switch can no longer undo it', function () {
     // The preview isn't in the session, so whatever session a late request writes back doesn't matter.
     $this->actingAs($this->superadmin)->withSession(['anything' => 'old'])->get('/dashboard/main?only=leaderboards');
-    ($this->as)('agent')->get('/dashboard/overview')->assertInertia(fn ($page) => $page->where('auth.viewing_as', 'Agent'));
+    ($this->as)('agent')->get('/dashboard/view-sales')->assertInertia(fn ($page) => $page->where('auth.viewing_as', 'Agent'));
 });
 
 test('the previewed role gets only its own permissions, and the account is untouched', function () {

@@ -7,6 +7,7 @@ use App\Models\Entities\AgentTransaction;
 use App\Models\Entities\Team;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\GroupSearchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -53,6 +54,16 @@ class SearchController extends Controller
             'roles' => $canManage ? Role::orderBy('id')->get(['id', 'label']) : [],
             'statuses' => $canManage ? User::STATUSES : [],
         ]);
+    }
+
+    // Teams, sub-teams and areas within the reader's report reach, each with the link to open.
+    public function groups(Request $request, GroupSearchService $groups): JsonResponse
+    {
+        abort_unless($groups->canSearch($request->user()), 403);
+
+        $term = trim((string) $request->query('q', ''));
+
+        return response()->json(['groups' => mb_strlen($term) < 2 ? [] : $groups->search($request->user(), $term)]);
     }
 
     // Agent picker (sale agents, team leaders, transfers): active agents only, id is agents.id.

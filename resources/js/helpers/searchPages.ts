@@ -20,13 +20,12 @@ const SHARED_PAGES: PageResult[] = [
     { name: "Edit profile", path: "/profile", trail: "Account", icon: AccountCircleOutlined },
 ];
 
-function flatten(nodes: RouteNode[], parents: string[] = [], parentIcon?: ElementType): PageResult[] {
+function flatten(nodes: RouteNode[], parents: string[] = [], parentIcon?: ElementType, parentPath?: string): PageResult[] {
     return nodes.reduce<PageResult[]>((all, node) => {
         const icon = node.icon ?? parentIcon;
-        // A child sharing its parent's path (Dashboard › Main) would be a duplicate result.
-        const isDuplicate = parents.length > 0 && all.some((p) => p.path === node.path);
-        if (!isDuplicate) all.push({ name: node.name, path: node.path, trail: parents.join(" › "), icon });
-        return all.concat(flatten(node.children ?? [], [...parents, node.name], icon));
+        // A child sharing its parent's path (Dashboard › Main, Management › Teams) would be a duplicate result.
+        if (node.path !== parentPath) all.push({ name: node.name, path: node.path, trail: parents.join(" › "), icon });
+        return all.concat(flatten(node.children ?? [], [...parents, node.name], icon, node.path));
     }, []);
 }
 

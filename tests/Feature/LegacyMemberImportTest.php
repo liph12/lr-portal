@@ -31,7 +31,7 @@ beforeEach(function () {
     });
     $legacy->create('members', function (Blueprint $t) {
         $t->id();
-        foreach (['memberid', 'inviterid', 'gender', 'dateactivated', 'nao_video_tracker', 'fire_certs_count'] as $c) {
+        foreach (['memberid', 'inviterid', 'gender', 'dateactivated', 'nao_video_tracker', 'fire_certs_count', 'registration_status'] as $c) {
             $t->integer($c)->nullable();
         }
         foreach (['email', 'fn', 'mn', 'ln', 'completename', 'status', 'membertype', 'hashpass', 'password', 'maritalstatus',
@@ -69,7 +69,7 @@ test('a member becomes a user + agent with only the columns the new schema has',
         'inviterid' => $sponsor, 'gender' => 0, 'maritalstatus' => 'Married', 'mobile' => '09171234567',
         'address' => '123 Osmeña Blvd', 'city' => 'Cebu City', 'state' => 'Cebu', 'photo' => 'me 1.jpg',
         'aboutyourself' => str_repeat('a', 300), 'specialskills' => 'Condos', 'fblink' => 'https://facebook.com/juan',
-        'tin' => '123 456 789', 'dateactivated' => 1735689600, 'nao_video_tracker' => 3, 'fire_certs_count' => 2,
+        'tin' => '123 456 789', 'dateactivated' => 1735689600, 'nao_video_tracker' => 3, 'fire_certs_count' => 2, 'registration_status' => 4,
         'nao_date_attended' => '2025-02-10', 'nao_attendance_confirmation' => 'confirmed',
         'prc_expiry' => '2027-05-31', 'dshud_expiry' => '0206-09-25',
     ]);
@@ -97,6 +97,7 @@ test('a member becomes a user + agent with only the columns the new schema has',
         ->and($attributes->date_activated)->toStartWith('2025-01-01')
         ->and((int) $attributes->nao_video_tracker)->toBe(3)
         ->and((int) $attributes->fire_certificates)->toBe(2)
+        ->and((int) $attributes->registration_status)->toBe(4)
         ->and($attributes->nao_attendance_status)->toBe('confirmed')
         ->and($agent->id)->toBe($juanId)
         ->and((int) $attributes->referral_id)->toBe($sponsor)

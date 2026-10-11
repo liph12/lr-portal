@@ -1,6 +1,8 @@
 import { ReactNode, useState } from "react";
 import { IconButton, Tooltip } from "@mui/material";
-import { SwapHorizRounded } from "@mui/icons-material";
+import { LoginRounded, SwapHorizRounded } from "@mui/icons-material";
+import { router } from "@inertiajs/react";
+import ConfirmDialog from "../../../components/utils/ConfirmDialog";
 import { GridColDef } from "@mui/x-data-grid";
 import ManagementLayout from "../../../components/layouts/ManagementLayout";
 import DataTable from "../../../components/utils/tables/DataTable";
@@ -36,6 +38,7 @@ function Agents({ agents, filters, teams, statuses, agentTypes, areas }: AgentsP
     const baseUrl = `/${me?.portal ?? "superadmin"}/management`;
     const table = useServerTable("agents", agents, filters);
     const [transferring, setTransferring] = useState<AgentRow | null>(null);
+    const [signingInAs, setSigningInAs] = useState<AgentRow | null>(null);
 
     const canManage = (row: AgentRow) =>
         row.user_id !== me?.id && (!!me?.can.access_superadmin || MANAGER_ROLES.indexOf(row.role ?? "") === -1);
@@ -107,14 +110,23 @@ function Agents({ agents, filters, teams, statuses, agentTypes, areas }: AgentsP
         {
             field: "actions",
             headerName: "",
-            width: 64,
+            width: 96,
             sortable: false,
             renderCell: ({ row }) => (
-                <Tooltip title="Transfer to another team">
-                    <IconButton size="small" aria-label={`Transfer ${row.name}`} onClick={() => setTransferring(row)}>
-                        <SwapHorizRounded fontSize="small" />
-                    </IconButton>
-                </Tooltip>
+                <>
+                    <Tooltip title="Transfer to another team">
+                        <IconButton size="small" aria-label={`Transfer ${row.name}`} onClick={() => setTransferring(row)}>
+                            <SwapHorizRounded fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                    {me?.can.impersonate && row.role !== "superadmin" && row.status === "active" && (
+                        <Tooltip title={`Sign in as ${row.name}`}>
+                            <IconButton size="small" aria-label={`Sign in as ${row.name}`} onClick={() => setSigningInAs(row)}>
+                                <LoginRounded fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                </>
             ),
         },
     ];
@@ -139,6 +151,18 @@ function Agents({ agents, filters, teams, statuses, agentTypes, areas }: AgentsP
                 }
             />
             <DataTable {...table.gridProps} columns={columns} getRowHeight={() => 60} aria-label="Agents" />
+            <ConfirmDialog
+                open={signingInAs !== null}
+                title={`Sign in as ${signingInAs?.name ?? ""}?`}
+                message="You'll see the portal exactly as they do. Everything you do is recorded as them and as you. Use the red banner to return to your own account."
+                confirmLabel="Sign in as them"
+                tone="primary"
+                onConfirm={() => {
+                    if (signingInAs) router.post(`/impersonate/${signingInAs.user_id}`);
+                    setSigningInAs(null);
+                }}
+                onClose={() => setSigningInAs(null)}
+            />
             <TransferDialog
                 open={transferring !== null}
                 agent={transferring ? { id: transferring.id, name: transferring.name, email: transferring.email, avatar: transferring.avatar, team_name: transferring.team_name, sub_team_name: transferring.sub_team_name } : null}

@@ -7,6 +7,8 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class Agent extends Model
 {
@@ -30,6 +32,24 @@ class Agent extends Model
 
     // Global partners recruited from this date on are the ones selling from abroad.
     public const GLOBAL_PARTNER_SINCE = '2024-02-01';
+
+    // Last step of the registration stepper (agent_attributes.registration_status 1–4). Below it the agent never
+    // finished signing up (mostly no team yet), so member and recruit statistics leave them out.
+    public const FULLY_REGISTERED = 4;
+
+    public static function fullyRegisteredIds(): Builder
+    {
+        return DB::table('agent_attributes')->where('registration_status', self::FULLY_REGISTERED)->select('agent_id');
+    }
+
+    // Global partners get statistics of their own; every shared sales / recruit statistic is local agents only.
+    // Sales with no agent at all are kept. $agentId is an SQL expression for the sale's agent id.
+    public static function withoutGlobalPartners(Builder $sales, string $agentId): Builder
+    {
+        return $sales->whereNotExists(fn ($q) => $q->from('agents as gp')
+            ->whereRaw("gp.id = {$agentId}")
+            ->where('gp.agent_type', self::TYPE_GLOBAL_PARTNER));
+    }
 
     /**
      * Legacy rule: marked "international" (or a typo of it), joined on/after GLOBAL_PARTNER_SINCE, and

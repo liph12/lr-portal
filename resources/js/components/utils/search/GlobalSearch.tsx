@@ -7,6 +7,7 @@ import usePortalRoutes from "../../../hooks/usePortalRoutes";
 import { buildPageIndex, PageResult, searchPages } from "../../../helpers/searchPages";
 import ConfirmDialog from "../ConfirmDialog";
 import UserSearchResult, { UserChange, UserSearchItem } from "./UserSearchResult";
+import GroupSearchResult, { GroupSearchItem } from "./GroupSearchResult";
 import { STATUS_LABELS } from "../user/UserStatusChip";
 import { UserStatus } from "../../../types/app-data-types";
 
@@ -44,6 +45,8 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
     const user = useAuthUser();
     const canSearchUsers = !!user?.can.search_users;
     const canManage = !!user?.can.manage_users;
+    const canSearchGroups = !!user?.can.search_groups;
+    const canSearchRemote = canSearchUsers || canSearchGroups;
 
     const anchorRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -52,6 +55,7 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
     const [activeIndex, setActiveIndex] = useState(0);
     const [loading, setLoading] = useState(false);
     const [people, setPeople] = useState<UserSearchResponse>({ users: [], roles: [], statuses: [] });
+    const [groups, setGroups] = useState<GroupSearchItem[]>([]);
     const [peopleError, setPeopleError] = useState<string | null>(null);
     const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
     const [pending, setPending] = useState<{ user: UserSearchItem; change: UserChange } | null>(null);
@@ -62,10 +66,12 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
     const pageIndex = useMemo(() => buildPageIndex(portalRoutes), [portalRoutes]);
     const pages = useMemo(() => searchPages(pageIndex, query), [pageIndex, query]);
     const term = query.trim();
-    const items: ({ type: "page"; page: PageResult } | { type: "user"; user: UserSearchItem })[] = [
+    const items: ({ type: "page"; page: PageResult } | { type: "group"; group: GroupSearchItem } | { type: "user"; user: UserSearchItem })[] = [
         ...pages.map((page) => ({ type: "page" as const, page })),
+        ...groups.map((group) => ({ type: "group" as const, group })),
         ...people.users.map((u) => ({ type: "user" as const, user: u })),
     ];
+    const usersOffset = pages.length + groups.length;
 
     useEffect(() => {
         const onKey = (e: globalThis.KeyboardEvent) => {
@@ -80,8 +86,9 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
     }, []);
 
     useEffect(() => {
-        if (!canSearchUsers || term.length < 2) {
+        if (!canSearchRemote || term.length < 2) {
             setPeople((p) => ({ ...p, users: [] }));
+            setGroups([]);
             setLoading(false);
             return;
         }
@@ -90,14 +97,22 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
         const timer = window.setTimeout(async () => {
             setLoading(true);
             setPeopleError(null);
-            try {
-                const res = await fetch(`/search/users?q=${encodeURIComponent(term)}`, {
+            const get = async (url: string) => {
+                const res = await fetch(`${url}?q=${encodeURIComponent(term)}`, {
                     headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
                     credentials: "same-origin",
                     signal: controller.signal,
                 });
-                if (!res.ok) throw new Error(res.status === 429 ? "Too many searches, slow down a moment." : "Couldn't search people right now.");
-                setPeople(await res.json());
+                if (!res.ok) throw new Error(res.status === 429 ? "Too many searches, slow down a moment." : "Couldn't search right now.");
+                return res.json();
+            };
+            try {
+                const [peopleResult, groupResult] = await Promise.all([
+                    canSearchUsers ? get("/search/users") : null,
+                    canSearchGroups ? get("/search/groups") : null,
+                ]);
+                setPeople(peopleResult ?? { users: [], roles: [], statuses: [] });
+                setGroups(groupResult?.groups ?? []);
             } catch (e) {
                 if (!controller.signal.aborted) setPeopleError(e instanceof Error ? e.message : "Couldn't search people right now.");
             } finally {
@@ -109,7 +124,7 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
             controller.abort();
             window.clearTimeout(timer);
         };
-    }, [term, canSearchUsers, refreshKey]);
+    }, [term, canSearchUsers, canSearchGroups, canSearchRemote, refreshKey]);
 
     useEffect(() => setActiveIndex(0), [query]);
 
@@ -173,6 +188,7 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
         } else if (e.key === "Enter") {
             const item = items[activeIndex];
             if (item?.type === "page") goTo(item.page.path);
+            else if (item?.type === "group") goTo(item.group.url);
         }
     };
 
@@ -198,7 +214,8 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
     })();
 
     const showPanel = open && term.length > 0;
-    const nothingFound = !loading && !peopleError && items.length === 0 && (term.length >= 2 || !canSearchUsers);
+    const nothingFound = !loading && !peopleError && items.length === 0 && (term.length >= 2 || !canSearchRemote);
+    const searchesFor = ["pages", canSearchGroups && "teams, areas", canSearchUsers && "people"].filter(Boolean).join(", ");
 
     return (
         <ClickAwayListener
@@ -241,7 +258,7 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
                         }}
                         onFocus={() => setOpen(true)}
                         onKeyDown={handleKeyDown}
-                        placeholder={canSearchUsers ? "Search (/) pages and people" : "Search (/) pages"}
+                        placeholder={`Search (/) ${searchesFor.replace(/, ([^,]*)$/, " and $1")}`}
                         inputProps={{
                             "aria-label": "Search",
                             role: "combobox",
@@ -336,40 +353,56 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
                             </>
                         )}
 
-                        {canSearchUsers && term.length >= 2 && (people.users.length > 0 || peopleError) && (
+                        {groups.length > 0 && (
+                            <>
+                                <SectionLabel>TEAMS & AREAS</SectionLabel>
+                                {groups.map((g, i) => (
+                                    <GroupSearchResult
+                                        key={`${g.type}-${g.id}`}
+                                        group={g}
+                                        active={activeIndex === pages.length + i}
+                                        onHover={() => setActiveIndex(pages.length + i)}
+                                        onOpen={goTo}
+                                    />
+                                ))}
+                            </>
+                        )}
+
+                        {canSearchRemote && term.length >= 2 && peopleError && (
+                            <Typography variant="body2" sx={{ px: 2, py: 1, color: "var(--lr-error)" }}>
+                                {peopleError}
+                            </Typography>
+                        )}
+
+                        {canSearchUsers && term.length >= 2 && people.users.length > 0 && (
                             <>
                                 <SectionLabel>PEOPLE</SectionLabel>
-                                {peopleError && (
-                                    <Typography variant="body2" sx={{ px: 2, py: 1, color: "var(--lr-error)" }}>
-                                        {peopleError}
-                                    </Typography>
-                                )}
                                 {people.users.map((u, i) => (
                                     <UserSearchResult
                                         key={u.id}
                                         user={u}
-                                        active={activeIndex === pages.length + i}
+                                        active={activeIndex === usersOffset + i}
                                         isSelf={u.id === user?.id}
                                         canManage={canManage}
                                         busy={saving}
                                         roles={people.roles}
                                         statuses={people.statuses}
                                         onChange={(target, change) => setPending({ user: target, change })}
-                                        onHover={() => setActiveIndex(pages.length + i)}
+                                        onHover={() => setActiveIndex(usersOffset + i)}
                                     />
                                 ))}
                             </>
                         )}
 
-                        {canSearchUsers && term.length === 1 && pages.length === 0 && (
+                        {canSearchRemote && term.length === 1 && pages.length === 0 && (
                             <Typography variant="body2" sx={{ px: 2, pt: 1.5, color: "var(--lr-text-secondary)" }}>
-                                Keep typing to search people…
+                                Keep typing to search {canSearchUsers ? "people" : "teams and areas"}…
                             </Typography>
                         )}
 
                         {nothingFound && (
                             <Typography variant="body2" sx={{ px: 2, pt: 1.5, color: "var(--lr-text-secondary)" }}>
-                                No pages{canSearchUsers ? " or people" : ""} match “{term}”.
+                                Nothing matches “{term}”.
                             </Typography>
                         )}
                     </Paper>

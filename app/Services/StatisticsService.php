@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Entities\Agent;
 use App\Models\Entities\AgentTransaction;
 use App\Models\Role;
 use App\Models\User;
@@ -60,7 +61,7 @@ class StatisticsService
     // Project sales, dated by reservation date (when the deal happened, not when it was keyed in).
     private function salesQuery(?CarbonImmutable $start, CarbonImmutable $end): Builder
     {
-        return DB::table('agent_transactions as t')
+        return Agent::withoutGlobalPartners(DB::table('agent_transactions as t'), 't.agent_id')
             ->join('agent_project_transactions as p', 'p.agent_transaction_id', '=', 't.id')
             ->where('t.sale_type', AgentTransaction::TYPE_PROJECT)
             ->when($start, fn ($q) => $q->where('p.reservation_date', '>=', $start->toDateString()))

@@ -6,6 +6,8 @@ const COMPACT_STEPS: [number, string][] = [
 
 const pesoFull = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
 
+const pesoExact = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const count = new Intl.NumberFormat("en-PH");
 
 // ₱43M — for tiles, axes and labels where space is tight.
@@ -21,6 +23,11 @@ export function formatPesoCompact(value: number): string {
 // ₱43,000,000 — for tooltips and screen-reader tables, where the exact figure matters.
 export function formatPeso(value: number): string {
     return pesoFull.format(value);
+}
+
+// ₱43,215,678.90 — the whole amount to the centavo, where nothing should be rounded (leaderboards).
+export function formatPesoExact(value: number): string {
+    return pesoExact.format(value);
 }
 
 export function formatCount(value: number): string {

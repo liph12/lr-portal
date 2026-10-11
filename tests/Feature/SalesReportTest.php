@@ -19,7 +19,10 @@ beforeEach(function () {
     $this->agent = function (string $name) {
         $user = User::factory()->create(['name' => $name]);
 
-        return DB::table('agents')->insertGetId(['user_id' => $user->id, 'email' => $user->email]);
+        $id = DB::table('agents')->insertGetId(['user_id' => $user->id, 'email' => $user->email]);
+        DB::table('agent_attributes')->insert(['agent_id' => $id, 'registration_status' => 4]);
+
+        return $id;
     };
     $this->ana = ($this->agent)('Ana Reyes');
     $this->ben = ($this->agent)('Ben Cruz');
@@ -52,21 +55,35 @@ beforeEach(function () {
 
 afterEach(fn () => Carbon::setTestNow());
 
-test('the report totals valid sales of every category in the date range, with a monthly trend', function () {
+test('the report totals valid local sales of every category in the date range, with a monthly trend', function () {
     ($this->report)(['from' => '2026-01-01', 'to' => '2026-10-11'])
         ->assertInertia(fn ($page) => $page->component('Portal/Dashboard/Reports/Index')
             ->where('filters.view', 'agents')
-            ->where('summary.kpis.sales.value', 5)
-            ->where('summary.kpis.value.value', 22_300_000)
+            ->where('summary.kpis.sales.value', 4)
+            ->where('summary.kpis.value.value', 20_300_000)
             ->where('summary.kpis.agents.value', 2)
             ->where('summary.bucket', 'month')
             ->has('summary.trend', 10)
             ->where('summary.trend.2', ['month' => '2026-03', 'sales' => 1, 'value' => 10_000_000])
-            ->where('summary.categories', fn ($c) => collect($c)->pluck('sales', 'category')->all() == ['project' => 2, 'brokerage' => 1, 'international' => 1, 'rental' => 1])
+            ->where('summary.categories', fn ($c) => collect($c)->pluck('sales', 'category')->all() == ['project' => 2, 'brokerage' => 1, 'rental' => 1])
             ->where('breakdown.total', 2)
             // Only the name, where they belong and the total: no count, average or share.
             ->where('breakdown.data.0', fn ($r) => $r['name'] === 'Ana Reyes' && (float) $r['value'] === 16_000_000.0 && $r['team'] === 'Alpha'
                 && ! $r->has('sales') && ! $r->has('average') && ! $r->has('share')));
+});
+
+test('global partners and international sales are left out: they get statistics of their own', function () {
+    $gp = ($this->agent)('Gina Partner');
+    DB::table('agents')->where('id', $gp)->update(['agent_type' => 'global_partner']);
+    ($this->sale)('project', $gp, 50_000_000, '2026-06-10');
+
+    ($this->report)(['from' => '2026-01-01', 'to' => '2026-10-11', 'category' => 'international'])
+        ->assertInertia(fn ($page) => $page
+            ->where('options.categories', ['project', 'rental', 'brokerage'])
+            ->where('filters.category', null)
+            ->where('summary.kpis.sales.value', 4)
+            ->where('summary.kpis.value.value', 20_300_000)
+            ->where('breakdown.total', 2));
 });
 
 test('category, status and date filters narrow the report', function () {
@@ -74,7 +91,7 @@ test('category, status and date filters narrow the report', function () {
         ->assertInertia(fn ($page) => $page->where('summary.kpis.sales.value', 2)->where('summary.kpis.value.value', 14_000_000));
 
     ($this->report)(['from' => '2026-01-01', 'to' => '2026-10-11', 'status' => 'all'])
-        ->assertInertia(fn ($page) => $page->where('summary.kpis.sales.value', 6));
+        ->assertInertia(fn ($page) => $page->where('summary.kpis.sales.value', 5));
 
     ($this->report)(['from' => '2026-04-01', 'to' => '2026-04-30'])
         ->assertInertia(fn ($page) => $page->where('summary.kpis.sales.value', 2)
@@ -129,18 +146,20 @@ test('clicking a team shows its top agents, counting each sale for the team the 
     // Alpha: Ana's 10M project + 6M brokerage, and Ben's 4M project from 2 Apr (before he moved).
     ($this->report)($range + ['view' => 'agents', 'team_id' => $this->alpha])
         ->assertInertia(fn ($page) => $page
-            ->where('scope', ['type' => 'team', 'id' => $this->alpha, 'name' => 'Alpha'])
+            ->where('scope.type', 'team')
+            ->where('scope.name', 'Alpha')
+            ->where('scope.facts', fn ($facts) => collect($facts)->pluck('value', 'label')->get('Team leader') === 'Ana Reyes')
             ->where('summary.kpis.value.value', 20_000_000)
             ->where('breakdown.total', 2)
             ->where('breakdown.data', fn ($rows) => collect($rows)->pluck('value', 'name')->map(fn ($v) => (float) $v)->all() == ['Ana Reyes' => 16_000_000.0, 'Ben Cruz' => 4_000_000.0]));
 
-    // Bravo: only Ben's sales after the move (rental on 15 Apr, international on 1 Jun).
+    // Bravo: only Ben's sales after the move (rental on 15 Apr; his international sale isn't counted here).
     ($this->report)($range + ['view' => 'agents', 'team_id' => $bravo])
-        ->assertInertia(fn ($page) => $page->where('summary.kpis.sales.value', 2)->where('summary.kpis.value.value', 2_300_000));
+        ->assertInertia(fn ($page) => $page->where('summary.kpis.sales.value', 1)->where('summary.kpis.value.value', 300_000));
 
     // The teams table and the drill-down agree.
     ($this->report)($range + ['view' => 'teams'])
-        ->assertInertia(fn ($page) => $page->where('breakdown.data', fn ($rows) => collect($rows)->pluck('value', 'name')->map(fn ($v) => (float) $v)->all() == ['Alpha' => 20_000_000.0, 'Bravo' => 2_300_000.0]));
+        ->assertInertia(fn ($page) => $page->where('breakdown.data', fn ($rows) => collect($rows)->pluck('value', 'name')->map(fn ($v) => (float) $v)->all() == ['Alpha' => 20_000_000.0, 'Bravo' => 300_000.0]));
 });
 
 test('clicking a developer shows the agents who sold its projects', function () {
@@ -168,7 +187,8 @@ test('sales by area, and clicking an area shows its top agents', function () {
 
     ($this->report)($range + ['view' => 'agents', 'area' => 'metro-manila'])
         ->assertInertia(fn ($page) => $page
-            ->where('scope', ['type' => 'area', 'id' => 'metro-manila', 'name' => 'Metro Manila'])
+            ->where('scope.name', 'Metro Manila')
+            ->where('scope.facts.0', ['label' => 'Agents in this area', 'value' => '1'])
             ->where('breakdown.total', 1)
             ->where('breakdown.data.0.name', 'Ben Cruz'));
 });
@@ -225,7 +245,26 @@ test('statistics split sales by client country, client gender and property type'
     ($this->report)(['from' => '2026-01-01', 'to' => '2026-10-11'])
         ->assertInertia(fn ($page) => $page
             // "PH" (new form) and "Philippines" (legacy) are one country; unset ones are "Not specified".
-            ->where('summary.client_countries', fn ($rows) => collect($rows)->pluck('sales', 'name')->all() == ['Philippines' => 2, 'United States' => 1, 'Not specified' => 2])
-            ->where('summary.client_genders', fn ($rows) => collect($rows)->pluck('sales', 'name')->all() == ['Male' => 1, 'Female' => 1, 'Not specified' => 3])
-            ->where('summary.property_types', fn ($rows) => collect($rows)->pluck('sales', 'name')->all() == ['Condominiums' => 2, 'Not specified' => 3]));
+            ->where('summary.client_countries', fn ($rows) => collect($rows)->pluck('sales', 'name')->all() == ['Philippines' => 2, 'United States' => 1, 'Not specified' => 1])
+            ->where('summary.client_genders', fn ($rows) => collect($rows)->pluck('sales', 'name')->all() == ['Male' => 1, 'Female' => 1, 'Not specified' => 2])
+            ->where('summary.property_types', fn ($rows) => collect($rows)->pluck('sales', 'name')->all() == ['Condominiums' => 2, 'Not specified' => 2]));
+});
+
+test('top developers show each one\'s share of project sales, also inside a team', function () {
+    DB::table('developers')->insert(['id' => 11, 'name' => 'Other Dev']);
+    $t = AgentTransaction::create(['agent_id' => $this->ana, 'sale_type' => 'project', 'commission_status' => 'Unclaimed', 'sale_status' => 'valid']);
+    DB::table('agent_project_transactions')->insert(['agent_transaction_id' => $t->id, 'total_contract_price' => 6_000_000, 'reservation_date' => '2026-07-01', 'developer_id' => 11, 'project_name' => 'X']);
+    $range = ['from' => '2026-01-01', 'to' => '2026-10-11'];
+
+    ($this->report)($range)->assertInertia(fn ($page) => $page
+        ->where('summary.developers.total', 20_000_000)
+        ->where('summary.developers.rows.0', fn ($d) => $d['name'] === 'Cebu Landmasters' && (float) $d['value'] === 14_000_000.0 && (float) $d['share'] === 70.0)
+        ->where('summary.developers.rows.1', fn ($d) => $d['name'] === 'Other Dev' && (float) $d['share'] === 30.0));
+
+    // Inside Alpha (only Ana is a member): her 10M with Cebu Landmasters and 6M with Other Dev.
+    ($this->report)($range + ['view' => 'agents', 'team_id' => $this->alpha])->assertInertia(fn ($page) => $page
+        ->where('summary.developers.rows', fn ($rows) => collect($rows)->pluck('share', 'name')->map(fn ($v) => (float) $v)->all() == ['Cebu Landmasters' => 62.5, 'Other Dev' => 37.5]));
+
+    // No project sales in a rental report, so no developers.
+    ($this->report)($range + ['view' => 'rental'])->assertInertia(fn ($page) => $page->where('summary.developers.rows', []));
 });

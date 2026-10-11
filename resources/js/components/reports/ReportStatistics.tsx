@@ -23,6 +23,8 @@ export interface ReportSummary {
     // Always Male, Female, Not specified (in that order, so each keeps its colour).
     client_genders: { name: string; sales: number; value: number }[];
     property_types: { name: string; sales: number; value: number }[];
+    // Project sales only (empty when the report excludes project sales); share is of `total`.
+    developers: { total: number; rows: { id: number; name: string; sales: number; value: number; share: number }[] };
     comparison: { from: string; to: string };
 }
 
@@ -38,7 +40,6 @@ export const CATEGORY_LABELS: Record<string, string> = {
     project: "Project",
     rental: "Rental",
     brokerage: "Brokerage",
-    international: "International",
 };
 
 const salesWord = (n: number) => `${formatCount(n)} ${n === 1 ? "sale" : "sales"}`;
@@ -70,6 +71,23 @@ export default function ReportStatistics({ summary, showCategories = true, showA
             </Grid>
 
             <Grid container spacing={2}>
+                {summary.developers.rows.length > 0 && (
+                    <Grid size={12}>
+                        <SectionCard title="Top developers" subtitle={`Share of ${formatPesoCompact(summary.developers.total)} in project sales`}>
+                            <BarList
+                                items={summary.developers.rows.map((d) => ({
+                                    name: d.name,
+                                    value: d.value,
+                                    detail: `${d.share}% share · ${salesWord(d.sales)}`,
+                                    tooltip: `${d.name}: ${formatPesoCompact(d.value)}, ${d.share}% of project sales`,
+                                }))}
+                                caption="Total project sales by developer, with each one's share of all project sales"
+                                formatValue={formatPesoCompact}
+                                emptyText="No project sales match these filters."
+                            />
+                        </SectionCard>
+                    </Grid>
+                )}
                 <Grid size={{ xs: 12, lg: showCategories ? 8 : 12 }}>
                     <SectionCard title="Over time">
                         <MonthlyColumnChart data={summary.trend} bucket={summary.bucket} />

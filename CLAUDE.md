@@ -143,8 +143,30 @@ at the matching path. Nothing else.
   (separate from `agent_transactions`), recorded at `/dashboard/record-sale/international`
   (`StoreInternationalSaleRequest` extends `SaleRequest`, so cutoffs/switch apply; `InternationalSaleService`;
   `InternationalSalePolicy` → `record_international_sales`, granted to role `global_partner`). Menu
-  `permission` may be a list of alternatives (`helpers/permissions.ts`). Not yet in leaderboards/statistics.
+  `permission` may be a list of alternatives (`helpers/permissions.ts`). **Every shared statistic is local only**
+  (sales report, overview, Reports, leaderboards, `/superadmin/statistics`, Recruits, Recruits Progress): international
+  sales and global-partner agents are excluded (`Agent::withoutGlobalPartners`, `agent_type = local`) — global partners
+  will get statistics of their own (they take no NAO / FIRE).
   Legacy: `legacy:import-international-sales`, see `docs/legacy-migration/international-sales.md`.
+- **Dashboard › Overview = sales at a glance** (`DashboardController::overview`, same reach as reports: back office the
+  whole system with top teams; team leader their team with top sub-teams; unit manager their sub-team; others 403): date
+  range, top 5 agents / groups, then `ReportStatistics`.
+- **Recruits Progress** (Reports › Recruits Progress `/reports/recruits-progress`; `RecruitProgressService`): recruits
+  (signed up in range) vs recruits who sold (any recorded sale), their total valid sales (any date), NAO / FIRE of those
+  still in training; grouped by team, sub-team / unit manager, or sponsor (`agent_attributes.referral_id`); top areas +
+  sign-ups over time. Same reach as Recruits; leaders lose the groupings that would only show themselves.
+  KPIs are `RecruitsPanel` (ordinary stat tiles + FIRE / NAO / Overall cards: not started · on progress · finished,
+  for recruits without a sale — the legacy numbers, in this app's style). Groupings: team, unit manager, location
+  (area), sponsor. Rows drill down by `team_id` / `sub_team_id` / `area` / `sponsor_id` (merged with the reader's
+  reach, which wins) and show the large `ReportScopeHeader`; "View these recruits" opens Reports › Recruits with the
+  same selection. The summary is
+  one area × month pass, summed in PHP (each pass over ~20k recruits is ~0.5s).
+- **Recruits** (Reports › Recruits `/reports/recruits`, and My Team › Recruits; `RecruitmentService`): members by status (now),
+  new recruits signed up in the date range (`agents.created_at`), and onboarding of recruits **without any sale** (local or
+  international): NAO = `agent_attributes.nao_video_tracker` % (100 = finished), FIRE = `fire_certificates` with 3 = 100%
+  (capped). Cards first, then the server-paged trainees table (filter NAO / FIRE level / status). Reach: back office all;
+  leaders their team / sub-team; others 403 (menu pseudo-grants `_backoffice` / `_leader`). Portable SQL only (CASE, not
+  LEAST — tests run on SQLite).
 - **Dashboard (shared)**: `/dashboard/{main,overview,view-sales,record-sale/...}` (`routes/dashboard.php`,
   `Portal\DashboardController`, pages in `Pages/Portal/Dashboard/`) is the **same for every role** and is
   everyone's home (`User::homeUrl()` → `dashboard.index`; old `/superadmin/dashboard/*`, `/admin/dashboard`,
@@ -159,7 +181,10 @@ at the matching path. Nothing else.
   portal. **Every permission name is a gate** (`AppServiceProvider` `Gate::before`): guard routes with
   `->middleware('can:view_reports')`, and add the same `permission` key to the menu item in
   `app-data.tsx` (`adminRoutes`/`staffRoutes`) so it's hidden too. Superadmin passes every gate.
-  Menus, breadcrumbs and search all come from `hooks/usePortalRoutes.ts`; shared pages for several
+  Menus, breadcrumbs and search all come from `hooks/usePortalRoutes.ts` — **every new page gets a node there** (the
+  sidebar shows only top-level items; `children` exist for breadcrumbs + search: Reports cards, Management tabs, My Team
+  tabs). Pages reached only from inside other pages (`/agents/{agent}`, `/profile`) go in `pagesOutsideMenu` (`:param`
+  patterns). Menu pseudo-grants: `_backoffice`, `_leader`, `_team_leader` (`helpers/permissions.ts`); shared pages for several
   portals live in `Pages/Portal/` with controllers in `Portal\` (e.g. `DashboardController`,
   `StatisticsController`). `auth.portal`, `auth.home`, `auth.permissions` are shared to the UI.
 - **Roles & permissions**: managed at Settings → Roles & permissions
@@ -198,6 +223,19 @@ at the matching path. Nothing else.
   one active stint per agent per table. Team photos go through `ProfilePhotoService::uploadSquare`
   (`team-logos/`). Agent status/photo: admins may change agents and staff but not admins/superadmins
   (`UserPolicy::updateStatus/updatePhoto`).
+- **Sign in as a user** (superadmin only; Management › Agents row action, agent profile button): `POST /impersonate/{user}`,
+  `DELETE /impersonate`, `ImpersonationService` (session key `impersonator_id`; the session id is regenerated on each switch
+  so slow background requests can't undo it). Never on superadmins or inactive users; `ImpersonationBanner` in `AppLayout`;
+  activity logs get `impersonated_by`. Shared: `auth.impersonator`, `auth.can.impersonate`.
+- **My Team** (`/my-team`, `MyTeamController`, `TeamLeadershipService`): for whoever leads a team (`teams.agent_id`) or
+  sub-team (`sub_teams.agent_id`) — leadership comes from the data, not the role; shared as `auth.leads` (drives the
+  menu item + switcher). Overview = the report locked to their group (opens on last month); Members (server-paged —
+  teams reach 12k members); Sub-teams. Team leaders: add agents with no team, move members between their sub-teams,
+  create/edit sub-teams led by their members (all via `TeamManagementService::transfer`, history kept). Unit managers:
+  monitor only. The Sub-teams page shows, for a date range (default last month), each sub-team's sales and its unit
+  manager's own sales, ranked either way (`SalesReportService::totals`). A team leader can open any sub-team of their team (`?sub_team=`, read-only, `group.parent` set).
+  Menus treat leaders as holding the pseudo-permission `_leader` (`helpers/permissions.ts`). Every write goes through `Requests/Portal/MyTeam/*` (`leadsTeam` on the `{team}` in the URL). Leaders
+  can open their active members' `/agents/{agent}` profiles.
 - **View as role** (superadmin testing): profile menu → "View the portal as …" (`POST/DELETE /view-as`,
   `ViewAsService`, encrypted cookie `lr_view_as` — **not** the session: the database session is rewritten whole by
   every request, so a slow background request would end the preview). `ApplyViewAsRole` middleware (before
@@ -214,14 +252,20 @@ at the matching path. Nothing else.
   members see id/name/avatar/role). The client joins once per tab in `helpers/presence.ts` (outside
   React, so page visits don't rejoin) and authorizes with the fresh `XSRF-TOKEN` cookie. If the socket
   is down, `hooks/useOnlineUsers.ts` falls back to the 60s partial-reload poll.
-- **Sales report** (Dashboard › View Sales, `/dashboard/view-sales`, `can:view_reports`; `SalesReportController` →
-  `SalesReportService`): one UNION of all four categories (project, rental, brokerage, international; date +
+- **Sales report** (Dashboard › View Sales, `/dashboard/view-sales`, and every `/reports/*` page). **Reach is by who you
+  are, not just `view_reports`** (`TeamLeadershipService::reportScope`): back office (superadmin/admin/staff) with
+  view_reports → whole system; a team leader / unit manager → their own team / sub-team; anyone else with view_reports →
+  their own sales; otherwise 403. Applied with `SalesReportService::lockedFilters` (scope keys in the URL are dropped),
+  shown as `scopeLocked` + the scope header; `viewsFor($lock)` drops views that would only show the reader's own group
+  (no Teams / Top Teams when locked to a team; also no Sub-teams for a unit manager / agent), and the Team column is
+  hidden inside a team or sub-team scope; `SalesReportController` →
+  `SalesReportService`): one UNION of the three local categories (project, rental, brokerage; local agents only; date +
   status filtered inside each branch, uses the `reservation_date` / `sale_status` indexes) feeds KPIs (vs the
   same-length previous period), a monthly trend (yearly past 36 months) and a server-paged breakdown by view:
   agents, teams / sub-teams (team at the reservation date, same rule as Top Teams), developers (project),
   brokerage (agents, brokerage only), rental (agents, rental only). Filters live in the URL; the page reloads
   `breakdown` + `summary` via `useServerTable(..., ['summary'])`. Default: this year, valid sales.
-  **Reports** (`/reports`, sidebar item for every portal, `can:view_reports`; `ReportsController`): cards from
+  **Reports** (`/reports`, sidebar item for every portal and field roles, same reach rule; `ReportsController`): cards from
   `components/reports/reportCatalog.ts` → `/reports/{slug}`, each one view of the same service (Top Agents, Top Unit
   Managers = agents with role `unit_manager`, own sales; Top Teams, Top Sub-teams, Developer / Brokerage / Rental
   Sales — brokerage and rental rank agents). Both pages render `components/reports/SalesReportView.tsx` (View Sales with view tabs, a report without).
@@ -236,7 +280,9 @@ at the matching path. Nothing else.
 - **Report layout**: the ranked table comes first (name, Area / location, Team where relevant, Total sales — no
   count / average / share columns); statistics (`components/reports/ReportStatistics.tsx`: tiles, trend, by
   category, by area, by client country — codes and legacy names merged via `Countries::resolve`, top 10 + Other —
-  by client gender, by property type) sit underneath. People rows open the read-only agent profile `/agents/{agent}`
+  by client gender, by property type, and Top developers with % share of project sales when the report includes
+  project sales) sit underneath. A drill-down shows `ReportScopeHeader` (photo, name, facts, total, "Show
+  everyone") under the title instead of a chip; `scope` carries `avatar` + `facts`. People rows open the read-only agent profile `/agents/{agent}`
   (`AgentProfileController`, view_reports or team managers; same service with an `agent_id` scope).
   Date ranges use `components/utils/DateRangeField.tsx` (free `@mui/x-date-pickers` DateCalendar + dayjs, quick
   ranges + click first/last day) — MUI's DateRangePicker is Pro-only, don't add it.
@@ -272,11 +318,16 @@ at the matching path. Nothing else.
   `agentid → members.memberid → members.id`. Rental/brokerage property details live in their own
   tables (see `docs/legacy-migration/sales.md`). Teams (`legacy:import-teams`): `teams.id` /
   `sub_teams.id` = legacy ids; members via `memid`/`memID`/`LeadID` (= `members.id`), never the
-  legacy `agentid`; per agent only the newest membership can be `active` (see `teams.md`). Pages that
+  legacy `agentid`; per agent only the newest membership can be `active` (see `teams.md`).
+  **Fully registered** = `agent_attributes.registration_status = 4` (legacy registration stepper 1–4, backfilled by
+  `legacy:import-registration-status`); member/recruit/headcount statistics count only those —
+  use `Agent::fullyRegisteredIds()` / `Agent::FULLY_REGISTERED`. Sales totals are not filtered. Pages that
   list users must page/search server-side — there are ~83k users now.
 - **Global search** (navbar, `components/utils/search/GlobalSearch.tsx`): pages come from `app-data`
   routes via `helpers/searchPages.ts` (client-side); people come from `GET /search/users`
-  (`Portal\SearchController`) — with `/search/agents`, the **only sanctioned JSON endpoints**, because typeahead can't be an
+  (`Portal\SearchController`), teams / sub-teams / areas from `GET /search/groups` (`GroupSearchService`, same reach as
+  reports: back office → any group, opening `/reports/top-agents?team_id|sub_team_id|area=`; leaders → only groups they
+  lead, opening My Team; `auth.can.search_groups`) — with `/search/agents`, the **only sanctioned JSON endpoints**, because typeahead can't be an
   Inertia visit. Don't add other JSON endpoints without the same reason. Who may do what is shared as
   `auth.can.{access_superadmin, search_users, manage_users}` — use these flags, not role names, in the UI.
 - **Navigation**: Inertia `<Link>` / `router` only (`components/AppSidebar.tsx:85`).

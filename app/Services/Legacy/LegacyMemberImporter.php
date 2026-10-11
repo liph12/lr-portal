@@ -72,7 +72,7 @@ class LegacyMemberImporter
         'hashpass', 'password', 'gender', 'maritalstatus', 'phone', 'mobile', 'address', 'city', 'state',
         'photo', 'aboutyourself', 'specialskills', 'workexperience', 'fblink', 'tin', 'dateactivated',
         'nao_video_tracker', 'nao_proof_of_attendance', 'nao_attendance_confirmation', 'nao_date_attended',
-        'fire_certs_count', 'prc_expiry', 'dshud_expiry', 'national_intern', 'country', 'lr_joined', 'created_at', 'updated_at',
+        'fire_certs_count', 'prc_expiry', 'dshud_expiry', 'national_intern', 'country', 'lr_joined', 'registration_status', 'created_at', 'updated_at',
     ];
 
     private ConnectionInterface $legacy;
@@ -407,6 +407,8 @@ class LegacyMemberImporter
                 'nao_attendance_status' => $this->clean($m->nao_attendance_confirmation),
                 'nao_date_of_attendance' => $this->date($m->nao_date_attended, 'Y-m-d'),
                 'fire_certificates' => (int) $m->fire_certs_count,
+                // Registration stepper (1–4); 4 = fully registered.
+                'registration_status' => (int) $m->registration_status ?: null,
             ],
         ];
     }

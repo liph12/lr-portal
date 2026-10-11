@@ -1,6 +1,8 @@
 import { ReactNode, useState } from "react";
-import { Box, Container, Grid, LinearProgress, Typography } from "@mui/material";
-import { ArrowBackRounded } from "@mui/icons-material";
+import { Box, Container, Grid, LinearProgress, Link as MuiLink, Typography } from "@mui/material";
+import { ArrowBackRounded, LoginRounded } from "@mui/icons-material";
+import ConfirmDialog from "../../../components/utils/ConfirmDialog";
+import useAuthUser from "../../../hooks/useAuthUser";
 import { router } from "@inertiajs/react";
 import AppLayout from "../../../components/layouts/AppLayout";
 import SectionCard from "../../../components/cards/SectionCard";
@@ -25,6 +27,7 @@ interface Membership {
 interface AgentProfileProps {
     agent: {
         id: number;
+        user_id: number;
         name: string;
         avatar: string | null;
         email: string | null;
@@ -40,8 +43,67 @@ interface AgentProfileProps {
     };
     teams: Membership[];
     subTeams: Membership[];
+    details: AgentDetails;
+    // The upline; name / email are null when the sponsor wasn't imported, linkable when the reader may open them.
+    sponsor: { id: number; name: string | null; email: string | null; avatar: string | null; area: string | null; linkable: boolean } | null;
     filters: { from: string; to: string };
     summary: ReportSummary;
+}
+
+interface AgentDetails {
+    first_name: string | null;
+    middle_name: string | null;
+    last_name: string | null;
+    gender: string | null;
+    marital_status: string | null;
+    phone: string | null;
+    address: string | null;
+    signed_up: string | null;
+    about: string | null;
+    skills: string | null;
+    work_experience: string | null;
+    links: Record<string, string>;
+    // null when hidden from this reader; tin_hidden then says one exists.
+    tin: string | null;
+    tin_hidden: boolean;
+    prc_expiration: string | null;
+    dhsud_expiration: string | null;
+    referral_link: string | null;
+    date_activated: string | null;
+    nao: number;
+    nao_attendance_status: string | null;
+    nao_date_of_attendance: string | null;
+    nao_proof_of_attendance: string | null;
+    fire: number;
+    direct_recruits: number;
+}
+
+function Bar({ value }: { value: number }) {
+    return (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, maxWidth: 320 }}>
+            <LinearProgress
+                variant="determinate"
+                value={value}
+                aria-label={`${value}%`}
+                sx={{ flex: 1, height: 6, borderRadius: 99, backgroundColor: "var(--lr-surface-container)", "& .MuiLinearProgress-bar": { borderRadius: 99, backgroundColor: value >= 100 ? "var(--lr-success-icon)" : "var(--lr-primary)" } }}
+            />
+            <Typography variant="caption" sx={{ width: 40, textAlign: "right" }}>
+                {value}%
+            </Typography>
+        </Box>
+    );
+}
+
+// An expiry date, flagged once it has passed.
+function Expiry({ date }: { date: string | null }) {
+    if (!date) return null;
+    const expired = date.slice(0, 10) < new Date().toISOString().slice(0, 10);
+
+    return (
+        <>
+            {formatDate(date)} {expired && <StatusChip status="terminated">Expired</StatusChip>}
+        </>
+    );
 }
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
@@ -86,8 +148,10 @@ function History({ title, rows }: { title: string; rows: Membership[] }) {
 }
 
 // A read-only agent profile opened from the reports: who they are, where they belong, and their sales.
-function AgentProfile({ agent, teams, subTeams, filters, summary }: AgentProfileProps) {
+function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summary }: AgentProfileProps) {
     const [loading, setLoading] = useState(false);
+    const [confirming, setConfirming] = useState(false);
+    const me = useAuthUser();
     const location = [agent.city, agent.state].filter(Boolean).join(", ");
 
     const changeRange = (range: { from: string; to: string }) =>
@@ -123,26 +187,158 @@ function AgentProfile({ agent, teams, subTeams, filters, summary }: AgentProfile
                         </Typography>
                     </Box>
                 </Box>
+                {me?.can.impersonate && agent.status === "active" && agent.role !== "Superadmin" && (
+                    <StyledButton
+                        variant="outlined"
+                        startIcon={<LoginRounded />}
+                        onClick={() => setConfirming(true)}
+                        sx={{ color: "var(--lr-primary)", borderColor: "var(--lr-outline)" }}
+                    >
+                        Sign in as {agent.name.split(" ")[0]}
+                    </StyledButton>
+                )}
             </Box>
 
             <Grid container spacing={2} sx={{ mb: 4 }}>
                 <Grid size={{ xs: 12, md: 4 }}>
-                    <SectionCard title="Where they belong">
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                            <Fact label="Area">{agent.area ?? "Unassigned"}</Fact>
-                            <Fact label="Location">{location}</Fact>
-                            <Fact label="Country">
-                                <CountryFlag code={agent.country_code} country={agent.country} />
-                            </Fact>
-                            <Fact label="Email">{agent.email}</Fact>
-                            <Fact label="Mobile">{agent.mobile}</Fact>
+                    <SectionCard title="Upline / sponsor">
+                        {sponsor ? (
+                            <Box
+                                onClick={sponsor.linkable ? () => router.visit(`/agents/${sponsor.id}`) : undefined}
+                                sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: sponsor.linkable ? "pointer" : "default" }}
+                            >
+                                <UserAvatar name={sponsor.name ?? "?"} src={sponsor.avatar} size={48} />
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 500, color: sponsor.linkable ? "var(--lr-primary)" : "var(--lr-text-primary)" }}>
+                                        {sponsor.name ?? "Not in the portal"}
+                                    </Typography>
+                                    <Typography variant="caption" component="div" sx={{ color: "var(--lr-text-secondary)", overflowWrap: "anywhere" }}>
+                                        {sponsor.email ?? `Member #${sponsor.id}`}
+                                    </Typography>
+                                    {sponsor.area && (
+                                        <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
+                                            {sponsor.area}
+                                        </Typography>
+                                    )}
+                                </Box>
+                            </Box>
+                        ) : (
+                            <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)" }}>
+                                No sponsor on record.
+                            </Typography>
+                        )}
+                        <Box sx={{ mt: 2 }}>
+                            <Fact label="Direct recruits (agents they sponsored)">{details.direct_recruits.toLocaleString()}</Fact>
                         </Box>
                     </SectionCard>
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
-                    <History title="Teams" rows={teams} />
+                    <SectionCard title="Contact & location">
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                            <Fact label="Email">{agent.email}</Fact>
+                            <Fact label="Mobile">{agent.mobile}</Fact>
+                            <Fact label="Phone">{details.phone}</Fact>
+                            <Fact label="Address">{details.address}</Fact>
+                            <Fact label="City / province">{location}</Fact>
+                            <Fact label="Country">
+                                <CountryFlag code={agent.country_code} country={agent.country} />
+                            </Fact>
+                            <Fact label="Area">{agent.area ?? "Unassigned"}</Fact>
+                        </Box>
+                    </SectionCard>
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
+                    <SectionCard title="Personal">
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                            <Fact label="Full name">{[details.first_name, details.middle_name, details.last_name].filter(Boolean).join(" ")}</Fact>
+                            <Fact label="Gender">{details.gender}</Fact>
+                            <Fact label="Marital status">{details.marital_status}</Fact>
+                            <Fact label="Signed up">{details.signed_up ? formatDate(details.signed_up) : null}</Fact>
+                            <Fact label="Date activated">{details.date_activated ? formatDate(details.date_activated) : null}</Fact>
+                        </Box>
+                    </SectionCard>
+                </Grid>
+
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <SectionCard title="Training">
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                            <Fact label="NAO progress">
+                                <Bar value={details.nao} />
+                            </Fact>
+                            <Fact label="NAO attendance">
+                                {[details.nao_attendance_status, details.nao_date_of_attendance ? formatDate(details.nao_date_of_attendance) : null].filter(Boolean).join(" · ")}
+                                {details.nao_proof_of_attendance && (
+                                    <>
+                                        {" · "}
+                                        <MuiLink href={details.nao_proof_of_attendance} target="_blank" rel="noopener" sx={{ color: "var(--lr-primary)" }}>
+                                            proof
+                                        </MuiLink>
+                                    </>
+                                )}
+                            </Fact>
+                            <Fact label="FIRE certificates">
+                                <Bar value={Math.round((Math.min(details.fire, 3) / 3) * 100)} />
+                                <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
+                                    {details.fire} of 3{details.fire > 3 ? " (max reached)" : ""}
+                                </Typography>
+                            </Fact>
+                        </Box>
+                    </SectionCard>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <SectionCard title="Credentials">
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                            <Fact label="PRC license expires">
+                                <Expiry date={details.prc_expiration} />
+                            </Fact>
+                            <Fact label="DHSUD registration expires">
+                                <Expiry date={details.dhsud_expiration} />
+                            </Fact>
+                            <Fact label="TIN">{details.tin_hidden ? "On file (visible to the back office)" : details.tin}</Fact>
+                            <Fact label="Referral link">
+                                {details.referral_link && (
+                                    <MuiLink href={details.referral_link} target="_blank" rel="noopener" sx={{ color: "var(--lr-primary)", overflowWrap: "anywhere" }}>
+                                        {details.referral_link}
+                                    </MuiLink>
+                                )}
+                            </Fact>
+                        </Box>
+                    </SectionCard>
+                </Grid>
+
+                <Grid size={{ xs: 12, md: 8 }}>
+                    <SectionCard title="About">
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                            <Fact label="About">{details.about}</Fact>
+                            <Fact label="Skills">{details.skills}</Fact>
+                            <Fact label="Work experience">{details.work_experience}</Fact>
+                        </Box>
+                    </SectionCard>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                    <SectionCard title="Online">
+                        {Object.keys(details.links).length === 0 ? (
+                            <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)" }}>
+                                No links on record.
+                            </Typography>
+                        ) : (
+                            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                                {Object.entries(details.links).map(([label, url]) => (
+                                    <Fact key={label} label={label}>
+                                        <MuiLink href={url} target="_blank" rel="noopener" sx={{ color: "var(--lr-primary)", overflowWrap: "anywhere" }}>
+                                            {url}
+                                        </MuiLink>
+                                    </Fact>
+                                ))}
+                            </Box>
+                        )}
+                    </SectionCard>
+                </Grid>
+
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <History title="Teams" rows={teams} />
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
                     <History title="Sub-teams" rows={subTeams} />
                 </Grid>
             </Grid>
@@ -155,6 +351,18 @@ function AgentProfile({ agent, teams, subTeams, filters, summary }: AgentProfile
             </Box>
             {loading && <LinearProgress sx={{ height: 2, mb: 2 }} />}
             <ReportStatistics summary={summary} showAreas={false} showAgentsTile={false} />
+            <ConfirmDialog
+                open={confirming}
+                title={`Sign in as ${agent.name}?`}
+                message="You'll see the portal exactly as they do. Everything you do is recorded as them and as you. Use the red banner to return to your own account."
+                confirmLabel="Sign in as them"
+                tone="primary"
+                onConfirm={() => {
+                    setConfirming(false);
+                    router.post(`/impersonate/${agent.user_id}`);
+                }}
+                onClose={() => setConfirming(false)}
+            />
         </Container>
     );
 }

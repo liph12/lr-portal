@@ -25,9 +25,19 @@ interface MonthlyColumnChartProps {
     data: MonthPoint[];
     // "year" for long ranges: `month` is then "YYYY-01" and bars are labelled by year.
     bucket?: "month" | "year";
+    // Wording for when `sales` / `value` mean something else (e.g. recruits and their sales).
+    labels?: { value: string; count: string; valueToggle: string; countToggle: string; dated: string };
 }
 
-export default function MonthlyColumnChart({ data, bucket = "month" }: MonthlyColumnChartProps) {
+const DEFAULT_LABELS = {
+    value: "Total contract value",
+    count: "Sales recorded",
+    valueToggle: "Contract value",
+    countToggle: "Sales count",
+    dated: "by reservation date",
+};
+
+export default function MonthlyColumnChart({ data, bucket = "month", labels = DEFAULT_LABELS }: MonthlyColumnChartProps) {
     const label = (month: string, style: "short" | "long") => (bucket === "year" ? month.slice(0, 4) : formatMonth(month, style));
     const [metric, setMetric] = useState<Metric>("value");
     const format = (n: number) => (metric === "value" ? formatPesoCompact(n) : formatCount(n));
@@ -42,7 +52,7 @@ export default function MonthlyColumnChart({ data, bucket = "month" }: MonthlyCo
         <Box component="figure" sx={{ m: 0 }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2, flexWrap: "wrap", mb: 2 }}>
                 <Typography component="figcaption" variant="body2" sx={{ color: "var(--lr-text-secondary)" }}>
-                    {metric === "value" ? "Total contract value" : "Sales recorded"} per {bucket}, by reservation date
+                    {metric === "value" ? labels.value : labels.count} per {bucket}, {labels.dated}
                 </Typography>
                 <ToggleButtonGroup
                     size="small"
@@ -52,8 +62,8 @@ export default function MonthlyColumnChart({ data, bucket = "month" }: MonthlyCo
                     aria-label="Chart measure"
                     sx={{ "& .MuiToggleButton-root": { textTransform: "none", px: 1.5, py: 0.25, fontSize: 12, borderColor: "var(--lr-border)" } }}
                 >
-                    <ToggleButton value="value">Contract value</ToggleButton>
-                    <ToggleButton value="sales">Sales count</ToggleButton>
+                    <ToggleButton value="value">{labels.valueToggle}</ToggleButton>
+                    <ToggleButton value="sales">{labels.countToggle}</ToggleButton>
                 </ToggleButtonGroup>
             </Box>
 
@@ -148,12 +158,14 @@ export default function MonthlyColumnChart({ data, bucket = "month" }: MonthlyCo
             )}
 
             <Box component="table" sx={srOnly}>
-                <caption>Sales per month</caption>
+                <caption>
+                    {labels.count} and {labels.value.toLowerCase()} per {bucket}
+                </caption>
                 <thead>
                     <tr>
-                        <th scope="col">Month</th>
-                        <th scope="col">Sales</th>
-                        <th scope="col">Contract value</th>
+                        <th scope="col">{bucket === "year" ? "Year" : "Month"}</th>
+                        <th scope="col">{labels.countToggle}</th>
+                        <th scope="col">{labels.valueToggle}</th>
                     </tr>
                 </thead>
                 <tbody>

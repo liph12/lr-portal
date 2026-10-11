@@ -5,6 +5,9 @@ namespace App\Http\Middleware;
 use App\Models\Entities\Team;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\GroupSearchService;
+use App\Services\ImpersonationService;
+use App\Services\TeamLeadershipService;
 use App\Services\LeaderboardService;
 use App\Services\OnlineUsersService;
 use Inertia\Inertia;
@@ -53,6 +56,10 @@ class HandleInertiaRequests extends Middleware
                 'role' => $request->user()->actingRole()?->label,
                 // Set while a superadmin previews another role; the banner offers the way back.
                 'viewing_as' => $request->user()->viewingAs()?->label,
+                // Set while a superadmin is signed in as this user; the banner offers the way back.
+                'impersonator' => ($impersonator = app(ImpersonationService::class)->impersonator($request)) ? ['id' => $impersonator->id, 'name' => $impersonator->name] : null,
+                // Teams / sub-teams this user leads: drives the My Team menu and its switcher.
+                'leads' => app(TeamLeadershipService::class)->summaryFor($request->user()),
                 'view_as_roles' => $request->user()->reallyHasRole(Role::SUPERADMIN)
                     ? Role::where('name', '!=', Role::SUPERADMIN)->orderBy('label')->get(['name', 'label'])
                     : [],
@@ -67,8 +74,11 @@ class HandleInertiaRequests extends Middleware
                     'access_superadmin' => $request->user()->hasRole(Role::SUPERADMIN),
                     'search_users' => $request->user()->can('search', User::class),
                     'manage_users' => $request->user()->can('manage', User::class),
+                    // Teams / sub-teams / areas in the navbar search (same reach as the reports).
+                    'search_groups' => app(GroupSearchService::class)->canSearch($request->user()),
                     'view_leaderboards' => $request->user()->can(LeaderboardService::PERMISSION),
                     'view_as' => $request->user()->reallyHasRole(Role::SUPERADMIN),
+                    'impersonate' => $request->user()->reallyHasRole(Role::SUPERADMIN) && ! $request->session()->has(ImpersonationService::SESSION_KEY),
                     'manage_teams' => $request->user()->can('manage', Team::class),
                 ],
             ] : null,

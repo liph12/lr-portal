@@ -1,6 +1,7 @@
+import { ReactNode } from "react";
 import { ArrowBackRounded, ChevronRightRounded } from "@mui/icons-material";
 import { Link, router } from "@inertiajs/react";
-import { Box, Chip, Container, LinearProgress, MenuItem, TextField, Typography } from "@mui/material";
+import { Box, Container, LinearProgress, MenuItem, TextField, Typography } from "@mui/material";
 import { GridColDef } from "@mui/x-data-grid";
 import SectionTitle from "../utils/SectionTitle";
 import DataTable from "../utils/tables/DataTable";
@@ -9,6 +10,7 @@ import PersonCell from "../utils/tables/PersonCell";
 import StyledButton from "../utils/StyledButton";
 import DateRangeField from "../utils/DateRangeField";
 import ReportStatistics, { CATEGORY_LABELS, ReportSummary } from "./ReportStatistics";
+import ReportScopeHeader, { ReportScopeDetails } from "./ReportScopeHeader";
 import useServerTable, { ServerPage, TableFilters } from "../../hooks/useServerTable";
 import { formatPeso } from "../../helpers/formatNumber";
 import { reportPresets } from "../../helpers/dateRanges";
@@ -36,11 +38,7 @@ export interface ReportFilters extends TableFilters {
 }
 
 // The group a drill-down is limited to (clicked from the Teams / Sub-teams / Developers / Areas table).
-export interface ReportScope {
-    type: "team" | "sub_team" | "developer" | "area";
-    id: number | string;
-    name: string;
-}
+export type ReportScope = ReportScopeDetails;
 
 export interface SalesReportViewProps {
     filters: ReportFilters;
@@ -54,6 +52,10 @@ export interface SalesReportViewProps {
     fixedView?: boolean;
     // Shown as a back link above the title.
     backHref?: string;
+    // The scope can't be cleared (My Team is always about the leader's own team).
+    lockScope?: boolean;
+    // Rendered between the title and the filters (e.g. My Team's tabs and team switcher).
+    header?: ReactNode;
 }
 
 const VIEWS: Record<string, { label: string; column: string; search: string }> = {
@@ -74,7 +76,7 @@ const DRILL: Record<string, { key: string; label: string; hint: string }> = {
     developers: { key: "developer_id", label: "Developer", hint: "Click a developer to see the top agents selling its projects." },
     areas: { key: "area", label: "Area", hint: "Click an area to see its top agents." },
 };
-const SCOPE_KEYS = { team: "team_id", sub_team: "sub_team_id", developer: "developer_id", area: "area" } as const;
+const SCOPE_KEYS = { team: "team_id", sub_team: "sub_team_id", developer: "developer_id", area: "area", agent: "agent_id" } as const;
 const NO_SCOPE = { team_id: "", sub_team_id: "", developer_id: "", area: "" };
 
 // Rows of these views are people: clicking opens the agent's profile.
@@ -95,12 +97,14 @@ const selectSx = {
 
 // The sales report body: filters, the ranked table first, then the statistics underneath.
 // Used by Dashboard › View Sales (with view tabs) and by each card under Reports (one view).
-export default function SalesReportView({ filters, scope = null, summary, breakdown, options, title, subtitle, fixedView = false, backHref }: SalesReportViewProps) {
-    const table = useServerTable("breakdown", breakdown, filters, ["summary"]);
+export default function SalesReportView({ filters, scope = null, summary, breakdown, options, title, subtitle, fixedView = false, backHref, lockScope = false, header }: SalesReportViewProps) {
+    // The scope header changes with a drill-down, so it reloads with the table.
+    const table = useServerTable("breakdown", breakdown, filters, ["summary", "scope"]);
 
     const view = VIEWS[filters.view] ?? VIEWS.agents;
     const lockedCategory = VIEW_CATEGORY[filters.view] ?? (scope?.type === "developer" ? "project" : undefined);
-    const drill = DRILL[filters.view];
+    // A locked report can't be narrowed to another group, so only people rows stay clickable.
+    const drill = lockScope ? undefined : DRILL[filters.view];
     const isPeople = PEOPLE.indexOf(filters.view) !== -1;
     const clickable = isPeople || !!drill;
 
@@ -116,7 +120,7 @@ export default function SalesReportView({ filters, scope = null, summary, breakd
         if (fixedView) {
             router.get("/reports/top-agents", Object.fromEntries(Object.entries({ ...keep, [drill.key]: row.id }).filter(([, v]) => v !== "")));
         } else {
-            table.setFilters({ ...NO_SCOPE, view: "agents", [drill.key]: row.id, sort: "", dir: "" });
+            table.drillInto({ ...NO_SCOPE, view: "agents", [drill.key]: row.id, sort: "", dir: "" });
         }
     };
 
@@ -133,7 +137,8 @@ export default function SalesReportView({ filters, scope = null, summary, breakd
         ...(SHOW_AREA.indexOf(filters.view) !== -1
             ? [{ field: "area", headerName: "Area / location", flex: 1, minWidth: 150, sortable: false, valueGetter: (_: unknown, row: ReportRow) => row.area ?? "—" } as GridColDef<ReportRow>]
             : []),
-        ...(SHOW_TEAM.indexOf(filters.view) !== -1
+        // Inside one team or sub-team every row has the same team, so the column would only repeat it.
+        ...(SHOW_TEAM.indexOf(filters.view) !== -1 && scope?.type !== "team" && scope?.type !== "sub_team"
             ? [{ field: "team", headerName: "Team", flex: 1, minWidth: 160, sortable: false, valueGetter: (_: unknown, row: ReportRow) => row.team ?? "—" } as GridColDef<ReportRow>]
             : []),
         { field: "value", headerName: "Total sales", type: "number", flex: 1, minWidth: 170, valueFormatter: (v: number) => formatPeso(v) },
@@ -154,6 +159,8 @@ export default function SalesReportView({ filters, scope = null, summary, breakd
                 </Link>
             )}
             <SectionTitle title={title} subtitle={subtitle} />
+            {header}
+            {scope && <ReportScopeHeader scope={scope} total={summary.kpis.value.value} onClear={lockScope ? undefined : () => table.drillInto({ [SCOPE_KEYS[scope.type]]: "" })} />}
 
             {/* Filters: date range (with quick ranges), category and status */}
             <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5, mb: 3 }}>
@@ -221,13 +228,6 @@ export default function SalesReportView({ filters, scope = null, summary, breakd
                         );
                     })}
                 </Box>
-            )}
-            {scope && (
-                <Chip
-                    label={`${DRILL[`${scope.type}s`]?.label ?? scope.type}: ${scope.name}`}
-                    onDelete={() => table.setFilter(SCOPE_KEYS[scope.type], "")}
-                    sx={{ mb: 2, backgroundColor: "var(--lr-primary-soft)", color: "var(--lr-primary)", fontWeight: 500, "& .MuiChip-deleteIcon": { color: "var(--lr-primary)" } }}
-                />
             )}
             {hint && (
                 <Typography variant="body2" sx={{ mb: 1, color: "var(--lr-text-secondary)" }}>

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Entities\Agent;
 use App\Models\Entities\AgentTransaction;
 use App\Policies\UserPolicy;
 use Carbon\CarbonImmutable;
@@ -68,16 +69,16 @@ class LeaderboardService
             $rows->unionAll($branch);
         }
 
-        return $this->beforeCutoff(DB::query()
+        return $this->beforeCutoff(Agent::withoutGlobalPartners(DB::query()
             ->fromSub($rows, 'p')
             ->join('agent_transactions as t', 't.id', '=', 'p.agent_transaction_id')
-            ->where('t.sale_status', self::VALID), $month);
+            ->where('t.sale_status', self::VALID), 't.agent_id'), $month);
     }
 
     // Projects and developers only exist for project sales.
     private function projectSalesIn(CarbonImmutable $month): Builder
     {
-        return $this->beforeCutoff(DB::table('agent_transactions as t')
+        return $this->beforeCutoff(Agent::withoutGlobalPartners(DB::table('agent_transactions as t'), 't.agent_id')
             ->join('agent_project_transactions as p', 'p.agent_transaction_id', '=', 't.id')
             ->where('t.sale_type', AgentTransaction::TYPE_PROJECT)
             ->where('t.sale_status', self::VALID)

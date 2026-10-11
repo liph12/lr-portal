@@ -1,7 +1,7 @@
 import { Box, Typography } from "@mui/material";
 import { ApartmentRounded, HomeWorkOutlined } from "@mui/icons-material";
 import UserAvatar from "./user/UserAvatar";
-import { formatPeso, formatPesoCompact } from "../../helpers/formatNumber";
+import { formatPesoExact } from "../../helpers/formatNumber";
 import { LeaderboardEntry } from "../../types";
 
 interface LeaderboardListProps {
@@ -27,7 +27,7 @@ export default function LeaderboardList({ entries, kind }: LeaderboardListProps)
                 <Box
                     component="li"
                     key={`${e.id ?? ""}${e.name}`}
-                    title={e.value === undefined ? e.name : `${e.name}: ${formatPeso(e.value)}`}
+                    title={e.value === undefined ? e.name : `${e.name}: ${formatPesoExact(e.value)}`}
                     sx={{ display: "flex", alignItems: "center", gap: 1.25, px: 1, py: 0.75, borderRadius: 2, ":hover": { backgroundColor: "var(--lr-surface-dim)" } }}
                 >
                     <Typography variant="caption" sx={{ width: 16, textAlign: "center", fontWeight: 700, color: MEDALS[i] ?? "var(--lr-text-secondary)" }}>
@@ -61,7 +61,7 @@ export default function LeaderboardList({ entries, kind }: LeaderboardListProps)
                         </Typography>
                         {e.value !== undefined && (
                             <Typography variant="caption" fontFamily="Google Sans Code" sx={{ color: "var(--lr-text-secondary)", fontSize: 11 }}>
-                                {formatPesoCompact(e.value)}
+                                {formatPesoExact(e.value)}
                             </Typography>
                         )}
                     </Box>

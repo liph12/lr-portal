@@ -12,8 +12,8 @@ Route::prefix('dashboard')->name('dashboard.')->group(function () {
     Route::get('/', fn () => redirect()->route('dashboard.index'));
     Route::get('/main', [DashboardController::class, 'index'])->name('index');
     Route::get('/overview', [DashboardController::class, 'overview'])->name('overview');
-    // Sales figures (amounts) are for roles with view_reports, like Statistics.
-    Route::get('/view-sales', [SalesReportController::class, 'index'])->middleware('can:view_reports')->name('view-sales');
+    // Everything for view_reports; team leaders / unit managers get their own team (the controller decides).
+    Route::get('/view-sales', [SalesReportController::class, 'index'])->name('view-sales');
     Route::get('/view-sales/developer', fn () => redirect()->route('dashboard.view-sales', ['view' => 'developers']))->name('view-sales.developer');
 
     // The landing page is for anyone who can record either kind; each form has its own gate.

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Portal\ImpersonationController;
 use App\Http\Controllers\Portal\ViewAsController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
@@ -29,11 +30,16 @@ Route::middleware(['auth', 'active'])->group(function(){
     require base_path('routes/profile.php');
     require base_path('routes/dashboard.php');
     require base_path('routes/reports.php');
+    require base_path('routes/my-team.php');
     require base_path('routes/search.php');
 
     // Superadmin role preview; the requests check the real role, so the way back always works.
     Route::post('/view-as', [ViewAsController::class, 'store'])->name('view-as.start');
     Route::delete('/view-as', [ViewAsController::class, 'destroy'])->name('view-as.stop');
+
+    // Superadmin "sign in as" a specific user; leaving is allowed for whoever is being impersonated.
+    Route::post('/impersonate/{user}', [ImpersonationController::class, 'store'])->name('impersonate.start');
+    Route::delete('/impersonate', [ImpersonationController::class, 'destroy'])->name('impersonate.stop');
 
     Route::prefix('superadmin')->middleware('role:superadmin')->group(function(){
 

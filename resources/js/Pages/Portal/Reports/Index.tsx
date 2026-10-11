@@ -7,12 +7,12 @@ import SectionTitle from "../../../components/utils/SectionTitle";
 import { REPORTS } from "../../../components/reports/reportCatalog";
 
 // Reports: one card per report, so it's obvious where each kind of data lives.
-function Reports() {
+function Reports({ available }: { available: string[] }) {
     return (
         <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4 } }}>
             <SectionTitle title="Reports" subtitle="Pick a report. Each one has its own date range and statistics." />
             <Grid container spacing={2}>
-                {REPORTS.map(({ slug, title, description, icon: Icon }) => (
+                {REPORTS.filter((r) => available.indexOf(r.slug) !== -1).map(({ slug, title, description, icon: Icon }) => (
                     <Grid key={slug} size={{ xs: 12, sm: 6, lg: 4 }}>
                         <Link href={`/reports/${slug}`} style={{ textDecoration: "none" }}>
                             <Box

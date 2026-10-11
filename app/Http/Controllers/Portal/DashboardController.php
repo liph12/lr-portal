@@ -5,39 +5,44 @@ namespace App\Http\Controllers\Portal;
 use App\Http\Controllers\Controller;
 use App\Models\Entities\AgentTransaction;
 use App\Models\Entities\InternationalSale;
+use App\Services\SalesReportService;
 use App\Services\SalesEncodingService;
+use App\Services\TeamLeadershipService;
 use Illuminate\Http\Request;
 
 // The dashboard every signed-in role shares (/dashboard/...); only Record Your Sale is permission-gated.
 class DashboardController extends Controller
 {
+
     public function index()
     {
         return inertia('Portal/Dashboard/Index');
     }
 
-    public function overview()
+    // Sales at a glance: the back office sees the whole system, team leaders / unit managers their own team or
+    // sub-team (other roles don't get this page). Opens on this year; the date range changes it.
+    public function overview(Request $request, TeamLeadershipService $leadership, SalesReportService $reports)
     {
-        $BASE_TOTAL = 100;
-        $totalRecruitsLastYear = 2000;
-        $totalRecruits = 3500;
-        $totalNaoRecruits = 2600;
-        $totalFireRecruits = 1200;
+        $lock = $leadership->reportScope($request->user());
+        abort_if($lock === false || isset($lock['agent_id']), 403);
 
-        $recruits = [
-            'total' => $totalRecruits,
-            'difference' => (($totalRecruits / $totalRecruitsLastYear) * $BASE_TOTAL) - $BASE_TOTAL,
-            'nao' => [
-                'total' => $totalNaoRecruits,
-                'difference' => (($totalNaoRecruits / $totalRecruits) * $BASE_TOTAL) - $BASE_TOTAL,
-            ],
-            'fire' => [
-                'total' => $totalFireRecruits,
-                'difference' => ($totalFireRecruits / $totalNaoRecruits * $BASE_TOTAL) - $BASE_TOTAL,
-            ],
-        ];
+        $filters = $reports->lockedFilters(['view' => 'agents', 'per_page' => 25] + $request->query(), $lock);
+        // Back office ranks teams; a team leader ranks their sub-teams; a unit manager's sub-team has nothing below it.
+        $groupView = match (true) {
+            $lock === null => 'teams',
+            isset($lock['team_id']) => 'sub_teams',
+            default => null,
+        };
 
-        return inertia('Portal/Dashboard/Overview/Index', ['recruits' => $recruits]);
+        return inertia('Portal/Dashboard/Overview/Index', [
+            'filters' => $filters,
+            'scope' => fn () => $reports->scope($filters),
+            'summary' => fn () => $reports->summary($filters),
+            'topAgents' => fn () => array_slice($reports->breakdown($filters)->items(), 0, 5),
+            'topGroups' => fn () => $groupView
+                ? ['view' => $groupView, 'rows' => array_slice($reports->breakdown(['view' => $groupView] + $filters)->items(), 0, 5)]
+                : null,
+        ]);
     }
 
     public function recordSale(Request $request, SalesEncodingService $encoding)

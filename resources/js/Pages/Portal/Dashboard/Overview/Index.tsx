@@ -1,109 +1,99 @@
-import { ReactNode } from "react";
-import { Grid, Container } from "@mui/material";
+import { ReactNode, useState } from "react";
+import { Box, Container, Grid, LinearProgress } from "@mui/material";
+import { ArrowForwardRounded } from "@mui/icons-material";
+import { Link, router } from "@inertiajs/react";
 import DashboardLayout from "../../../../components/layouts/DashboardLayout";
 import SectionTitle from "../../../../components/utils/SectionTitle";
-import DashboardCardOverview from "../../../../components/cards/DashboardCardOverview";
-import PeopleNetworkIcon from "../../../../../assets/icons/network-gray.png";
-import PeopleExamIcon from "../../../../../assets/icons/exam-gray.png";
-import SeminarIcon from "../../../../../assets/icons/seminar-gray.png";
-import ActiveIcon from "../../../../../assets/icons/active-users-gray.png";
-import SalesIcon from "../../../../../assets/icons/sales-gray.png";
+import SectionCard from "../../../../components/cards/SectionCard";
+import StyledButton from "../../../../components/utils/StyledButton";
+import BarList from "../../../../components/charts/BarList";
+import DateRangeField from "../../../../components/utils/DateRangeField";
+import ReportStatistics, { ReportSummary } from "../../../../components/reports/ReportStatistics";
+import ReportScopeHeader, { ReportScopeDetails } from "../../../../components/reports/ReportScopeHeader";
+import { reportPresets } from "../../../../helpers/dateRanges";
+import { formatPesoCompact } from "../../../../helpers/formatNumber";
 
-interface Recruits {
-    total: number;
-    difference: number;
-    nao: {
-        total: number;
-        difference: number;
-    };
-    fire: {
-        total: number;
-        difference: number;
-    };
+interface RankedRow {
+    id: number | string;
+    name: string;
+    value: number;
+    team: string | null;
+    area: string | null;
 }
 
 interface OverviewProps {
-    recruits: Recruits;
+    filters: { from: string; to: string };
+    scope: ReportScopeDetails | null;
+    summary: ReportSummary;
+    topAgents: RankedRow[];
+    // Teams for the back office, sub-teams for a team leader, nothing for a unit manager.
+    topGroups: { view: "teams" | "sub_teams"; rows: RankedRow[] } | null;
 }
 
-function Overview({ recruits }: OverviewProps) {
+function ViewAll({ href }: { href: string }) {
     return (
-        <Container sx={{ py: { xs: 3, sm: 4 } }} maxWidth="lg">
-            <SectionTitle
-                title="Overview"
-                subtitle="Recruitment, activity and sales for the current year."
-            />
-            <Grid container spacing={2}>
-                <Grid size={{ lg: 4, sm: 6, xs: 12 }}>
-                    <DashboardCardOverview
-                        title="Total Recruits"
-                        value={recruits.total}
-                        rateType={
-                            recruits.difference >= 0 ? "success" : "error"
-                        }
-                        rateValue={`${Math.abs(recruits.difference).toFixed(
-                            2
-                        )}%`}
-                        rateLabel="vs last year"
-                        footerLabel="01 January - 31 December"
-                        iconSrc={PeopleNetworkIcon}
-                    />
+        <Link href={href} style={{ textDecoration: "none" }}>
+            <StyledButton size="small" variant="text" endIcon={<ArrowForwardRounded />} sx={{ mt: 1, px: 1, color: "var(--lr-primary)" }}>
+                View all
+            </StyledButton>
+        </Link>
+    );
+}
+
+// Dashboard › Overview: sales at a glance — the whole system for the back office, a team leader's team or a unit
+// manager's sub-team otherwise (decided on the server). Members and recruits live under Reports › Recruits.
+function Overview({ filters, scope, summary, topAgents, topGroups }: OverviewProps) {
+    const [loading, setLoading] = useState(false);
+    const query = `from=${filters.from}&to=${filters.to}`;
+
+    const changeRange = (range: { from: string; to: string }) =>
+        router.get("/dashboard/overview", range, {
+            only: ["filters", "scope", "summary", "topAgents", "topGroups"],
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            onStart: () => setLoading(true),
+            onFinish: () => setLoading(false),
+        });
+
+    return (
+        <Container maxWidth="xl" sx={{ py: { xs: 3, sm: 4 } }}>
+            <SectionTitle title="Overview" subtitle={scope ? "Your team's sales at a glance." : "Sales across the whole system at a glance."} />
+            {scope && <ReportScopeHeader scope={scope} total={summary.kpis.value.value} />}
+
+            <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5, mb: 3 }}>
+                <DateRangeField value={filters} presets={reportPresets()} onChange={changeRange} />
+            </Box>
+            {loading && <LinearProgress sx={{ height: 2, mb: 2 }} />}
+
+            <Grid container spacing={2} sx={{ mb: 4 }}>
+                <Grid size={{ xs: 12, lg: topGroups ? 6 : 12 }}>
+                    <SectionCard title="Top agents">
+                        <BarList
+                            items={topAgents.map((a) => ({ name: a.name, value: a.value, detail: [a.team, a.area].filter(Boolean).join(" · ") || undefined }))}
+                            caption="Top 5 agents by total sales"
+                            formatValue={formatPesoCompact}
+                            emptyText="No sales in this range."
+                        />
+                        <ViewAll href={`/dashboard/view-sales?view=agents&${query}`} />
+                    </SectionCard>
                 </Grid>
-                <Grid size={{ lg: 4, sm: 6, xs: 12 }}>
-                    <DashboardCardOverview
-                        title="Recruits with NAO"
-                        value={recruits.nao.total}
-                        rateType={
-                            recruits.nao.difference >= 0
-                                ? "success"
-                                : "error"
-                        }
-                        rateValue={`${Math.abs(
-                            recruits.nao.difference
-                        ).toFixed(2)}%`}
-                        rateLabel="vs total recruits"
-                        footerLabel="01 January - 31 December"
-                        iconSrc={SeminarIcon}
-                    />
-                </Grid>
-                <Grid size={{ lg: 4, sm: 6, xs: 12 }}>
-                    <DashboardCardOverview
-                        title="Recruits taken FIRE"
-                        value={recruits.fire.total}
-                        rateType={
-                            recruits.fire.difference >= 0
-                                ? "success"
-                                : "error"
-                        }
-                        rateValue={`${Math.abs(
-                            recruits.fire.difference
-                        ).toFixed(2)}%`}
-                        rateLabel="vs with NAO"
-                        footerLabel="01 January - 31 December"
-                        iconSrc={PeopleExamIcon}
-                    />
-                </Grid>
-                <Grid size={{ lg: 4, sm: 6, xs: 12 }}>
-                    <DashboardCardOverview
-                        title="Active Agents"
-                        value={6000}
-                        rateLabel="Agents with sales"
-                        footerLabel="Recent activity (last 6 months)"
-                        iconSrc={ActiveIcon}
-                    />
-                </Grid>
-                <Grid size={{ lg: 4, sm: 6, xs: 12 }}>
-                    <DashboardCardOverview
-                        title="Sales"
-                        value="15,000,000,000"
-                        rateType="success"
-                        rateValue={`${30}%`}
-                        rateLabel="vs last year"
-                        footerLabel="Project, Brokerage and Rental"
-                        iconSrc={SalesIcon}
-                    />
-                </Grid>
+                {topGroups && (
+                    <Grid size={{ xs: 12, lg: 6 }}>
+                        <SectionCard title={topGroups.view === "teams" ? "Top teams" : "Top sub-teams"}>
+                            <BarList
+                                items={topGroups.rows.map((g) => ({ name: g.name, value: g.value, detail: g.area ?? undefined }))}
+                                caption={`Top 5 ${topGroups.view === "teams" ? "teams" : "sub-teams"} by total sales`}
+                                formatValue={formatPesoCompact}
+                                emptyText="No sales in this range."
+                            />
+                            <ViewAll href={`/dashboard/view-sales?view=${topGroups.view}&${query}`} />
+                        </SectionCard>
+                    </Grid>
+                )}
             </Grid>
+
+            <ReportStatistics summary={summary} showAreas={!scope} />
         </Container>
     );
 }

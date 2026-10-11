@@ -21,7 +21,7 @@ export default function useServerTable<R>(prop: string, page: ServerPage<R>, fil
     const [search, setSearch] = useState(String(filters.q ?? ""));
     const first = useRef(true);
 
-    const visit = (changes: TableFilters) => {
+    const visit = (changes: TableFilters, scrollToTop = false) => {
         const query = Object.fromEntries(
             Object.entries({ ...filters, page: page.page, per_page: page.per_page, ...changes }).filter(([, v]) => v !== "" && v !== null && v !== undefined),
         );
@@ -33,6 +33,10 @@ export default function useServerTable<R>(prop: string, page: ServerPage<R>, fil
             replace: true,
             onStart: () => setLoading(true),
             onFinish: () => setLoading(false),
+            // AppLayout's <main> is the page scroller; a drill-down should land on the new header, not the table.
+            onSuccess: () => {
+                if (scrollToTop) document.querySelector("main")?.scrollTo({ top: 0, behavior: "smooth" });
+            },
         });
     };
 
@@ -68,5 +72,7 @@ export default function useServerTable<R>(prop: string, page: ServerPage<R>, fil
         setFilter: (key: string, value: string | number | null) => visit({ [key]: value ?? "", page: 1 }),
         // Several filters at once (e.g. a date range).
         setFilters: (changes: TableFilters) => visit({ ...changes, page: 1 }),
+        // Narrowing the page to one group (a clicked row): also scrolls up to its header and numbers.
+        drillInto: (changes: TableFilters) => visit({ ...changes, page: 1 }, true),
     };
 }

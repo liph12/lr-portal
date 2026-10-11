@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Entities\Agent;
 use App\Support\Areas;
 use App\Support\Countries;
 use Carbon\CarbonImmutable;
@@ -9,11 +10,12 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
-// Sales report across every category (project, rental, brokerage, international), dated by reservation
-// date. One union of all sales is the base; each view groups it differently.
+// Sales report across the local categories (project, rental, brokerage) of local agents, dated by reservation
+// date; global partners and international sales get statistics of their own. One union of all sales is the
+// base; each view groups it differently.
 class SalesReportService
 {
-    public const CATEGORIES = ['project', 'rental', 'brokerage', 'international'];
+    public const CATEGORIES = ['project', 'rental', 'brokerage'];
 
     public const STATUSES = ['valid', 'pending', 'invalid', 'cancelled'];
 
@@ -76,21 +78,59 @@ class SalesReportService
     }
 
     /**
-     * The group a drill-down is limited to, for the page to name it; null when not drilled down.
+     * The group a drill-down is limited to, with a few facts for the page header; null when not drilled down.
      *
      * @param  array<string, mixed>  $f  normalised filters
-     * @return array{type: string, id: int, name: string}|null
+     * @return array{type: string, id: int|string, name: string, avatar: ?string, facts: array<int, array{label: string, value: string}>}|null
      */
     public function scope(array $f): ?array
     {
-        if ($f['area'] ?? null) {
-            return ['type' => 'area', 'id' => $f['area'], 'name' => Areas::name($f['area'] === self::UNASSIGNED_AREA ? null : $f['area'])];
+        if ($f['agent_id'] ?? null) {
+            $agent = DB::table('agents as a')->leftJoin('users as u', 'u.id', '=', 'a.user_id')->where('a.id', $f['agent_id'])->first(['u.name', 'a.avatar', 'a.area']);
+
+            return ['type' => 'agent', 'id' => $f['agent_id'], 'name' => $agent->name ?? "#{$f['agent_id']}", 'avatar' => $agent->avatar ?? null, 'facts' => [
+                ['label' => 'Area', 'value' => ($agent->area ?? null) ? Areas::name($agent->area) : '—'],
+            ]];
         }
 
-        foreach (['team_id' => ['team', 'teams'], 'sub_team_id' => ['sub_team', 'sub_teams'], 'developer_id' => ['developer', 'developers']] as $key => [$type, $table]) {
-            if ($f[$key]) {
-                return ['type' => $type, 'id' => $f[$key], 'name' => (string) (DB::table($table)->where('id', $f[$key])->value('name') ?? "#{$f[$key]}")];
-            }
+        if ($f['area'] ?? null) {
+            $unassigned = $f['area'] === self::UNASSIGNED_AREA;
+            $agents = DB::table('agents')->where('agent_type', Agent::TYPE_LOCAL)->whereIn('id', Agent::fullyRegisteredIds())->when($unassigned, fn ($q) => $q->whereNull('area'), fn ($q) => $q->where('area', $f['area']))->count();
+
+            return ['type' => 'area', 'id' => $f['area'], 'name' => Areas::name($unassigned ? null : $f['area']), 'avatar' => null, 'facts' => [
+                ['label' => 'Agents in this area', 'value' => number_format($agents)],
+            ]];
+        }
+
+        if ($f['team_id'] ?? null) {
+            $team = DB::table('teams as g')->leftJoin('agents as l', 'l.id', '=', 'g.agent_id')->leftJoin('users as lu', 'lu.id', '=', 'l.user_id')
+                ->where('g.id', $f['team_id'])->first(['g.name', 'g.logo', 'g.status', 'lu.name as leader', 'l.area']);
+
+            return ['type' => 'team', 'id' => $f['team_id'], 'name' => $team->name ?? "#{$f['team_id']}", 'avatar' => $team->logo ?? null, 'facts' => [
+                ['label' => 'Team leader', 'value' => $team->leader ?? '—'],
+                ['label' => 'Area', 'value' => ($team->area ?? null) ? Areas::name($team->area) : '—'],
+                ['label' => 'Active members', 'value' => number_format(DB::table('team_agents')->where('team_id', $f['team_id'])->where('status', 'active')->count())],
+                ['label' => 'Status', 'value' => ucfirst((string) ($team->status ?? '—'))],
+            ]];
+        }
+
+        if ($f['sub_team_id'] ?? null) {
+            $sub = DB::table('sub_teams as g')->leftJoin('teams as t', 't.id', '=', 'g.team_id')
+                ->leftJoin('agents as l', 'l.id', '=', 'g.agent_id')->leftJoin('users as lu', 'lu.id', '=', 'l.user_id')
+                ->where('g.id', $f['sub_team_id'])->first(['g.name', 'g.logo', 't.name as team', 'lu.name as leader', 'l.area']);
+
+            return ['type' => 'sub_team', 'id' => $f['sub_team_id'], 'name' => $sub->name ?? "#{$f['sub_team_id']}", 'avatar' => $sub->logo ?? null, 'facts' => [
+                ['label' => 'Team', 'value' => $sub->team ?? '—'],
+                ['label' => 'Leader', 'value' => $sub->leader ?? '—'],
+                ['label' => 'Area', 'value' => ($sub->area ?? null) ? Areas::name($sub->area) : '—'],
+                ['label' => 'Active members', 'value' => number_format(DB::table('sub_team_agents')->where('sub_team_id', $f['sub_team_id'])->where('status', 'active')->count())],
+            ]];
+        }
+
+        if ($f['developer_id'] ?? null) {
+            return ['type' => 'developer', 'id' => $f['developer_id'], 'name' => (string) (DB::table('developers')->where('id', $f['developer_id'])->value('name') ?? "#{$f['developer_id']}"), 'avatar' => null, 'facts' => [
+                ['label' => 'Projects on file', 'value' => number_format(DB::table('developer_projects')->where('developer_id', $f['developer_id'])->count())],
+            ]];
         }
 
         return null;
@@ -118,6 +158,41 @@ class SalesReportService
         }
 
         return $scope;
+    }
+
+    /**
+     * The views worth offering for a reach: ranking teams inside one team (or sub-teams inside one sub-team) only
+     * ever shows that one group, so those views are left out.
+     *
+     * @param  array<string, int>|null  $lock
+     * @return array<int, string>
+     */
+    public function viewsFor(?array $lock): array
+    {
+        $hidden = match (true) {
+            isset($lock['team_id']) => ['teams'],
+            isset($lock['sub_team_id']), isset($lock['agent_id']) => ['teams', 'sub_teams'],
+            default => [],
+        };
+
+        return array_values(array_diff(self::VIEWS, $hidden));
+    }
+
+    /**
+     * Filters from the query string with a forced scope on top: the scope keys in the query are dropped first, so
+     * a locked report can't be widened (or pointed at another group) from the URL.
+     *
+     * @param  array<string, mixed>  $input
+     * @param  array<string, int>|null  $lock
+     * @return array<string, mixed>
+     */
+    public function lockedFilters(array $input, ?array $lock): array
+    {
+        if ($lock === null) {
+            return $this->filters($input);
+        }
+
+        return $this->filters(array_diff_key($input, array_flip(['team_id', 'sub_team_id', 'developer_id', 'area', 'agent_id'])) + $lock);
     }
 
     /**
@@ -171,6 +246,7 @@ class SalesReportService
                 ->get()
                 ->map(fn ($r) => ['area' => $r->area, 'name' => Areas::name($r->area === self::UNASSIGNED_AREA ? null : $r->area), 'sales' => (int) $r->sales, 'value' => (float) $r->value])
                 ->all(),
+            'developers' => $this->topDevelopers($f),
             'client_countries' => $this->clientCountries($f),
             'client_genders' => $this->clientGenders($f),
             'property_types' => DB::query()->fromSub($this->sales($f), 's')
@@ -200,7 +276,7 @@ class SalesReportService
 
         // Areas are stored as keys; show their names and how many agents each has.
         $headcount = $f['view'] === 'areas'
-            ? DB::table('agents')->selectRaw('area, COUNT(*) as n')->groupBy('area')->get()->mapWithKeys(fn ($r) => [$r->area ?? self::UNASSIGNED_AREA => (int) $r->n])
+            ? DB::table('agents')->where('agent_type', Agent::TYPE_LOCAL)->whereIn('id', Agent::fullyRegisteredIds())->selectRaw('area, COUNT(*) as n')->groupBy('area')->get()->mapWithKeys(fn ($r) => [$r->area ?? self::UNASSIGNED_AREA => (int) $r->n])
             : collect();
 
         $page = $query
@@ -220,6 +296,17 @@ class SalesReportService
             'team' => $f['view'] === 'sub_teams' ? ($r->detail ?? null) : ($context[$r->key]['team'] ?? null),
             'value' => (float) $r->value,
         ]);
+    }
+
+    /**
+     * Every group's total for the current view, unpaged (for small sets such as one team's sub-teams).
+     *
+     * @param  array<string, mixed>  $f  normalised filters
+     * @return array<string|int, float> group key => total sales
+     */
+    public function totals(array $f): array
+    {
+        return $this->grouped($f)->select('g.key', 'g.value')->pluck('value', 'key')->map(fn ($v) => (float) $v)->all();
     }
 
     /**
@@ -258,6 +345,41 @@ class SalesReportService
         }
 
         return [];
+    }
+
+    private const TOP_DEVELOPERS = 10;
+
+    /**
+     * Project sales by developer, with each one's share of all project sales in the report.
+     *
+     * @return array{total: float, rows: array<int, array{id: int, name: string, sales: int, value: float, share: float}>}
+     */
+    private function topDevelopers(array $f): array
+    {
+        if ($f['category'] !== null && $f['category'] !== 'project') {
+            return ['total' => 0.0, 'rows' => []];
+        }
+
+        $projectSales = fn () => DB::query()->fromSub($this->sales($f), 's')->where('s.category', 'project');
+        $total = (float) $projectSales()->sum('s.value');
+
+        $rows = $projectSales()
+            ->leftJoin('developers as dv', 'dv.id', '=', 's.developer_id')
+            ->groupBy('s.developer_id', 'dv.name')
+            ->selectRaw('s.developer_id as id, dv.name as name, COUNT(*) as sales, COALESCE(SUM(s.value), 0) as value')
+            ->orderByDesc('value')
+            ->limit(self::TOP_DEVELOPERS)
+            ->get()
+            ->map(fn ($r) => [
+                'id' => (int) $r->id,
+                'name' => $r->name ?? 'Unknown developer',
+                'sales' => (int) $r->sales,
+                'value' => (float) $r->value,
+                'share' => $total > 0 ? round((float) $r->value / $total * 100, 1) : 0.0,
+            ])
+            ->all();
+
+        return ['total' => $total, 'rows' => $rows];
     }
 
     // Shown by name; past the top ones everything is "Other countries" so the list stays readable.
@@ -376,7 +498,7 @@ class SalesReportService
         $branches = [];
 
         foreach ($categories as $category) {
-            $branches[] = $category === 'international' ? $this->internationalBranch($f) : $this->localBranch($category, $f);
+            $branches[] = $this->localBranch($category, $f);
         }
 
         $union = array_shift($branches);
@@ -391,10 +513,12 @@ class SalesReportService
     {
         $table = ['project' => 'agent_project_transactions', 'rental' => 'agent_rental_transactions', 'brokerage' => 'agent_brokerage_transactions'][$category];
 
-        return DB::table("{$table} as c")
+        $sales = DB::table("{$table} as c")
             ->join('agent_transactions as t', 't.id', '=', 'c.agent_transaction_id')
             // Sales keyed in by back-office staff before agents were linked are credited to the recorder's agent.
-            ->leftJoin('agents as ra', 'ra.user_id', '=', 't.recorded_by')
+            ->leftJoin('agents as ra', 'ra.user_id', '=', 't.recorded_by');
+
+        return Agent::withoutGlobalPartners($sales, 'COALESCE(t.agent_id, ra.id)')
             ->whereBetween('c.reservation_date', [$f['from'], $f['to']])
             ->when($f['status'] !== 'all', fn ($q) => $q->where('t.sale_status', $f['status']))
             ->selectRaw('? as category', [$category])
@@ -406,19 +530,6 @@ class SalesReportService
             ->addSelect('cd.client_country', 'cd.client_gender');
     }
 
-    private function internationalBranch(array $f): Builder
-    {
-        return DB::table('international_sales as i')
-            ->leftJoin('agents as ra', 'ra.user_id', '=', 'i.recorded_by')
-            ->whereBetween('i.reservation_date', [$f['from'], $f['to']])
-            ->when($f['status'] !== 'all', fn ($q) => $q->where('i.sale_status', $f['status']))
-            ->selectRaw("'international' as category")
-            ->selectRaw('COALESCE(i.agent_id, ra.id) as agent_id')
-            ->addSelect('i.reservation_date', 'i.total_contract_price as value', 'i.project_property_type_id as property_type_id')
-            ->selectRaw('NULL as developer_id, NULL as brokerage_area_id')
-            ->leftJoin('international_sale_clients as ic', 'ic.international_sale_id', '=', 'i.id')
-            ->addSelect('ic.country as client_country', 'ic.gender as client_gender');
-    }
 
     /**
      * @return array<int, array{month: string, sales: int, value: float}>

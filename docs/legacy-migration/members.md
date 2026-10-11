@@ -180,3 +180,12 @@ Any of these can be added back — say which (Q9).
 - New member imports apply this directly (`LegacyAgentOrigin`); `php artisan legacy:import-agent-types`
   (`--dry-run`) re-applies it to existing agents and re-syncs the role. Changeable afterwards in Management ›
   Agents (Type column).
+
+## Registration status
+
+`members.registration_status` (the sign-up stepper, steps 1–4) → `agent_attributes.registration_status`
+(blank/0 → null). Only step 4 is a fully registered agent; below it most never got a team. Member, recruit and
+area-headcount statistics count fully registered agents only (`Agent::fullyRegisteredIds()`); sales totals are
+not filtered. Backfill for agents imported earlier: `php artisan legacy:import-registration-status [--dry-run]`.
+
+As of 2026-10-11: step 1 = 18,171 · step 2 = 2,788 · step 3 = 378 · step 4 = 61,570.

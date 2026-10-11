@@ -30,14 +30,20 @@ export interface AuthUser {
     permissions: string[];
     // Label of the role a superadmin is previewing, else null; view_as_roles is filled only for real superadmins.
     viewing_as: string | null;
+    // Set while a superadmin is signed in as this user.
+    impersonator: { id: number; name: string } | null;
+    // Teams / sub-teams this user leads (My Team).
+    leads: { teams: { id: number; name: string }[]; sub_teams: { id: number; name: string; team: string | null }[] };
     view_as_roles: { name: string; label: string }[];
     can: {
         access_superadmin: boolean;
         search_users: boolean;
         manage_users: boolean;
+        search_groups: boolean;
         view_leaderboards: boolean;
         view_as: boolean;
         manage_teams: boolean;
+        impersonate: boolean;
     };
 }
 

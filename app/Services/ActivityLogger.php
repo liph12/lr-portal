@@ -47,6 +47,11 @@ class ActivityLogger
         $exception = property_exists($response, 'exception') ? $response->exception : null;
         $properties = $this->properties;
 
+        // While a superadmin is signed in as someone, keep who is really doing it.
+        if ($request->hasSession() && ($impersonator = $request->session()->get(ImpersonationService::SESSION_KEY))) {
+            $properties['impersonated_by'] ??= $impersonator;
+        }
+
         if ($exception instanceof Throwable && $response->getStatusCode() >= 500) {
             $properties['exception'] = get_class($exception).': '.Str::limit($exception->getMessage(), 500);
         }

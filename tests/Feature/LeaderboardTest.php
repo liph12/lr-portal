@@ -84,6 +84,21 @@ test('a sale with an agent is credited to that agent rather than the recorder', 
             ->reloadOnly('leaderboards', fn ($reload) => $reload->where('leaderboards.0.boards.agents.0.name', 'Agent Carla')));
 });
 
+test('global partners\' sales stay off the leaderboards', function () {
+    $this->staffRole->permissions()->attach(Permission::where('name', 'view_leaderboards')->value('id'));
+    $partner = User::factory()->create(['name' => 'Gina Partner']);
+    $partnerAgent = DB::table('agents')->insertGetId(['user_id' => $partner->id, 'email' => $partner->email, 'agent_type' => 'global_partner']);
+    ($this->sale)($partner, 'Abroad Tower', 90_000_000, '2026-10-03');
+    AgentTransaction::query()->update(['agent_id' => $partnerAgent]);
+    ($this->sale)($this->ana, 'Mivela', 10_000_000, '2026-10-02');
+
+    $this->actingAs($this->staff)->get('/dashboard/main')
+        ->assertInertia(fn ($page) => $page->reloadOnly('leaderboards', fn ($reload) => $reload
+            ->has('leaderboards.0.boards.agents', 1)
+            ->where('leaderboards.0.boards.agents.0.name', 'Ana Reyes')
+            ->has('leaderboards.0.boards.projects', 1)));
+});
+
 test('only valid sales rank, and rental and brokerage sales count toward top agents', function () {
     $this->staffRole->permissions()->attach(Permission::where('name', 'view_leaderboards')->value('id'));
     DB::table('brokerage_areas')->insert(['id' => 14, 'name' => 'Cebu Brokerage']);
