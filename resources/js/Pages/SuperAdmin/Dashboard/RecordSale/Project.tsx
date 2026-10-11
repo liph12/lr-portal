@@ -27,7 +27,7 @@ interface ProjectProps {
 const STEP_FIELDS: string[][] = [
     ["client_firstname", "client_middlename", "client_lastname", "client_email", "client_mobile", "client_birthdate", "client_gender", "client_country", "client_address"],
     ["developer", "developer_id", "project", "developer_project_id", "project_name", "unit_no", "property_type", "project_property_type_id", "unit_type", "floor_area", "lot_area", "total_contract_price", "reservation_date", "payment_terms", "remarks", "commission_status"],
-    ["files"],
+    ["proof_of_transaction"],
 ];
 
 const REQUIRED: Record<number, [keyof ProjectSaleFormData, string][]> = {
@@ -46,7 +46,7 @@ const REQUIRED: Record<number, [keyof ProjectSaleFormData, string][]> = {
         ["payment_terms", "Select the payment terms."],
         ["commission_status", "Select the commission status."],
     ],
-    2: [["files", "Upload at least one proof of transaction."]],
+    2: [["proof_of_transaction", "Upload the proof of transaction."]],
 };
 
 const stepOfError = (key: string) =>
@@ -90,7 +90,7 @@ function Project({ developers, projects, propertyTypes, maxFileKb }: ProjectProp
         payment_terms: { id: 12, label: "12 Months" },
         remarks: "",
         commission_status: { id: 1, label: "Unclaimed" },
-        files: [],
+        proof_of_transaction: null,
     });
     const errors = form.errors as FormErrors;
 
@@ -102,7 +102,6 @@ function Project({ developers, projects, propertyTypes, maxFileKb }: ProjectProp
     const validateStep = (step: number) => {
         const missing = (REQUIRED[step] ?? []).filter(([key]) => {
             const value = form.data[key];
-            if (Array.isArray(value)) return value.length === 0;
             if (key === "total_contract_price") return !(Number(toAmount(value as string)) > 0);
             return value === null || value === "";
         });
@@ -154,7 +153,7 @@ function Project({ developers, projects, propertyTypes, maxFileKb }: ProjectProp
             payment_terms: d.payment_terms?.label ?? "",
             remarks: d.remarks,
             commission_status: d.commission_status?.label ?? "",
-            files: d.files,
+            proof_of_transaction: d.proof_of_transaction,
         }));
 
         form.post("/superadmin/dashboard/record-sale/project", {
@@ -166,8 +165,6 @@ function Project({ developers, projects, propertyTypes, maxFileKb }: ProjectProp
         });
     };
 
-    const fileErrorKey = Object.keys(errors).find((key) => key === "files" || key.indexOf("files.") === 0);
-    const fileError = fileErrorKey ? (errors[fileErrorKey] ?? null) : null;
 
     return (
         <Container sx={{ py: 3 }} maxWidth="lg">
@@ -197,9 +194,9 @@ function Project({ developers, projects, propertyTypes, maxFileKb }: ProjectProp
                 )}
                 {activeStep === 2 && (
                     <UploadPOTForm
-                        value={form.data.files}
-                        onChange={(files) => setField("files", files)}
-                        error={fileError}
+                        value={form.data.proof_of_transaction}
+                        onChange={(file) => setField("proof_of_transaction", file)}
+                        error={errors.proof_of_transaction ?? null}
                         maxFileKb={maxFileKb}
                         onCompressingChange={setCompressing}
                     />

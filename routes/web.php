@@ -20,9 +20,12 @@ Route::middleware('guest')->group(function(){
 
 });
 
-Route::middleware('auth')->group(function(){
+Route::middleware(['auth', 'active'])->group(function(){
 
     Route::post('/logout', [UserController::class, 'logout']);
+
+    require base_path('routes/profile.php');
+    require base_path('routes/search.php');
 
     Route::prefix('superadmin')->middleware('role:superadmin')->group(function(){
 

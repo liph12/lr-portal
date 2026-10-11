@@ -1,15 +1,14 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode } from "react";
 import DashboardLayout from "../../../../components/layouts/DashboardLayout";
-import { Container, Box, Grid, IconButton, Typography } from "@mui/material";
-import { CheckCircleRounded, CloseRounded } from "@mui/icons-material";
+import { Container, Box, Grid, Typography } from "@mui/material";
+import FlashBanner from "../../../../components/utils/FlashBanner";
 import SectionTitle from "../../../../components/utils/SectionTitle";
 import FhDevelopersLogo from "../../../../../assets/fh-logo-dark.png";
 import RentphLogo from "../../../../../assets/rentph-logo.png";
 import LrLogo from "../../../../../assets/lr-logo.svg";
 import StyledButton from "../../../../components/utils/StyledButton";
 import Add from "@mui/icons-material/Add";
-import { Link, usePage } from "@inertiajs/react";
-import { SharedProps } from "../../../../types";
+import { Link } from "@inertiajs/react";
 
 interface SaleOption {
     title: string;
@@ -124,50 +123,10 @@ function SaleCard({ title, subTitle, logo, href }: SaleOption) {
     );
 }
 
-function SuccessBanner() {
-    const { flash } = usePage<SharedProps>().props;
-    const [message, setMessage] = useState(flash?.success ?? null);
-
-    useEffect(() => setMessage(flash?.success ?? null), [flash?.success]);
-
-    if (!message) return null;
-
-    return (
-        <Box
-            role="status"
-            sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                mb: 3,
-                pl: 2,
-                pr: 1,
-                py: 1,
-                borderRadius: 3,
-                color: "var(--lr-success)",
-                backgroundColor: "var(--lr-success-soft)",
-            }}
-        >
-            <CheckCircleRounded fontSize="small" />
-            <Typography variant="body2" sx={{ flex: 1, fontWeight: 500 }}>
-                {message}
-            </Typography>
-            <IconButton
-                size="small"
-                aria-label="Dismiss"
-                onClick={() => setMessage(null)}
-                sx={{ color: "inherit" }}
-            >
-                <CloseRounded fontSize="small" />
-            </IconButton>
-        </Box>
-    );
-}
-
 function RecordSale() {
     return (
         <Container sx={{ py: { xs: 3, sm: 4 } }} maxWidth="lg">
-            <SuccessBanner />
+            <FlashBanner />
             <SectionTitle
                 title="Record your sale"
                 subtitle="Choose the type of sale you closed."

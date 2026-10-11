@@ -107,13 +107,47 @@ at the matching path. Nothing else.
   pass `data/setData/errors` to step components (`SaleStepProps`); see
   `Pages/SuperAdmin/Dashboard/RecordSale/Project.tsx`.
 - **File uploads**: limit is 20MB per original file. Photos are compressed in the browser first
-  (`helpers/compressImage.ts`, ≤2400px, q0.8) and again on the server. Go through a service, never
-  straight from the controller. Sale files:
-  `ProjectSaleService` → `FileCompressionService` (images resized ≤2400px + re-encoded; PDF/DOC
-  gzipped with `Content-Encoding: gzip` when it saves ≥10%) → disk `config('filesystems.sale_files_disk')`
-  (`SALE_FILES_DISK`, default `s3`), one `agent_transaction_files` row per file. Tests use `Storage::fake('s3')`.
+  (`helpers/compressImage.ts`, ≤2400px, q0.8) and again on the server (`FileCompressionService`:
+  images resized + re-encoded; PDF/DOC gzipped with `Content-Encoding: gzip` when it saves ≥10%).
+  Go through a service, never straight from the controller. A project sale has exactly **one**
+  proof of transaction: `ProjectSaleService` uploads it to `config('filesystems.sale_files_disk')`
+  (`SALE_FILES_DISK`, default `s3`) and stores the **full object URL** in
+  `agent_project_transactions.proof_of_transaction`. Tests use `Storage::fake('s3')`.
+- **Profile / avatars**: `/profile` is shared by every role (`routes/profile.php`, required inside the
+  `auth` group; `Portal\ProfileController`). A user's agent record is created on first use by
+  `ProfileService::agentFor()`. Photos are cropped to 512px WebP by `ProfilePhotoService` and the full
+  URL is stored in `agents.avatar` (shared as `auth.avatar`). Render people with
+  `components/utils/user/UserAvatar.tsx` (photo, falling back to initials). Flash messages:
+  `components/utils/FlashBanner.tsx`; titled panels: `components/cards/SectionCard.tsx`.
+- **Roles & permissions**: managed at Settings → Roles & permissions
+  (`Portal\SuperAdmin\Settings\{Role,Permission}Controller`, logic in `RolePermissionService`).
+  A role's `name` is a slug derived once from its label and never changes (routes check it, e.g.
+  `role:superadmin`); `Role::SYSTEM_ROLES` can't be deleted, `superadmin` always holds every
+  permission, and roles with users can't be deleted. Permissions are managed here but **not yet
+  enforced** anywhere — only role middleware guards routes. `ConfirmDialog` is the shared
+  destructive-action dialog. **One role per user**: assigning (`RolePermissionService::assignRole`,
+  Members panel on the Roles page) replaces the user's role; you can't change your own role or move
+  the last superadmin. Sign-in sends a user to `{role}.index`, falling back to `/profile` when that
+  route doesn't exist (`AuthUserService::redirect`).
+- **User status**: `users.status` is one of `User::STATUSES` (active, inactive, resigned, terminated),
+  changed only through `UserAccountService::changeStatus` (not mass-assignable). Only `active` users
+  can sign in; the `active` middleware on the `auth` route group signs out anyone deactivated
+  mid-session. New signed-in routes must stay inside that group.
+- **Activity log**: every POST/PUT/PATCH/DELETE is written to `activity_logs` automatically by
+  `Http/Middleware/LogActivity.php` (after the response; passwords/tokens redacted, files logged as
+  name/size only). For a readable entry, inject `App\Services\ActivityLogger` into the service and
+  call `describe('domain.verb', 'Human sentence', $subjectModel, [...extra])` once the action succeeds
+  (see `ProjectSaleService::record`). Add new sensitive field names to `config/activity_log.php` `redact`.
 - **Tables**: no pattern exists yet (`components/utils/tables/TopAgentsTable.tsx` is a hardcoded
   demo). **Ask before building one.**
+- **Never hardcode a person**: greet with `auth.first_name`, build personal links from the signed-in
+  user (`helpers/userLinks.ts`). "Online users" in the sidebar is real presence from the database
+  session store (`OnlineUsersService`, shared as `online_users` to back-office roles only).
+- **Global search** (navbar, `components/utils/search/GlobalSearch.tsx`): pages come from `app-data`
+  routes via `helpers/searchPages.ts` (client-side); people come from `GET /search/users`
+  (`Portal\SearchController`) — the **one sanctioned JSON endpoint**, because typeahead can't be an
+  Inertia visit. Don't add other JSON endpoints without the same reason. Who may do what is shared as
+  `auth.can.{access_superadmin, search_users, manage_users}` — use these flags, not role names, in the UI.
 - **Navigation**: Inertia `<Link>` / `router` only (`components/AppSidebar.tsx:85`).
   No raw `fetch`/`axios`/`window.location` for page transitions.
 - **Controllers**: always suffixed `Controller`, in the `Portal\{Role}` namespace of the

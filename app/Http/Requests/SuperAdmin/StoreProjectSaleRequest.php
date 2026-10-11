@@ -8,7 +8,6 @@ use Illuminate\Validation\Rule;
 
 class StoreProjectSaleRequest extends FormRequest
 {
-    public const MAX_FILES = 10;
     public const MAX_FILE_KB = 20480;
 
     public const COMMISSION_STATUSES = ['Unclaimed', 'Partially Claimed', 'Fully Claimed'];
@@ -53,8 +52,8 @@ class StoreProjectSaleRequest extends FormRequest
             'remarks' => ['nullable', 'string', 'max:1000'],
             'commission_status' => ['required', Rule::in(self::COMMISSION_STATUSES)],
 
-            'files' => ['required', 'array', 'min:1', 'max:'.self::MAX_FILES],
-            'files.*' => [
+            'proof_of_transaction' => [
+                'required',
                 'file',
                 'max:'.self::MAX_FILE_KB,
                 'mimes:jpg,jpeg,png,webp,pdf,doc,docx',
@@ -69,12 +68,11 @@ class StoreProjectSaleRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'files.required' => 'Upload at least one proof of transaction.',
-            'files.max' => 'You can upload up to '.self::MAX_FILES.' files.',
-            'files.*.max' => 'Each file must be 20MB or smaller.',
-            'files.*.mimes' => 'Only images (JPG, PNG, WEBP), PDF or Word (DOC, DOCX) files are allowed.',
-            'files.*.mimetypes' => 'Only images (JPG, PNG, WEBP), PDF or Word (DOC, DOCX) files are allowed.',
-            'files.*.uploaded' => 'A file failed to upload. It may be larger than the server allows.',
+            'proof_of_transaction.required' => 'Upload the proof of transaction.',
+            'proof_of_transaction.max' => 'The file must be 20MB or smaller.',
+            'proof_of_transaction.mimes' => 'Only images (JPG, PNG, WEBP), PDF or Word (DOC, DOCX) files are allowed.',
+            'proof_of_transaction.mimetypes' => 'Only images (JPG, PNG, WEBP), PDF or Word (DOC, DOCX) files are allowed.',
+            'proof_of_transaction.uploaded' => 'The file failed to upload. It may be larger than the server allows.',
             'developer_id.required' => 'Select a developer.',
             'developer_project_id.exists' => 'That project does not belong to the selected developer.',
             'project_name.required_without' => 'Select a project, or enter its name if it is not listed.',

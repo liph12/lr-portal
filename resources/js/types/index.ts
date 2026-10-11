@@ -20,12 +20,29 @@ export interface SaleStepProps<T> {
 export interface AuthUser {
     id: number;
     name: string;
+    first_name: string;
     email: string;
     role: string | null;
+    avatar: string | null;
+    can: {
+        access_superadmin: boolean;
+        search_users: boolean;
+        manage_users: boolean;
+    };
+}
+
+export interface OnlineUser {
+    id: number;
+    name: string;
+    avatar: string | null;
+    role: string | null;
+    online: boolean;
+    last_seen: string;
 }
 
 export interface SharedProps {
     auth: AuthUser | null;
+    online_users: OnlineUser[];
     flash: { success: string | null };
     [key: string]: unknown;
 }

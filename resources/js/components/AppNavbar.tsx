@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Box, Divider, Avatar, IconButton, InputBase } from "@mui/material";
+import { Box, Divider, IconButton } from "@mui/material";
 import AppBreadcrumbs from "./utils/AppBreadcrumbs";
-import useAuthUser from "../hooks/useAuthUser";
-import { getAvatarColor, getInitials } from "../helpers/userAvatar";
+import ProfileMenu from "./utils/user/ProfileMenu";
+import GlobalSearch from "./utils/search/GlobalSearch";
 import AppLogo from "./utils/AppLogo";
 import ThemeModeToggle from "./utils/ThemeModeToggle";
 import {
@@ -17,50 +17,8 @@ interface AppNavbarProps {
     onMenuClick: () => void;
 }
 
-function SearchField({ autoFocus = false }: { autoFocus?: boolean }) {
-    return (
-        <Box
-            sx={{
-                width: "100%",
-                maxWidth: 720,
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                px: 2,
-                py: 0.75,
-                borderRadius: 99,
-                backgroundColor: "var(--lr-surface-container)",
-                transition: "background-color 0.15s, box-shadow 0.15s",
-                ":focus-within": {
-                    backgroundColor: "var(--lr-surface)",
-                    boxShadow: "0 1px 3px rgba(60,64,67,.2)",
-                },
-            }}
-        >
-            <SearchRounded sx={{ color: "var(--lr-text-secondary)" }} fontSize="small" />
-            <InputBase
-                fullWidth
-                size="small"
-                autoFocus={autoFocus}
-                placeholder="Search (/) for resources, sales, agents, developers & more"
-                sx={{
-                    fontSize: 15,
-                    fontWeight: 400,
-                    color: "var(--lr-text-body)",
-                    "& .MuiInputBase-input::placeholder": {
-                        color: "var(--lr-text-secondary)",
-                        opacity: 1,
-                        textOverflow: "ellipsis",
-                    },
-                }}
-            />
-        </Box>
-    );
-}
-
 export default function AppNavbar({ onMenuClick }: AppNavbarProps) {
     const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-    const user = useAuthUser();
 
     return (
         <Box component="header" sx={{ flexShrink: 0 }}>
@@ -94,7 +52,7 @@ export default function AppNavbar({ onMenuClick }: AppNavbarProps) {
                         >
                             <ArrowBackRounded />
                         </IconButton>
-                        <SearchField autoFocus />
+                        <GlobalSearch autoFocus onDone={() => setMobileSearchOpen(false)} />
                     </Box>
                 )}
 
@@ -128,7 +86,7 @@ export default function AppNavbar({ onMenuClick }: AppNavbarProps) {
                         px: 2,
                     }}
                 >
-                    <SearchField />
+                    <GlobalSearch />
                 </Box>
 
                 {/* Right: actions + avatar */}
@@ -158,18 +116,7 @@ export default function AppNavbar({ onMenuClick }: AppNavbarProps) {
                     >
                         <MoreVertRounded />
                     </IconButton>
-                    <Avatar
-                        alt={user?.name}
-                        sx={{
-                            height: 36,
-                            width: 36,
-                            ml: 0.5,
-                            fontSize: 15,
-                            backgroundColor: user ? getAvatarColor(user.name) : undefined,
-                        }}
-                    >
-                        {user ? getInitials(user.name) : null}
-                    </Avatar>
+                    <ProfileMenu />
                 </Box>
             </Box>
             <Divider sx={{ borderColor: "var(--lr-border)" }} />

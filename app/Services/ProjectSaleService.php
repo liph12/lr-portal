@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Entities\AgentTransaction;
-use App\Models\Entities\AgentTransactionFile;
 use App\Models\Entities\DeveloperProject;
 use App\Models\User;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -16,20 +15,23 @@ use Throwable;
 
 class ProjectSaleService
 {
-    public function __construct(private FileCompressionService $compressor) {}
+    public function __construct(
+        private FileCompressionService $compressor,
+        private ActivityLogger $activity,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $data  validated StoreProjectSaleRequest input
-     * @param  UploadedFile[]  $files
      */
-    public function record(array $data, array $files, User $recorder): AgentTransaction
+    public function record(array $data, UploadedFile $proofOfTransaction, User $recorder): AgentTransaction
     {
         $diskName = config('filesystems.sale_files_disk');
         $disk = Storage::disk($diskName);
-        $uploaded = [];
+        $uploadedPath = null;
+        $compressed = null;
 
         try {
-            return DB::transaction(function () use ($data, $files, $recorder, $disk, $diskName, &$uploaded) {
+            $transaction = DB::transaction(function () use ($data, $proofOfTransaction, $recorder, $disk, $diskName, &$uploadedPath, &$compressed) {
                 $transaction = AgentTransaction::create([
                     'recorded_by' => $recorder->id,
                     'sale_type' => AgentTransaction::TYPE_PROJECT,
@@ -52,6 +54,9 @@ class ProjectSaleService
                     'client_address' => $data['client_address'] ?? null,
                 ]);
 
+                $compressed = $this->compressor->compress($proofOfTransaction);
+                $uploadedPath = $this->upload($transaction, $proofOfTransaction, $compressed, $disk, $diskName);
+
                 $projectId = $data['developer_project_id'] ?? null;
 
                 $transaction->projectTransaction()->create([
@@ -64,33 +69,49 @@ class ProjectSaleService
                     'floor_area' => $data['floor_area'] ?? null,
                     'lot_area' => $data['lot_area'] ?? null,
                     'reservation_date' => $data['reservation_date'],
+                    'proof_of_transaction' => $disk->url($uploadedPath),
                     'total_contract_price' => $data['total_contract_price'],
                 ]);
-
-                foreach ($files as $file) {
-                    $uploaded[] = $this->storeFile($transaction, $file, $disk, $diskName);
-                }
 
                 return $transaction;
             });
         } catch (Throwable $e) {
-            // The DB rows roll back on their own; objects already sent to the bucket don't.
-            if ($uploaded) {
-                $disk->delete($uploaded);
+            // The DB rows roll back on their own; an object already sent to the bucket doesn't.
+            if ($uploadedPath) {
+                $disk->delete($uploadedPath);
             }
 
             throw $e;
         }
+
+        $project = $transaction->projectTransaction;
+
+        $this->activity->describe(
+            'sale.project.recorded',
+            "Recorded project sale #{$transaction->id}: {$project->project_name}, unit {$transaction->unit_number}",
+            $transaction,
+            [
+                'proof_of_transaction' => $project->proof_of_transaction,
+                'bytes_uploaded' => $compressed->originalSize,
+                'bytes_stored' => $compressed->size(),
+            ],
+        );
+
+        return $transaction;
     }
 
-    private function storeFile(AgentTransaction $transaction, UploadedFile $file, Filesystem $disk, string $diskName): string
-    {
-        $compressed = $this->compressor->compress($file);
+    private function upload(
+        AgentTransaction $transaction,
+        UploadedFile $file,
+        CompressedFile $compressed,
+        Filesystem $disk,
+        string $diskName,
+    ): string {
         $path = sprintf('sales/project/%d/%s.%s', $transaction->id, Str::uuid(), $compressed->extension);
         $originalName = $file->getClientOriginalName();
 
+        // No ACL is sent: proof_of_transaction stores the plain object URL, so access follows the bucket policy.
         $options = array_filter([
-            'visibility' => 'private',
             'ContentType' => $compressed->mimeType,
             'ContentEncoding' => $compressed->contentEncoding,
             'ContentDisposition' => 'inline; filename="'.addcslashes(Str::ascii($originalName), '"\\').'"',
@@ -99,17 +120,6 @@ class ProjectSaleService
         if (! $disk->put($path, $compressed->contents, $options)) {
             throw new RuntimeException("Could not upload {$originalName} to the [{$diskName}] disk.");
         }
-
-        $transaction->files()->create([
-            'category' => AgentTransactionFile::CATEGORY_PROOF_OF_TRANSACTION,
-            'disk' => $diskName,
-            'path' => $path,
-            'original_name' => $originalName,
-            'mime_type' => $compressed->mimeType,
-            'content_encoding' => $compressed->contentEncoding,
-            'original_size' => $compressed->originalSize,
-            'stored_size' => $compressed->size(),
-        ]);
 
         return $path;
     }

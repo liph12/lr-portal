@@ -16,6 +16,7 @@ class AgentProjectTransaction extends Model
         'floor_area',
         'lot_area',
         'reservation_date',
+        'proof_of_transaction',
         'total_contract_price',
         'developer_project_id',
     ];

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 class AuthUserService
 {
@@ -21,9 +22,9 @@ class AuthUserService
     public function redirect()
     {
         $user = Auth::user();
-        $role = $user->roles[0];
-        $dashboard = $role->name.'.index';
+        $dashboard = $user->roles()->value('name').'.index';
 
-        return redirect()->intended(route($dashboard));
+        // Roles created in Settings (agent, unit_manager, …) have no portal yet; land them on their profile.
+        return redirect()->intended(Route::has($dashboard) ? route($dashboard) : route('profile.edit'));
     }
 }

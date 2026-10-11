@@ -1,19 +1,10 @@
-import { Avatar, Box, Typography, Badge } from "@mui/material";
+import { Box, Typography, Badge } from "@mui/material";
+import UserAvatar from "./UserAvatar";
 
-type Role =
-    | "Superadmin"
-    | "Admin"
-    | "Staff"
-    | "Unit Manager"
-    | "Team Leader"
-    | "Agent"
-    | "Secretary";
-
-export interface User {
-    id?: number;
-    avatar: string;
+export interface UserOnlineAvatarProps {
+    avatar: string | null;
     name: string;
-    role: Role;
+    role: string | null;
     online: boolean;
     timestamp?: string;
 }
@@ -24,7 +15,7 @@ export default function UserOnlineAvatar({
     role,
     online,
     timestamp,
-}: User) {
+}: UserOnlineAvatarProps) {
     return (
         <>
             <Box
@@ -75,16 +66,7 @@ export default function UserOnlineAvatar({
                         </>
                     }
                 >
-                    <Avatar
-                        src={avatar}
-                        alt="Anthony Gerard Leuterio"
-                        sx={{
-                            backgroundColor: "var(--lr-text-secondary)",
-                            height: 30,
-                            width: 30,
-                            fontSize: 12,
-                        }}
-                    />
+                    <UserAvatar name={name} src={avatar} size={30} />
                 </Badge>
                 <Box>
                     <Typography
@@ -99,7 +81,7 @@ export default function UserOnlineAvatar({
                         fontFamily="Google Sans Code"
                         sx={{ color: "var(--lr-text-secondary)", fontSize: 10 }}
                     >
-                        {role}
+                        {role ?? "No role"}
                     </Typography>
                 </Box>
             </Box>

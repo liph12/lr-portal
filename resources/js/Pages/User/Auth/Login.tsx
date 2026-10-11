@@ -131,7 +131,7 @@ export default function Login() {
                                     >
                                         <ErrorOutlineRounded fontSize="small" />
                                         <Typography variant="body2">
-                                            Invalid email or password.
+                                            {errors.email}
                                         </Typography>
                                     </Box>
                                 )}

@@ -1,9 +1,9 @@
-import { Avatar, Box, Divider, Typography } from "@mui/material";
+import { Box, Divider, Typography, Link as MuiLink } from "@mui/material";
 import { NoteAddRounded } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
 import StyledButton from "../StyledButton";
 import useAuthUser from "../../../hooks/useAuthUser";
-import { getAvatarColor, getInitials } from "../../../helpers/userAvatar";
+import UserAvatar from "./UserAvatar";
 
 export default function SidebarProfile() {
     const user = useAuthUser();
@@ -23,20 +23,19 @@ export default function SidebarProfile() {
                     pb: 2,
                 }}
             >
-                <Avatar
-                    alt={user.name}
-                    sx={{
-                        width: 72,
-                        height: 72,
-                        fontSize: 28,
-                        fontWeight: 500,
-                        backgroundColor: getAvatarColor(user.name),
-                        border: "3px solid var(--lr-surface)",
-                        boxShadow: "0 1px 3px rgba(60,64,67,.3)",
-                    }}
-                >
-                    {getInitials(user.name)}
-                </Avatar>
+                <Link href="/profile" aria-label="Edit profile" style={{ borderRadius: "50%" }}>
+                    <UserAvatar
+                        name={user.name}
+                        src={user.avatar}
+                        size={72}
+                        sx={{
+                            border: "3px solid var(--lr-surface)",
+                            boxShadow: "0 1px 3px rgba(60,64,67,.3)",
+                            transition: "box-shadow 0.15s",
+                            ":hover": { boxShadow: "0 0 0 3px var(--lr-primary-soft-strong)" },
+                        }}
+                    />
+                </Link>
                 <Typography
                     sx={{
                         mt: 1.5,
@@ -71,6 +70,20 @@ export default function SidebarProfile() {
                 >
                     {user.email}
                 </Typography>
+                <MuiLink
+                    component={Link}
+                    href="/profile"
+                    sx={{
+                        mt: 0.5,
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: "var(--lr-primary)",
+                        textDecoration: "none",
+                        ":hover": { textDecoration: "underline" },
+                    }}
+                >
+                    Edit profile
+                </MuiLink>
                 <StyledButton
                     variant="contained"
                     fullWidth

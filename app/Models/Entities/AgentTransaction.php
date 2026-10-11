@@ -5,7 +5,6 @@ namespace App\Models\Entities;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class AgentTransaction extends Model
@@ -36,10 +35,5 @@ class AgentTransaction extends Model
     public function detail(): HasOne
     {
         return $this->hasOne(AgentTransactionDetail::class);
-    }
-
-    public function files(): HasMany
-    {
-        return $this->hasMany(AgentTransactionFile::class);
     }
 }

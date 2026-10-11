@@ -40,8 +40,8 @@ class SaleController extends Controller
     public function storeProject(StoreProjectSaleRequest $request)
     {
         $this->projectSaleService->record(
-            $request->safe()->except('files'),
-            $request->file('files', []),
+            $request->safe()->except('proof_of_transaction'),
+            $request->file('proof_of_transaction'),
             $request->user(),
         );
 

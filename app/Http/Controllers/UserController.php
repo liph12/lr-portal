@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Services\ActivityLogger;
 use App\Services\AuthUserService;
 use Illuminate\Support\Facades\Auth;
 
@@ -10,7 +11,7 @@ class UserController extends Controller
 {
     private $authUserService;
 
-    public function __construct(AuthUserService $s)
+    public function __construct(AuthUserService $s, private ActivityLogger $activity)
     {
         $this->authUserService = $s;
     }
@@ -57,16 +58,34 @@ class UserController extends Controller
 
         if(!$authorized)
         {
+            $this->activity->describe('auth.login_failed', 'Failed sign-in for '.$request->string('email'));
+
             return back()->withErrors([
-                'email' => 'Invalid credentials.',
+                'email' => 'Invalid email or password.',
             ]);
         }
+
+        // Correct password but the account was deactivated, resigned or terminated.
+        if (! $authorized->isActive()) {
+            $this->activity->describe('auth.login_blocked', "Blocked sign-in for {$authorized->status} account", $authorized);
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors([
+                'email' => "This account is {$authorized->status}. Contact your administrator if this is a mistake.",
+            ]);
+        }
+
+        $this->activity->describe('auth.login', 'Signed in', $authorized);
 
         return $this->authUserService->redirect();
     }
 
     public function logout(Request $request)
     {
+        $this->activity->describe('auth.logout', 'Signed out', $request->user());
+
         Auth::logout();
         $request->session()->invalidate();
         

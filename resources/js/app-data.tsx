@@ -107,7 +107,13 @@ export const useAppRoutes = [
         name: "Settings",
         path: "/superadmin/settings",
         icon: SettingsRounded,
-        children: [],
+        children: [
+            {
+                name: "Roles & permissions",
+                path: "/superadmin/settings/roles",
+                children: [],
+            },
+        ],
     },
 ];
 

@@ -23,6 +23,8 @@ import {
     LinkRounded,
 } from "@mui/icons-material";
 import SectionTitle from "../../../components/utils/SectionTitle";
+import useAuthUser from "../../../hooks/useAuthUser";
+import { buildUserLinks } from "../../../helpers/userLinks";
 import StyledButton from "../../../components/utils/StyledButton";
 import NoteAddIcon from "@mui/icons-material/NoteAdd";
 import { Link } from "@inertiajs/react";
@@ -109,6 +111,9 @@ const SAMPLE_PROFILE_PICTURE =
     "https://filipinohomes123.s3.ap-southeast-1.amazonaws.com/filipinohomes-compressed-from-old/cd23c6fa-51a9-40b9-926b-422a97739987.webp";
 
 function Dashboard() {
+    const user = useAuthUser();
+    const links = user ? buildUserLinks(user) : [];
+
     return (
         <Box sx={{ backgroundColor: "var(--lr-surface)" }}>
             {/* Header band */}
@@ -127,7 +132,7 @@ function Dashboard() {
                         color: "var(--lr-text-primary)",
                     }}
                 >
-                    Welcome to LR Portal, Philip 👋
+                    Welcome to LR Portal{user?.first_name ? `, ${user.first_name}` : ""} 👋
                 </Typography>
                 <Typography
                     variant="body2"
@@ -193,26 +198,11 @@ function Dashboard() {
                     subtitle="Share these with clients and recruits."
                 />
                 <Grid container columnSpacing={2} mb={3}>
-                    <Grid size={{ md: 6, xs: 12 }}>
-                        <LinkCard
-                            label="Local Referral"
-                            url="LR | registration/v2?ref=218171408"
-                        />
-                        <LinkCard
-                            label="Global Referral"
-                            url="LR | registration/v2?ref=218171408&type=international"
-                        />
-                    </Grid>
-                    <Grid size={{ md: 6, xs: 12 }}>
-                        <LinkCard
-                            label="Business Profile"
-                            url="LR | business-card?email=libresphilip14@gmail.com"
-                        />
-                        <LinkCard
-                            label="Contact"
-                            url="LR | contact/813223928/philip-libres"
-                        />
-                    </Grid>
+                    {links.map((link) => (
+                        <Grid key={link.label} size={{ md: 6, xs: 12 }}>
+                            <LinkCard label={link.label} url={link.url} />
+                        </Grid>
+                    ))}
                 </Grid>
 
                 {/* Tools & apps */}

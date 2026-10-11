@@ -27,6 +27,9 @@ return [
 
     'sale_files_disk' => env('SALE_FILES_DISK', 's3'),
 
+    // Profile photos; same bucket as sale files unless overridden.
+    'profile_photos_disk' => env('PROFILE_PHOTOS_DISK', env('SALE_FILES_DISK', 's3')),
+
     /*
     |--------------------------------------------------------------------------
     | Filesystem Disks

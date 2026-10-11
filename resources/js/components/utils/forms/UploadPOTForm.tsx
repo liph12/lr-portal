@@ -11,8 +11,8 @@ import {
 } from "@mui/icons-material";
 
 interface UploadPOTFormProps {
-    value: File[];
-    onChange: (files: File[]) => void;
+    value: File | null;
+    onChange: (file: File | null) => void;
     error?: string | null;
     // Largest file PHP on this server will accept after compression.
     maxFileKb?: number;
@@ -22,17 +22,14 @@ interface UploadPOTFormProps {
 // Browsers often report an empty MIME type for .doc/.docx, so the extension is checked too.
 const ACCEPTED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "pdf", "doc", "docx"];
 const ACCEPT_ATTR = ".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,image/jpeg,image/png,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-const MAX_FILES = 10;
 const MAX_ORIGINAL_MB = 20;
-
-// Original (pre-compression) size and identity, keyed by the compressed File the parent holds.
-const originalSizes = new WeakMap<File, number>();
-const originalKeys = new WeakMap<File, string>();
-const formatMb = (bytes: number) => `${(bytes / 1048576).toFixed(2)} MB`;
 const POT_SAMPLE_URL = "https://leuteriorealty.com/admin/dashboard#";
 
+// Pre-compression size, keyed by the compressed File the parent holds.
+const originalSizes = new WeakMap<File, number>();
+const formatMb = (bytes: number) => `${(bytes / 1048576).toFixed(2)} MB`;
+const formatLimit = (kb: number) => (kb >= 1024 ? `${+(kb / 1024).toFixed(1)}MB` : `${kb}KB`);
 const extensionOf = (file: File) => file.name.split(".").pop()?.toLowerCase() ?? "";
-const fileKey = (file: File) => `${file.name}-${file.size}-${file.lastModified}`;
 
 function FileTypeIcon({ file }: { file: File }) {
     const ext = extensionOf(file);
@@ -46,8 +43,6 @@ function FileTypeIcon({ file }: { file: File }) {
     return <Icon sx={{ color: "var(--lr-text-secondary)" }} />;
 }
 
-const formatLimit = (kb: number) => (kb >= 1024 ? `${+(kb / 1024).toFixed(1)}MB` : `${kb}KB`);
-
 export default function UploadPOTForm({
     value,
     onChange,
@@ -58,75 +53,56 @@ export default function UploadPOTForm({
     const inputRef = useRef<HTMLInputElement>(null);
     const [dragOver, setDragOver] = useState(false);
     const [localError, setLocalError] = useState<string | null>(null);
+    const [compressing, setCompressing] = useState(false);
 
-    const previews = useMemo(
-        () => value.map((f) => (f.type.startsWith("image/") ? URL.createObjectURL(f) : null)),
+    const preview = useMemo(
+        () => (value && value.type.startsWith("image/") ? URL.createObjectURL(value) : null),
         [value],
     );
-    useEffect(() => () => previews.forEach((p) => p && URL.revokeObjectURL(p)), [previews]);
+    useEffect(() => () => {
+        if (preview) URL.revokeObjectURL(preview);
+    }, [preview]);
 
-    const [compressing, setCompressing] = useState(0);
-    // Compression is async; read the latest list when it finishes instead of the one captured at drop time.
-    const valueRef = useRef(value);
-    valueRef.current = value;
+    useEffect(() => onCompressingChange?.(compressing), [compressing, onCompressingChange]);
 
-    useEffect(() => onCompressingChange?.(compressing > 0), [compressing, onCompressingChange]);
-
-    const addFiles = async (fileList: FileList | null) => {
-        if (!fileList) return;
+    const selectFile = async (fileList: FileList | null) => {
+        const original = fileList?.[0];
+        if (!original) return;
         setLocalError(null);
 
-        const existing = new Set(valueRef.current.map((f) => originalKeys.get(f) ?? fileKey(f)));
-        const picked: File[] = [];
-
-        for (const file of Array.from(fileList)) {
-            if (ACCEPTED_EXTENSIONS.indexOf(extensionOf(file)) === -1) {
-                setLocalError("Only images (JPG, PNG, WEBP), PDF or Word (DOC, DOCX) files are allowed.");
-                continue;
-            }
-            if (file.size > MAX_ORIGINAL_MB * 1048576) {
-                setLocalError(`${file.name} is ${formatMb(file.size)} — the limit is ${MAX_ORIGINAL_MB}MB per file.`);
-                continue;
-            }
-            if (!existing.has(fileKey(file))) picked.push(file);
+        if (ACCEPTED_EXTENSIONS.indexOf(extensionOf(original)) === -1) {
+            setLocalError("Only images (JPG, PNG, WEBP), PDF or Word (DOC, DOCX) files are allowed.");
+            return;
+        }
+        if (original.size > MAX_ORIGINAL_MB * 1048576) {
+            setLocalError(`${original.name} is ${formatMb(original.size)} — the limit is ${MAX_ORIGINAL_MB}MB.`);
+            return;
         }
 
-        const room = MAX_FILES - valueRef.current.length;
-        if (picked.length > room) setLocalError(`You can upload up to ${MAX_FILES} files.`);
-        const toAdd = picked.slice(0, Math.max(0, room));
-        if (!toAdd.length) return;
+        setCompressing(true);
+        const file = isCompressibleImage(original) ? await compressImage(original) : original;
+        setCompressing(false);
+        originalSizes.set(file, original.size);
 
-        setCompressing((n) => n + toAdd.length);
-        const prepared = await Promise.all(
-            toAdd.map(async (original) => {
-                const file = isCompressibleImage(original) ? await compressImage(original) : original;
-                originalSizes.set(file, original.size);
-                originalKeys.set(file, fileKey(original));
-                setCompressing((n) => n - 1);
-                return file;
-            }),
-        );
-
-        const tooBig = prepared.filter((f) => f.size > maxFileKb * 1024);
-        if (tooBig.length) {
+        if (file.size > maxFileKb * 1024) {
             setLocalError(
-                `${tooBig[0].name} is ${formatMb(tooBig[0].size)} after compression — this server accepts up to ${formatLimit(maxFileKb)} per file.`,
+                `${file.name} is ${formatMb(file.size)} after compression — this server accepts up to ${formatLimit(maxFileKb)}.`,
             );
+            return;
         }
 
-        const accepted = prepared.filter((f) => f.size <= maxFileKb * 1024);
-        if (accepted.length) onChange([...valueRef.current, ...accepted].slice(0, MAX_FILES));
+        onChange(file);
     };
 
-    const removeFile = (index: number) => {
+    const removeFile = () => {
         setLocalError(null);
-        onChange(value.filter((_, i) => i !== index));
+        onChange(null);
     };
 
     const handleDrop = (e: DragEvent) => {
         e.preventDefault();
         setDragOver(false);
-        addFiles(e.dataTransfer.files);
+        selectFile(e.dataTransfer.files);
     };
 
     const shownError = localError ?? error;
@@ -198,37 +174,36 @@ export default function UploadPOTForm({
                     variant="body2"
                     sx={{ color: "var(--lr-text-body)", fontWeight: 500 }}
                 >
-                    Drag &amp; drop your POT here, or click to browse
+                    {value ? "Drop a different file to replace it, or click to browse" : "Drag & drop your POT here, or click to browse"}
                 </Typography>
                 <Typography
                     variant="caption"
                     sx={{ color: "var(--lr-text-secondary)", display: "block", mt: 0.5 }}
                 >
-                    JPG, PNG, WEBP, PDF, DOC or DOCX · up to {MAX_ORIGINAL_MB}MB each, {MAX_FILES} files max · photos are compressed before upload
+                    One file · JPG, PNG, WEBP, PDF, DOC or DOCX · up to {MAX_ORIGINAL_MB}MB · photos are compressed before upload
                 </Typography>
 
                 <input
                     ref={inputRef}
                     type="file"
                     hidden
-                    multiple
                     accept={ACCEPT_ATTR}
                     onChange={(e) => {
-                        addFiles(e.target.files);
+                        selectFile(e.target.files);
                         // Reset so picking the same file again after removing it still fires onChange.
                         e.target.value = "";
                     }}
                 />
             </Box>
 
-            {compressing > 0 && (
+            {compressing && (
                 <Box sx={{ mt: 1.5 }}>
                     <LinearProgress sx={{ borderRadius: 99 }} />
                     <Typography
                         variant="caption"
                         sx={{ color: "var(--lr-text-secondary)", display: "block", mt: 0.5 }}
                     >
-                        Compressing {compressing} photo{compressing > 1 ? "s" : ""}…
+                        Compressing photo…
                     </Typography>
                 </Box>
             )}
@@ -243,99 +218,76 @@ export default function UploadPOTForm({
                 </Typography>
             )}
 
-            {/* File previews */}
-            {value.length > 0 && (
+            {value && (
                 <Box
                     sx={{
                         mt: 2.5,
                         display: "flex",
-                        flexDirection: "column",
-                        gap: 1,
+                        alignItems: "center",
+                        gap: 1.5,
+                        p: 1,
+                        pr: 0.5,
+                        border: "1px solid var(--lr-border)",
+                        borderRadius: 2,
+                        backgroundColor: "var(--lr-surface)",
                     }}
                 >
-                    {value.map((file, index) => (
+                    {preview ? (
                         <Box
-                            key={fileKey(file)}
+                            component="img"
+                            src={preview}
+                            alt=""
+                            sx={{ width: 44, height: 44, objectFit: "cover", borderRadius: 1.5, flexShrink: 0 }}
+                        />
+                    ) : (
+                        <Box
                             sx={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 1.5,
                                 display: "flex",
                                 alignItems: "center",
-                                gap: 1.5,
-                                p: 1,
-                                pr: 0.5,
-                                border: "1px solid var(--lr-border)",
-                                borderRadius: 2,
-                                backgroundColor: "var(--lr-surface)",
+                                justifyContent: "center",
+                                backgroundColor: "var(--lr-surface-container)",
+                                flexShrink: 0,
                             }}
                         >
-                            {previews[index] ? (
-                                <Box
-                                    component="img"
-                                    src={previews[index] ?? undefined}
-                                    alt=""
-                                    sx={{
-                                        width: 44,
-                                        height: 44,
-                                        objectFit: "cover",
-                                        borderRadius: 1.5,
-                                        flexShrink: 0,
-                                    }}
-                                />
-                            ) : (
-                                <Box
-                                    sx={{
-                                        width: 44,
-                                        height: 44,
-                                        borderRadius: 1.5,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        backgroundColor: "var(--lr-surface-container)",
-                                        flexShrink: 0,
-                                    }}
-                                >
-                                    <FileTypeIcon file={file} />
-                                </Box>
-                            )}
-
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                                <Typography
-                                    variant="body2"
-                                    sx={{
-                                        color: "var(--lr-text-primary)",
-                                        fontWeight: 500,
-                                        whiteSpace: "nowrap",
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                    }}
-                                >
-                                    {file.name}
-                                </Typography>
-                                <Typography
-                                    variant="caption"
-                                    sx={{ color: "var(--lr-text-secondary)" }}
-                                >
-                                    {(originalSizes.get(file) ?? file.size) > file.size
-                                        ? `${formatMb(originalSizes.get(file) ?? file.size)} → ${formatMb(file.size)} compressed`
-                                        : formatMb(file.size)}
-                                </Typography>
-                            </Box>
-
-                            <CheckCircleRounded
-                                sx={{ color: "var(--lr-success-icon)", fontSize: 20 }}
-                            />
-                            <IconButton
-                                size="small"
-                                aria-label={`Remove ${file.name}`}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeFile(index);
-                                }}
-                                sx={{ color: "var(--lr-text-secondary)" }}
-                            >
-                                <CloseRounded fontSize="small" />
-                            </IconButton>
+                            <FileTypeIcon file={value} />
                         </Box>
-                    ))}
+                    )}
+
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                            variant="body2"
+                            sx={{
+                                color: "var(--lr-text-primary)",
+                                fontWeight: 500,
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                            }}
+                        >
+                            {value.name}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
+                            {(originalSizes.get(value) ?? value.size) > value.size
+                                ? `${formatMb(originalSizes.get(value) ?? value.size)} → ${formatMb(value.size)} compressed`
+                                : formatMb(value.size)}
+                        </Typography>
+                    </Box>
+
+                    <CheckCircleRounded sx={{ color: "var(--lr-success-icon)", fontSize: 20 }} />
+                    <IconButton
+                        size="small"
+                        aria-label={`Remove ${value.name}`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            removeFile();
+                        }}
+                        sx={{ color: "var(--lr-text-secondary)" }}
+                    >
+                        <CloseRounded fontSize="small" />
+                    </IconButton>
                 </Box>
             )}
         </Box>

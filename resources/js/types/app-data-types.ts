@@ -32,7 +32,7 @@ export interface ProjectFields {
 
 export type ProjectSaleFormData = ClientFields &
     ProjectFields & {
-        files: File[];
+        proof_of_transaction: File | null;
     };
 
 export interface DeveloperProjectOption {
@@ -51,3 +51,49 @@ export interface SalesSource {
     id: number;
     name: string;
 }
+
+export interface ProfileFields {
+    first_name: string;
+    middle_name: string;
+    last_name: string;
+    email: string;
+    mobile: string;
+    phone: string;
+    gender: "Male" | "Female" | null;
+    marital_status: string | null;
+    address: string;
+    city: string;
+    state: string;
+    about: string;
+    facebook: string;
+    linkedin: string;
+    whatsapp: string;
+}
+
+export interface RoleItem {
+    id: number;
+    name: string;
+    label: string;
+    is_system: boolean;
+    is_superadmin: boolean;
+    users_count: number;
+    permission_ids: number[];
+}
+
+export interface PermissionItem {
+    id: number;
+    name: string;
+    label: string;
+    roles_count: number;
+}
+
+export interface RoleUserItem {
+    id: number;
+    name: string;
+    email: string;
+    avatar: string | null;
+    role_id: number | null;
+    status: UserStatus;
+}
+
+export type UserStatus = "active" | "inactive" | "resigned" | "terminated";

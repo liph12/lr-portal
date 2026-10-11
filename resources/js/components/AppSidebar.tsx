@@ -1,33 +1,18 @@
 import { useState } from "react";
 import { Box, Collapse, Divider, Typography } from "@mui/material";
-import { ChevronRightRounded, LogoutRounded } from "@mui/icons-material";
-import { Link } from "@inertiajs/react";
+import { ChevronRightRounded } from "@mui/icons-material";
+import { Link, usePage } from "@inertiajs/react";
+import useAuthUser from "../hooks/useAuthUser";
+import { SharedProps } from "../types";
 import useSidebarRoutes from "../hooks/useSidebarRoutes";
 import UserOnlineAvatar from "./utils/user/UserOnlineAvatar";
 import SidebarProfile from "./utils/user/SidebarProfile";
-import { User } from "./utils/user/UserOnlineAvatar";
-
-const users: User[] = [
-    {
-        id: 0,
-        avatar: "https://leuteriorealty.com/memberfiles/0/20240419043008.jpg",
-        name: "Anthony Gerard Leuterio",
-        online: true,
-        role: "Superadmin",
-        timestamp: "0m",
-    },
-    {
-        id: 1,
-        avatar: "https://filipinohomes123.s3.ap-southeast-1.amazonaws.com/filipinohomes-compressed-from-old/cd23c6fa-51a9-40b9-926b-422a97739987.webp",
-        name: "Philip Libres",
-        online: false,
-        role: "Staff",
-        timestamp: "45m",
-    },
-];
 
 export default function AppSidebar() {
     const routes = useSidebarRoutes();
+    const authUser = useAuthUser();
+    const { online_users: users = [] } = usePage<SharedProps>().props;
+    const showOnline = !!authUser?.can.search_users;
     const [onlineOpen, setOnlineOpen] = useState(true);
 
     return (
@@ -137,84 +122,70 @@ export default function AppSidebar() {
 
             {/* Online users — flows right after the routes */}
             <Box sx={{ pr: 1.5, pb: 2 }}>
-                <Divider
-                    sx={{ my: 1, borderColor: "var(--lr-border)", ml: 3 }}
-                />
+                {showOnline && (
+                    <>
+                        <Divider
+                            sx={{ my: 1, borderColor: "var(--lr-border)", ml: 3 }}
+                        />
 
-                <Box
-                    role="button"
-                    aria-expanded={onlineOpen}
-                    onClick={() => setOnlineOpen((open) => !open)}
-                    sx={{
-                        color: "var(--lr-text-secondary)",
-                        px: 3,
-                        mb: 1,
-                        fontWeight: 500,
-                        display: "block",
-                    }}
-                >
-                    <ChevronRightRounded
-                        fontSize="small"
-                        sx={{
-                            // glyph is centered in its box; pull it to the icon column's edge
-                            ml: -0.5,
-                            mr: 0.5,
-                            color: "var(--lr-text-secondary)",
-                            transition: "transform 0.15s",
-                            transform: onlineOpen
-                                ? "rotate(90deg)"
-                                : "rotate(0deg)",
-                        }}
-                    />
-                    <Typography
-                        variant="caption"
-                        sx={{ color: "var(--lr-text-secondary)", fontWeight: 500 }}
-                    >
-                        Online users ({users.length})
-                    </Typography>
-                </Box>
-
-                <Collapse in={onlineOpen} timeout="auto" unmountOnExit>
-                    <Box sx={{ pl: 1 }}>
-                        {users.map((u) => (
-                            <UserOnlineAvatar
-                                key={u.id}
-                                avatar={u.avatar}
-                                name={u.name}
-                                online={u.online}
-                                role={u.role}
-                                timestamp={u.timestamp}
+                        <Box
+                            role="button"
+                            aria-expanded={onlineOpen}
+                            onClick={() => setOnlineOpen((open) => !open)}
+                            sx={{
+                                color: "var(--lr-text-secondary)",
+                                px: 3,
+                                mb: 1,
+                                fontWeight: 500,
+                                display: "block",
+                            }}
+                        >
+                            <ChevronRightRounded
+                                fontSize="small"
+                                sx={{
+                                    // glyph is centered in its box; pull it to the icon column's edge
+                                    ml: -0.5,
+                                    mr: 0.5,
+                                    color: "var(--lr-text-secondary)",
+                                    transition: "transform 0.15s",
+                                    transform: onlineOpen
+                                        ? "rotate(90deg)"
+                                        : "rotate(0deg)",
+                                }}
                             />
-                        ))}
-                    </Box>
-                </Collapse>
+                            <Typography
+                                variant="caption"
+                                sx={{ color: "var(--lr-text-secondary)", fontWeight: 500 }}
+                            >
+                                Online users ({users.filter((u) => u.online).length})
+                            </Typography>
+                        </Box>
 
-                <Divider sx={{ my: 1, borderColor: "var(--lr-border)", ml: 3 }} />
-
-                <Box
-                    role="button"
-                    sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 0.5,
-                        pl: 3,
-                        pr: 2,
-                        py: 0.75,
-                        cursor: "pointer",
-                        userSelect: "none",
-                        borderTopRightRadius: 99,
-                        borderBottomRightRadius: 99,
-                        ":hover": { backgroundColor: "var(--lr-error-soft)" },
-                    }}
-                >
-                    <LogoutRounded fontSize="small" sx={{ color: "var(--lr-error)" }} />
-                    <Typography
-                        variant="caption"
-                        sx={{ color: "var(--lr-error)", fontWeight: 500 }}
-                    >
-                        Logout
-                    </Typography>
-                </Box>
+                        <Collapse in={onlineOpen} timeout="auto" unmountOnExit>
+                            <Box sx={{ pl: 1 }}>
+                                {users.length === 0 && (
+                                    <Typography
+                                        variant="caption"
+                                        component="p"
+                                        sx={{ px: 3, py: 0.5, color: "var(--lr-text-secondary)" }}
+                                    >
+                                        No one else is signed in right now.
+                                    </Typography>
+                                )}
+                                {users.map((u) => (
+                                    <UserOnlineAvatar
+                                        key={u.id}
+                                        avatar={u.avatar}
+                                        name={u.name}
+                                        online={u.online}
+                                        role={u.role}
+                                        timestamp={u.last_seen}
+                                    />
+                                ))}
+                            </Box>
+                        </Collapse>
+                    </>
+                )}
             </Box>
         </Box>
     );

@@ -3,12 +3,26 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Entities\Agent;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_INACTIVE = 'inactive';
+    public const STATUS_RESIGNED = 'resigned';
+    public const STATUS_TERMINATED = 'terminated';
+
+    public const STATUSES = [
+        self::STATUS_ACTIVE,
+        self::STATUS_INACTIVE,
+        self::STATUS_RESIGNED,
+        self::STATUS_TERMINATED,
+    ];
+
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
@@ -17,6 +31,11 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
+    // Matches the column default so freshly created models report a status before being reloaded.
+    protected $attributes = [
+        'status' => self::STATUS_ACTIVE,
+    ];
+
     protected $fillable = [
         'name',
         'email',
@@ -42,8 +61,19 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'status_changed_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
+    }
+
+    public function agent(): HasOne
+    {
+        return $this->hasOne(Agent::class);
     }
 
     public function roles()
@@ -64,6 +94,14 @@ class User extends Authenticatable
     public function hasRole($role)
     {
         return $this->roles()->where('name', $role)->exists();
+    }
+
+    /**
+     * @param  string[]  $roles
+     */
+    public function hasAnyRole(array $roles): bool
+    {
+        return $this->roles()->whereIn('name', $roles)->exists();
     }
 
     public function hasPermission($permission)

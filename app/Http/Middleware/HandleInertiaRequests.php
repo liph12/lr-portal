@@ -2,7 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Role;
+use App\Models\User;
+use App\Services\OnlineUsersService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -40,9 +44,21 @@ class HandleInertiaRequests extends Middleware
             'auth' => fn () => $request->user() ? [
                 'id' => $request->user()->id,
                 'name' => $request->user()->name,
+                // For greetings: the agent profile's first name, else the account name's first word.
+                'first_name' => $request->user()->agent()->value('first_name') ?: Str::before(trim($request->user()->name), ' '),
                 'email' => $request->user()->email,
                 'role' => $request->user()->roles()->value('label'),
+                'avatar' => $request->user()->agent()->value('avatar'),
+                'can' => [
+                    'access_superadmin' => $request->user()->hasRole(Role::SUPERADMIN),
+                    'search_users' => $request->user()->can('search', User::class),
+                    'manage_users' => $request->user()->can('manage', User::class),
+                ],
             ] : null,
+            // Back-office roles only: who else is signed in is staff information, not for every agent.
+            'online_users' => fn () => $request->user()?->can('search', User::class)
+                ? app(OnlineUsersService::class)->recentlyActive($request->user()->id)
+                : [],
             'flash' => fn () => [
                 'success' => $request->session()->get('success'),
             ],
