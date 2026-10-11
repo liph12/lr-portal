@@ -14,10 +14,11 @@ import {
     SettingsBrightnessOutlined,
 } from "@mui/icons-material";
 import { useColorScheme } from "@mui/material/styles";
+import { router } from "@inertiajs/react";
+import useAuthUser from "../../hooks/useAuthUser";
+import { ThemeMode } from "../../types";
 
-type Mode = "light" | "dark" | "system";
-
-const MODES: { value: Mode; label: string; icon: typeof LightModeOutlined }[] = [
+const MODES: { value: ThemeMode; label: string; icon: typeof LightModeOutlined }[] = [
     { value: "light", label: "Light", icon: LightModeOutlined },
     { value: "dark", label: "Dark", icon: DarkModeOutlined },
     { value: "system", label: "System default", icon: SettingsBrightnessOutlined },
@@ -25,14 +26,19 @@ const MODES: { value: Mode; label: string; icon: typeof LightModeOutlined }[] = 
 
 export default function ThemeModeToggle() {
     const { mode, systemMode, setMode } = useColorScheme();
+    const preferences = useAuthUser()?.preferences;
     const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
     const resolved = mode === "system" ? systemMode : mode;
     const ButtonIcon = resolved === "dark" ? DarkModeOutlined : LightModeOutlined;
 
-    const handleSelect = (value: Mode) => {
+    const handleSelect = (value: ThemeMode) => {
         setMode(value);
         setAnchor(null);
+        // Saved to the account too (Settings › Preferences), so other devices and the next visit agree.
+        if (preferences && preferences.theme !== value) {
+            router.put("/settings/preferences/theme", { theme: value }, { preserveScroll: true, preserveState: true, only: ["auth"] });
+        }
     };
 
     return (

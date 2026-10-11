@@ -10,7 +10,6 @@ import TableToolbar from "../../../components/utils/tables/TableToolbar";
 import FilterSelect from "../../../components/utils/tables/FilterSelect";
 import PersonCell from "../../../components/utils/tables/PersonCell";
 import StatusMenu from "../../../components/utils/StatusMenu";
-import StatusChip from "../../../components/utils/StatusChip";
 import CountryFlag from "../../../components/utils/CountryFlag";
 import PhotoUploadButton from "../../../components/utils/PhotoUploadButton";
 import UserAvatar from "../../../components/utils/user/UserAvatar";
@@ -26,16 +25,16 @@ interface AgentsProps {
     teams: TeamOption[];
     statuses: string[];
     agentTypes: string[];
-    activities: string[];
     // area key => name
     areas: Record<string, string>;
 }
 
 // Admins manage agents and staff; only superadmins manage admins and other superadmins (UserPolicy).
 const MANAGER_ROLES = ["superadmin", "admin"];
+const DORMANT_NOTE = "Inactive: no sale in 6 months since activation. They can still sign in; set Active to restart the 6 months.";
 const SIGN_OUT_NOTE = "They're signed out right away and can't sign in until set back to active.";
 
-function Agents({ agents, filters, teams, statuses, agentTypes, activities, areas }: AgentsProps) {
+function Agents({ agents, filters, teams, statuses, agentTypes, areas }: AgentsProps) {
     const me = useAuthUser();
     const baseUrl = `/${me?.portal ?? "superadmin"}/management`;
     const table = useServerTable("agents", agents, filters);
@@ -83,16 +82,6 @@ function Agents({ agents, filters, teams, statuses, agentTypes, activities, area
                 />
             ),
         },
-        {
-            field: "activity",
-            headerName: "Activity",
-            width: 130,
-            renderCell: ({ row }) => (
-                <StatusChip status={row.activity} title={row.activated_at ? `Activated ${formatDate(row.activated_at)}` : "No activation date (counted from sign-up)"}>
-                    {row.activity === "dormant" ? "Dormant" : "Active"}
-                </StatusChip>
-            ),
-        },
         { field: "area", headerName: "Area", width: 130, valueGetter: (_, row) => (row.area ? (areas[row.area] ?? row.area) : "Unassigned") },
         { field: "country", headerName: "Country", width: 170, renderCell: ({ row }) => <CountryFlag code={row.country_code} country={row.country} /> },
         { field: "role_label", headerName: "Role", width: 130, valueGetter: (_, row) => row.role_label ?? "—" },
@@ -109,14 +98,19 @@ function Agents({ agents, filters, teams, statuses, agentTypes, activities, area
             headerName: "Status",
             width: 150,
             renderCell: ({ row }) => (
-                <StatusMenu
-                    status={row.status}
-                    statuses={statuses}
-                    url={`${baseUrl}/agents/${row.id}/status`}
-                    subject={row.name}
-                    disabled={!canManage(row)}
-                    confirm={{ inactive: SIGN_OUT_NOTE, resigned: SIGN_OUT_NOTE, terminated: SIGN_OUT_NOTE }}
-                />
+                // Dormant agents show as inactive while their account stays active (they can still sign in).
+                <Tooltip title={row.activity === "dormant" && row.account_status === "active" ? DORMANT_NOTE : ""}>
+                    <span>
+                        <StatusMenu
+                            status={row.status}
+                            statuses={statuses}
+                            url={`${baseUrl}/agents/${row.id}/status`}
+                            subject={row.name}
+                            disabled={!canManage(row)}
+                            confirm={{ inactive: SIGN_OUT_NOTE, resigned: SIGN_OUT_NOTE, terminated: SIGN_OUT_NOTE }}
+                        />
+                    </span>
+                </Tooltip>
             ),
         },
         {
@@ -157,12 +151,6 @@ function Agents({ agents, filters, teams, statuses, agentTypes, activities, area
                             value={filters.agent_type}
                             options={agentTypes.map((t) => ({ value: t, label: AGENT_TYPE_LABELS[t] ?? t }))}
                             onChange={(v) => table.setFilter("agent_type", v)}
-                        />
-                        <FilterSelect
-                            label="Activity"
-                            value={filters.activity}
-                            options={activities.map((a) => ({ value: a, label: a === "dormant" ? "Dormant (6 months, no sale)" : "Active" }))}
-                            onChange={(v) => table.setFilter("activity", v)}
                         />
                         <FilterSelect label="Teams" value={filters.team_id} options={teams.map((t) => ({ value: String(t.id), label: t.name }))} onChange={(v) => table.setFilter("team_id", v)} />
                     </>

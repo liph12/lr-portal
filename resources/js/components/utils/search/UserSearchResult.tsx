@@ -1,5 +1,8 @@
-import { Box, Typography } from "@mui/material";
-import { LoginRounded, NorthEastRounded } from "@mui/icons-material";
+import { useState } from "react";
+import { Box, IconButton, Typography } from "@mui/material";
+import { ExpandLessRounded, ExpandMoreRounded, LoginRounded, NorthEastRounded } from "@mui/icons-material";
+import PersonDetails, { PersonDetailsData } from "./PersonDetails";
+import { formatDateTime } from "../../../helpers/formatDate";
 import UserAvatar from "../user/UserAvatar";
 import UserStatusChip from "../user/UserStatusChip";
 import StyledButton from "../StyledButton";
@@ -15,6 +18,9 @@ export interface UserSearchItem {
     role_label: string | null;
     status: UserStatus;
     can_impersonate: boolean;
+    last_active_at: string | null;
+    // Team, registration, contact, licences and activity window (agents only).
+    details: PersonDetailsData | null;
 }
 
 interface UserSearchResultProps {
@@ -29,78 +35,104 @@ interface UserSearchResultProps {
 // A person in the navbar search: opens their profile; role and status are shown, edited in Management.
 export default function UserSearchResult({ user, active, isSelf, onHover, onOpen, onSignInAs }: UserSearchResultProps) {
     const profile = user.agent_id ? `/agents/${user.agent_id}` : null;
+    const [expanded, setExpanded] = useState(false);
+    const d = user.details;
+    // "Team / Sub-team", as everywhere else.
+    const team = d?.team ? `${d.team} / ${d.sub_team ?? "No sub-team"}` : "No team";
 
     return (
-        <Box
-            role="option"
-            aria-selected={active}
-            aria-disabled={!profile}
-            onMouseEnter={onHover}
-            onClick={() => profile && onOpen(profile)}
-            sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                px: 2,
-                py: 1,
-                flexWrap: { xs: "wrap", sm: "nowrap" },
-                cursor: profile ? "pointer" : "default",
-                backgroundColor: active ? "var(--lr-surface-container)" : "transparent",
-            }}
-        >
-            <UserAvatar name={user.name} src={user.avatar} size={32} />
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="body2" sx={{ color: "var(--lr-text-primary)", fontWeight: 500 }}>
-                    {user.name}
-                    {isSelf && (
-                        <Typography component="span" variant="caption" sx={{ color: "var(--lr-text-secondary)", ml: 0.75 }}>
-                            (you)
+        <Box>
+            <Box
+                role="option"
+                aria-selected={active}
+                aria-disabled={!profile}
+                onMouseEnter={onHover}
+                onClick={() => profile && onOpen(profile)}
+                sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    px: 2,
+                    py: 1,
+                    flexWrap: { xs: "wrap", sm: "nowrap" },
+                    cursor: profile ? "pointer" : "default",
+                    backgroundColor: active ? "var(--lr-surface-container)" : "transparent",
+                }}
+            >
+                <UserAvatar name={user.name} src={user.avatar} size={32} />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ color: "var(--lr-text-primary)", fontWeight: 500 }}>
+                        {user.name}
+                        {isSelf && (
+                            <Typography component="span" variant="caption" sx={{ color: "var(--lr-text-secondary)", ml: 0.75 }}>
+                                (you)
+                            </Typography>
+                        )}
+                    </Typography>
+                    <Typography
+                        variant="caption"
+                        sx={{ color: "var(--lr-text-secondary)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                    >
+                        {user.email}
+                        {!profile && " · no agent profile"}
+                    </Typography>
+                    {profile && (
+                        <Typography variant="caption" component="div" sx={{ color: "var(--lr-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {team}
+                            {user.last_active_at && ` · last active ${formatDateTime(user.last_active_at)}`}
                         </Typography>
                     )}
-                </Typography>
-                <Typography
-                    variant="caption"
-                    sx={{ color: "var(--lr-text-secondary)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                >
-                    {user.email}
-                    {!profile && " · no agent profile"}
-                </Typography>
-            </Box>
+                </Box>
 
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, ml: { xs: 5.5, sm: 0 } }}>
-                <Typography
-                    component="span"
-                    variant="caption"
-                    sx={{
-                        px: 1,
-                        py: 0.25,
-                        borderRadius: 99,
-                        fontWeight: 500,
-                        color: "var(--lr-primary)",
-                        backgroundColor: "var(--lr-primary-soft)",
-                        whiteSpace: "nowrap",
-                    }}
-                >
-                    {user.role_label ?? "No role"}
-                </Typography>
-                <UserStatusChip status={user.status} />
-                {user.can_impersonate && (
-                    <StyledButton
-                        size="small"
-                        variant="outlined"
-                        startIcon={<LoginRounded sx={{ fontSize: 16 }} />}
-                        aria-label={`Sign in as ${user.name}`}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onSignInAs(user);
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, ml: { xs: 5.5, sm: 0 } }}>
+                    <Typography
+                        component="span"
+                        variant="caption"
+                        sx={{
+                            px: 1,
+                            py: 0.25,
+                            borderRadius: 99,
+                            fontWeight: 500,
+                            color: "var(--lr-primary)",
+                            backgroundColor: "var(--lr-primary-soft)",
+                            whiteSpace: "nowrap",
                         }}
-                        sx={{ py: 0.25, px: 1.25, minWidth: 0, fontSize: 12, color: "var(--lr-primary)", borderColor: "var(--lr-outline)", whiteSpace: "nowrap" }}
                     >
-                        Sign in
-                    </StyledButton>
-                )}
-                {profile && <NorthEastRounded sx={{ fontSize: 16, color: "var(--lr-text-secondary)" }} />}
+                        {user.role_label ?? "No role"}
+                    </Typography>
+                    <UserStatusChip status={user.status} />
+                    {user.can_impersonate && (
+                        <StyledButton
+                            size="small"
+                            variant="outlined"
+                            startIcon={<LoginRounded sx={{ fontSize: 16 }} />}
+                            aria-label={`Sign in as ${user.name}`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSignInAs(user);
+                            }}
+                            sx={{ py: 0.25, px: 1.25, minWidth: 0, fontSize: 12, color: "var(--lr-primary)", borderColor: "var(--lr-outline)", whiteSpace: "nowrap" }}
+                        >
+                            Sign in
+                        </StyledButton>
+                    )}
+                    {profile && (
+                        <IconButton
+                            size="small"
+                            aria-expanded={expanded}
+                            aria-label={expanded ? `Hide details of ${user.name}` : `More about ${user.name}`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setExpanded((v) => !v);
+                            }}
+                        >
+                            {expanded ? <ExpandLessRounded fontSize="small" /> : <ExpandMoreRounded fontSize="small" />}
+                        </IconButton>
+                    )}
+                    {profile && <NorthEastRounded sx={{ fontSize: 16, color: "var(--lr-text-secondary)" }} />}
+                </Box>
             </Box>
+            {expanded && <PersonDetails userId={user.id} agentId={user.agent_id} details={d} lastActive={user.last_active_at} onOpen={onOpen} />}
         </Box>
     );
 }

@@ -7,6 +7,11 @@ Route::get('/search/users', [SearchController::class, 'users'])
     ->middleware('throttle:60,1')
     ->name('search.users');
 
+// The FIRE certificates button in the people results (fetched from the training site, cached).
+Route::get('/search/users/{user}/certificates', [SearchController::class, 'certificates'])
+    ->middleware('throttle:30,1')
+    ->name('search.users.certificates');
+
 Route::get('/search/groups', [SearchController::class, 'groups'])
     ->middleware('throttle:60,1')
     ->name('search.groups');

@@ -63,8 +63,7 @@ at the matching path. Nothing else.
 - Services: `{Name}Service` in `app/Services/`, constructor-injected (`UserController.php:13-16`).
 - Section headings: `components/utils/SectionTitle.tsx` (title, subtitle, optional action).
 - Pages/components: PascalCase `.tsx`, one component per file, **default export**.
-  Pages use `Index.tsx` (one legacy lowercase exception `Pages/SuperAdmin/Accounting/index.tsx` —
-  do not add more).
+  Pages use `Index.tsx`.
 - Hooks: `hooks/use{Thing}.ts`, default export (`hooks/useBreadcrumbs.ts`).
   Helpers: `helpers/{camelCase}.ts`, **named** exports (`helpers/routeMatch.ts`).
 - Props: inline `interface {X}Props` in the component file; controller props arrive as a typed
@@ -78,8 +77,9 @@ at the matching path. Nothing else.
   `resources/js/components/utils/StyledButton.tsx` (spread props, merge caller `sx` last).
   Do **not** add Tailwind classes or styled-components/`styled()` — both are installed but
   unused (`docs/ARCHITECTURE.md` §6); keep it that way.
-  Inputs: `components/utils/StyledTextField.tsx` / `StyledAutocomplete.tsx` are MUI's outlined field on the theme (same as
-  the Sales validation sale form); pass `label` for a floating label, or print a label above as the record-sale forms do.
+  Inputs: `components/utils/StyledTextField.tsx` / `StyledAutocomplete.tsx` (filled, token-coloured) with the label printed
+  above in `FormHelperText` — as in the record-sale forms and the Sales validation sale form. Don't use bare MUI
+  `TextField`/`Autocomplete` in forms.
 - **Colors / dark mode**: never hardcode hex in components — use the `var(--lr-*)` tokens from
   `resources/css/app.css` (`--lr-text-primary`, `--lr-surface`, `--lr-border`, `--lr-primary`, …),
   which flip under `html.dark`. MUI's palette (`providers/appTheme.ts`) mirrors them — change both
@@ -134,6 +134,21 @@ at the matching path. Nothing else.
   URL is stored in `agents.avatar` (shared as `auth.avatar`). Render people with
   `components/utils/user/UserAvatar.tsx` (photo, falling back to initials). Flash messages:
   `components/utils/FlashBanner.tsx`; titled panels: `components/cards/SectionCard.tsx`.
+- **Settings › Preferences** (`/settings/preferences`, `routes/settings.php`, `Portal\PreferencesController`,
+  `UserPreferenceService`; every user, gated by permission `use_preferences` — migration `000036` gave it to every role, a
+  role made later has it only if ticked): `users.preferences` = `{theme, font_size, links: {default, sections}}`
+  (`User::THEMES` / `FONT_SIZES` / `LINK_MODES`, read with `User::preferences()`), one form (`forms/PreferencesForm.tsx`,
+  `PUT /settings/preferences`, `UpdatePreferencesRequest`); shared as `auth.preferences` (null without the permission =
+  defaults). Menu: a Preferences child in the superadmin's Settings + card on its index; `settingsRoute` for everyone else.
+  **Theme** follows the account: `hooks/useAppearance.ts` (in `AppLayout`) sets `useColorScheme` from it, and the navbar
+  switch saves too (`PUT /settings/preferences/theme`, `UpdateThemeRequest`). **Text size** is a zoom of the whole page
+  (`helpers/appearance.ts`: `--lr-zoom` on `<html>`, `body { zoom }` in app.css, pre-paint from `localStorage['lr-font-size']`)
+  because sizes here are mostly px — so `AppLayout` fills the page by `height: 100%` (html → body → `#app`), never `100vh`.
+  **Links** (same tab = SPA / new tab, overall + per top-level menu path): enforced in one place — `hooks/useLinkBehaviour.ts`
+  cancels an Inertia GET to another path and opens it in a new tab (`helpers/linkBehaviour.ts`: the destination's section
+  decides; pages outside the menu follow the page they're opened from). On the same path, filters (`preserveState`), partial
+  reloads and steps back (query values only dropped/kept) stay in place; a step deeper without `preserveState` (Sales validation
+  area → category) counts as a page, so keep using Inertia `Link` / `router` — never `target="_blank"` or `window.open` for page links.
 - **Sales cutoff & recording switch** (Settings › Sales cutoff, superadmin only; `SalesCutoffController`,
   `SalesEncodingService`, `SalesCutoffPolicy`): monthly `sales_cutoffs` (month `YYYY-MM` → `cutoff_at`) and an
   on/off switch in `app_settings` (`sales_encoding`). Enforced for **every role** in `SaleRequest::after()`:
@@ -150,6 +165,11 @@ at the matching path. Nothing else.
   sales and global-partner agents are excluded (`Agent::withoutGlobalPartners`, `agent_type = local`) — global partners
   will get statistics of their own (they take no NAO / FIRE).
   Legacy: `legacy:import-international-sales`, see `docs/legacy-migration/international-sales.md`.
+- **Dashboard › My Sales** (`/dashboard/my-sales`, `DashboardController::mySales`, tab for anyone with an agent record —
+  pseudo-grant `_agent` from `auth.agent_id`): the agent's own sales one by one (`ReportSaleList` with a Type column, no Agent
+  column; `lockedFilters` with `['agent_id' => own]`, so the URL can't point it elsewhere), click → read-only details, then
+  `ReportStatistics`. Above the list, `SalesTotals`: total + project / brokerage / rental (`totals` prop,
+  `SalesReportService::categoryTotals` — every category whatever is picked; a tile picks its category). People search rows show a **sales counter** (`details.sales`: valid + pending, international too).
 - **Dashboard › Overview = sales at a glance** (`DashboardController::overview`, same reach as reports: back office the
   whole system with top teams; team leader their team with top sub-teams; unit manager their sub-team; others 403): date
   range, top 5 agents / groups, then `ReportStatistics`.
@@ -177,7 +197,8 @@ at the matching path. Nothing else.
   `/staff/dashboard` redirect there). Menus reuse one `dashboardRoute` node in `app-data.tsx`; roles
   without a portal (agent, team leader, unit manager…) get `memberRoutes`. **Record Your Sale** is the only
   gated part: `record_sales` permission (`AgentTransactionPolicy::create`; granted to agent, team_leader,
-  unit_manager; superadmin always) — hide UI with `auth.permissions`. Field roles' sales are credited to
+  unit_manager; superadmin always) — hide UI with `auth.permissions`. Its only entry point is the sidebar button
+  (`SidebarProfile`); the dashboard node carries `tab: false`, so it's in breadcrumbs / search but not the tab bar. Field roles' sales are credited to
   their own agent (`SaleRecord::creditedAgent`); back-office recorders stay `recorded_by` only.
 - **Portals & gates**: each role with a portal (`User::PORTALS` = superadmin, admin, staff) has its own
   prefix + `role:` group in `routes/web.php`; everyone else lives on `/profile`. Sign-in and `/home`
@@ -206,8 +227,14 @@ at the matching path. Nothing else.
   and no valid/pending sale (any category, international too) reserved in the last 6 months; rolling, so a sale wakes them
   up. Roles in `Agent::ACTIVITY_EXEMPT_ROLES` are always active. `AgentActivityService::refresh()` runs daily
   (`agents:refresh-activity`, scheduled 01:00), after each recorded sale for that agent, and after `legacy:import-members`.
-  Shown in Management › Agents (column + filter) and on the agent profile.
+  **Shown as status, not separately:** everywhere a status is displayed, filtered or counted, an active account whose agent
+  is dormant reads `inactive` (`Agent::displayStatus` / `Agent::statusSql()`): Management, Recruits, My Team, profile,
+  search, Roles members, Statistics. `users.status` stays `active`, so they can still sign in and record the sale that
+  reactivates them; Management rows also carry `account_status` + `activity`. Setting such an agent **Active**
+  (`UserAccountService::changeStatus`) restarts `activated_at` (logged `user.reactivated`).
 - **User status**: `users.status` is one of `User::STATUSES` (active, inactive, resigned, terminated),
+  but **statistics** only split active / inactive (`User::statisticCounts`: resigned and terminated count as inactive —
+  Recruits cards, Statistics team); tables, filters and search keep all four.
   changed only through `UserAccountService::changeStatus` (not mass-assignable). Only `active` users
   can sign in; the `active` middleware on the `auth` route group signs out anyone deactivated
   mid-session. New signed-in routes must stay inside that group.
@@ -221,7 +248,8 @@ at the matching path. Nothing else.
   `PersonCell`. Small sets (< ~1k rows) are sent whole and filtered in the browser (Management Teams);
   large ones are **server-paged** with `hooks/useServerTable.ts` (page/sort/search/filters in the URL
   query, partial reload of one prop; the controller returns `{data,total,page,per_page}` and accepts
-  sort keys equal to the column `field`s — see `TeamDirectoryService`). Status cells: `StatusChip` /
+  sort keys equal to the column `field`s — see `TeamDirectoryService`). Controlled grid models (`sortModel`, `paginationModel`) must be
+  memoised: DataGrid re-applies them on every new reference and treats a new sort model as a sort, resetting to page 1. Status cells: `StatusChip` /
   `StatusMenu` (PATCH `{status}`, confirm for destructive ones); photo cells: `PhotoUploadButton`.
 - **Management** (`/superadmin/management` and `/admin/management`, same pages in
   `Pages/Portal/Management/`, routes from `routes/management.php` called per portal, guarded by
@@ -249,6 +277,8 @@ at the matching path. Nothing else.
   brokerage area / closing agent, unit, price, reserved, date added and the files (POT; remittance + deposit slips).
   Status via `StatusMenu` → `ValidateSaleRequest`; `setStatus` stores `validated_by` / `validated_at`, appends to
   `update_logs`, logs `sale.validate` and refreshes the agent's activity.
+  Menu **badge** = pending sales the user can validate **this month** — the range the page opens on, so it equals the "All
+  areas" card (back office) or the secretary's area card (`SaleValidationService::pendingCount`, `auth.sales_validation`).
   Clicking an agent opens `AgentSalesPanel` (`?agent=ID`, partial reload of `agentSales`, `agent_dates=all` for every date):
   their sales client first in Project / Brokerage / Rental tabs (newest 100 each), with status chips and `StatusMenu`.
   Clicking a sale (table row → right drawer; agent panel card → expands in place) loads `saleDetail` (`?sale=ID`,
@@ -257,6 +287,34 @@ at the matching path. Nothing else.
   category, measurements optional but cleared when the property type doesn't use them) → `SaleValidationService::update`
   (`EDITABLE` map) writes one `update_logs` line listing every change, logs `sale.edit`, recomputes `client_age` from a new
   birthdate, then sets the status. Pickers: `editOptions` prop. Controls inside a row stop the click (`stop`).
+- **Global Partners** (`/global-partners` + `/global-partners/statistics`, shared by every role; `GlobalPartnerController`,
+  `GlobalPartnerService`): a partner counts here only if `agent_type = global_partner`, based outside the Philippines
+  (`country_code` set and not PH), fully registered (status 4) and signed up from 2024-02-01 — one query (`partners()`) drives
+  list, counts, badge, statistics, sales and who can be confirmed. Reach (`GlobalPartnerService::reach`) = every partner
+  for the back office; else `{sponsor, teams, sub_teams}`: their own recruits (`agent_attributes.referral_id`) plus every partner
+  currently on the teams / sub-teams they lead (leadership from the data) — a team leader sees the whole team's, a unit
+  manager their sub-team's, an agent just their recruits; 403 when that's nobody. Anyone may confirm within their reach.
+  Statistics also rank **Top teams** and **Top recruiters** (the latter only when the reach covers others), and a click on a
+  team / recruiter / partner country narrows the whole page (`team_id` / `sponsor_id` / `country`, `stats.selection` header;
+  `BarList` items take `href`). Confirmation = `agents.sponsor_confirmed_at` / `_by` (legacy
+  `members.sponsor_activation_status = 'confirmed'`, `legacy:import-partner-confirmations`); the partner's sponsor or the back
+  office confirms (`ConfirmGlobalPartnerRequest`, logged `partner.confirmed`). Shared `auth.global_partners = {pending}` (null =
+  no reach) drives the menu pseudo-grant `_partners` and the sidebar **badge** (`PortalRoute.badge`, set in `usePortalRoutes`).
+  Statistics need `view_global_partner_statistics` (route, menu child, `GlobalPartnersNav` tab; migration `000031` granted it to
+  superadmin, admin, staff, agent, unit_manager, team_leader) and stay within the reach (a sponsor: their recruits).
+  Statistics are **international sales only** (valid + pending; legacy imported them all pending): partners by country with
+  flags (`FlagIcon`, `BarList` `leading`), sales by client country, trend, top partners (everyone who sold); long lists are
+  `PagedBarList` (10 per page, one bar scale across pages, a name search box once a list has more than one page —
+  `searchLabel`). Sponsors may open their partners' profiles.
+- **Office secretaries** (`offices`, legacy `legacy:import-offices`, `docs/legacy-migration/offices.md`): each office has an
+  area and an assigned secretary (`secretary_agent_id`). `OfficeService::areasFor($user)` is that secretary's reach —
+  from the data, not the role. It drives: **Sales validation** at the shared `/sales-validation` (`routes/sales-validation.php`
+  called without a portal; `SaleValidationService::allowedAreas` → only those areas, one area opens directly, requests
+  refuse other areas' sales); **reports** (`TeamLeadershipService::reportScope` → `['area' => …]`: agents and unit managers
+  of the area, teams/sub-teams counted only by their members there — a Cebu team with Davao members shows on Davao's list;
+  the Areas views are hidden); **Recruits / Recruits Progress** (area lock); **agent profiles** of their area; Overview
+  ranks the area's teams. Shared as `auth.office_areas`; menu pseudo-grant `_secretary` (member menu item needs it +
+  `sales_validation`).
 - **Sign in as a user** (superadmin only; Management › Agents row action, agent profile button): `POST /impersonate/{user}`,
   `DELETE /impersonate`, `ImpersonationService` (session key `impersonator_id`; the session id is regenerated on each switch
   so slow background requests can't undo it). Never on superadmins or inactive users; `ImpersonationBanner` in `AppLayout`;
@@ -302,7 +360,17 @@ at the matching path. Nothing else.
   **Reports** (`/reports`, sidebar item for every portal and field roles, same reach rule; `ReportsController`): cards from
   `components/reports/reportCatalog.ts` → `/reports/{slug}`, each one view of the same service (Top Agents, Top Unit
   Managers = agents with role `unit_manager`, own sales; Top Teams, Top Sub-teams, Developer / Brokerage / Rental
-  Sales — brokerage and rental rank agents). **Each report is also its own permission** `report_{slug}` (`ReportsController::permission`,
+  Sales — brokerage and rental rank agents). Also **Top Team Leaders** (`team_leaders` view: role members' own sales, like `unit_managers` — `ROLE_VIEWS`) and
+  **Developers by Area** (`area-developers` = the developers view + an area picker `areaOptions` for unlocked readers; a
+  developer opens `/reports/top-agents?area=…&developer_id=…`). Inside a developer the page has **Top agents | Sales** tabs: `list=sales` sends
+  `saleList` (`SalesReportService::saleList`, same filters, newest reservation first, read-only, searchable by agent / client / project / unit via `q` — `ReportSaleList`); a row opens the sale **read-only** in a drawer
+  (`?sale=ID` → `saleDetail`, only if `SalesReportService::containsSale` — in this report's filters and the reader's reach —
+  data from `SaleValidationService::detail`, shown by `SaleDetailsView`: files incl. proof of transaction, client, property,
+  payment, history). Both that panel and the Sales validation form show the files first via `components/sales/SaleFiles.tsx`
+  (photos inline, PDFs / Word as links).; the sales
+  union carries `sale_id` for it. Report filters **combine** (area + developer, a lock +
+  developer): `lockedFilters` still drops the lock's kinds of keys from the URL but lets a developer drill-down through.
+  **Each report is also its own permission** `report_{slug}` (`ReportsController::permission`,
   migration `000024`; granted to every role that had view_reports) — checked on the page and in `available()`, and as
   `requires` on the menu children (all-of, on top of `permission`'s any-of). Settings › Roles & permissions groups
   permissions by `Permission::SECTIONS` (report_* → Reports); add new permission names to a section there. Both pages render `components/reports/SalesReportView.tsx` (View Sales with view tabs, a report without).
@@ -313,17 +381,23 @@ at the matching path. Nothing else.
   (state, then city: own area name > listed place > contains name > contains place; non-PH country → abroad).
   The `Agent` model re-derives it when state/city/country_code change; rows written with `DB::table` (imports)
   must set it themselves or run `php artisan agents:assign-areas`. Reports: `areas` view / "Sales by Area" card,
-  drill by `area` (`unassigned` for agents without one); Management › Agents shows it.
+  drill by `area`. Agents with no area count in totals but are **never shown as an "Unassigned" area** in any
+  statistic (By area, Sales by Area, Recruits Progress areas); Management › Agents and the profile still say "Unassigned".
 - **Report layout**: the ranked table comes first (name, Area / location, Team where relevant, Total sales — no
   count / average / share columns); statistics (`components/reports/ReportStatistics.tsx`: tiles, trend, by
   category, by area, by client country — codes and legacy names merged via `Countries::resolve`, top 10 + Other —
   by client gender, by client age, by property type, and Top developers with % share of project sales when the report includes
   project sales) sit underneath. A drill-down shows `ReportScopeHeader` (photo, name, facts, total, "Show
-  everyone") under the title instead of a chip; `scope` carries `avatar` + `facts`. People rows open the read-only agent profile `/agents/{agent}`
+  everyone") under the title instead of a chip; `scope` carries `avatar` + `facts`. People rows (reports, Overview top agents) open that agent's
+  sales `/agents/{agent}/sales` with the same dates / status / category; the read-only profile is `/agents/{agent}`
   (`AgentProfileController`, view_reports or team managers; same service with an `agent_id` scope).
+  Every sale of one agent: `/agents/{agent}/sales` (`AgentProfileController::sales`, `Pages/Portal/Agents/Sales.tsx`), the
+  same `components/sales/AgentSalesView.tsx` as Dashboard › My Sales; opened from the profile and the search dropdown.
+  Profile cards sit in even rows (three-up `lg: 4`, About full width, history pairs), every `SectionCard` with `fill`.
   Date ranges use `components/utils/DateRangeField.tsx` (free `@mui/x-date-pickers` DateCalendar + dayjs, quick
   ranges + click first/last day) — MUI's DateRangePicker is Pro-only, don't add it.
-- **Charts / statistics**: `/superadmin/statistics` (`StatisticsController` → `StatisticsService`,
+- **Charts / statistics**: `/{superadmin,admin,staff}/statistics`, guarded by its own `view_statistics` permission (Settings ›
+  Roles & permissions › Statistics; migration `000028` gave it to every role that had view_reports) (`StatisticsController` → `StatisticsService`,
   sales dated by `reservation_date`). Client splits (country, gender, age) for both pages come from `App\Support\ClientStats`; ages
   outside 18–99 are typos and only counted as `excluded` (`agent_transaction_details.client_age`: legacy `clientAge` via
   `legacy:import-client-ages`, new sales from the birthdate at the reservation date in `SaleRecord`); UI `ClientAgeChart`. Charts are plain MUI in `components/charts/` (`StatTile`,
@@ -348,7 +422,10 @@ at the matching path. Nothing else.
   `storage/app/private/legacy-import/`. Mapping and decisions: `docs/legacy-migration/`.
   `agents.agent_type` is `Agent::TYPES` (local, global_partner): global = legacy `national_intern` international
   + joined ≥ 2024-02-01 + country not PH (`Agent::typeFromLegacy`, `LegacyAgentOrigin`, `legacy:import-agent-types`
-  re-applies it and syncs the `global_partner` role). `agents.country` / `country_code` via `App\Support\Countries`
+  re-applies it and syncs the `global_partner` role). `agents.lr_joined_at` = joined Leuterio Realty (legacy
+  `members.lr_joined`, `legacy:import-lr-joined`; "0000-00-00" = none): the search's "Registered", the profile's "Joined
+  Leuterio Realty" and the global-partner cut-off (else `created_at`). `agents.country` / `country_code` via `App\Support\Countries` (no country
+  recorded → Philippines / `PH`: `Agent::saving`, `LegacyAgentOrigin`, migration `000027`; agent type is decided first)
   (`config/countries.php` mirrors `countries` in app-data.tsx — change both); show with `CountryFlag`.
   **`agents.id` = legacy `members.id`** (and is the agent's referral number), so later imports
   (teams, sales) join legacy member ids straight onto `agents.id` — never via a lookup table.
@@ -366,16 +443,26 @@ at the matching path. Nothing else.
 - **Global search** (navbar, `components/utils/search/GlobalSearch.tsx`): pages come from `app-data`
   routes via `helpers/searchPages.ts` (client-side); people come from `GET /search/users`
   (`Portal\SearchController`; rows show role + status read-only and open `/agents/{agent}` — back-office roles may open
-  any profile, sales only with view_reports; superadmins get a "Sign in" button per row, `can_impersonate`; team leaders / unit managers also search, finding only the current members of the groups
+  any profile, sales only with view_reports; superadmins get a "Sign in" button per row, `can_impersonate`; each person also carries `details` (team / sub-team + joined, registered,
+  mobile, address, PRC / DHSUD expiry, Facebook link — `App\Support\SocialLinks::facebook` cleans legacy values, also on
+  the profile — `AgentActivityService::windows` 6-month window) and `last_active_at` (users column; legacy
+  `users.updated_at` via `legacy:import-last-activity` for now, activity logs later), shown by `PersonDetails` on expand; team leaders / unit managers also search, finding only the current members of the groups
   they lead — `TeamLeadershipService::ledMemberIds` — whose profiles they may open with sales), teams / sub-teams / areas from `GET /search/groups` (`GroupSearchService`, same reach as
   reports: back office → any group, opening `/reports/top-agents?team_id|sub_team_id|area=`; leaders → only groups they
-  lead, opening My Team; `auth.can.search_groups`) — with `/search/agents`, the **only sanctioned JSON endpoints**, because typeahead can't be an
+  lead, opening My Team; `auth.can.search_groups`) — with `/search/agents` and `/search/users/{user}/certificates` (FIRE courses from realestatetraining.ph via
+  `FireCertificateService`: `user.score`, max 3, course/date/score only, cached 1h, `services.fire_certificates.url`), the
+  **only sanctioned JSON endpoints**, because typeahead can't be an
   Inertia visit. Don't add other JSON endpoints without the same reason. Who may do what is shared as
   `auth.can.{access_superadmin, search_users, manage_users}` — use these flags, not role names, in the UI.
 - **Navigation**: Inertia `<Link>` / `router` only (`components/AppSidebar.tsx:85`).
   No raw `fetch`/`axios`/`window.location` for page transitions.
 - **Controllers**: always suffixed `Controller`, in the `Portal\{Role}` namespace of the
   portal they serve.
+
+## 4b. Unfinished sections
+
+A menu section whose content isn't built renders the shared `Pages/Portal/UnderConstruction.tsx` (`title`, `description`)
+from its controller (Accounting, Human Resource, Inbox) — never a placeholder page of its own.
 
 ## 5. Do not imitate
 

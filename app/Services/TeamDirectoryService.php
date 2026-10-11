@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Entities\Agent;
 use App\Models\Entities\Team;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
@@ -73,7 +74,8 @@ class TeamDirectoryService
     public function agents(array $filters): LengthAwarePaginator
     {
         // Keys are the table's column names.
-        $sorts = ['name' => 'u.name', 'status' => 'u.status', 'agent_type' => 'a.agent_type', 'country' => 'a.country', 'area' => 'a.area', 'role_label' => 'r.label', 'team_name' => 't.name', 'joined_at' => 'ta.joined_at', 'id' => 'a.id', 'activity' => 'a.activity', 'activated_at' => 'a.activated_at'];
+        $sorts = ['name' => 'u.name', 'status' => 'u.status', 'agent_type' => 'a.agent_type', 'country' => 'a.country', 'area' => 'a.area', 'role_label' => 'r.label', 'team_name' => 't.name', 'joined_at' => 'ta.joined_at', 'id' => 'a.id', 'activated_at' => 'a.activated_at'];
+        $sorts['status'] = DB::raw(Agent::statusSql());
 
         $query = DB::table('agents as a')
             ->join('users as u', 'u.id', '=', 'a.user_id')
@@ -85,23 +87,22 @@ class TeamDirectoryService
             ->leftJoin('sub_team_agents as sa', fn ($j) => $j->on('sa.agent_id', '=', 'a.id')->where('sa.status', 'active'))
             ->leftJoin('sub_teams as s', 's.id', '=', 'sa.sub_team_id')
             ->select(
-                'a.id', 'a.avatar', 'a.agent_type', 'a.activity', 'a.activated_at', 'a.country', 'a.country_code', 'a.area', 'u.id as user_id', 'u.name', 'u.email', 'u.status', 'r.name as role', 'r.label as role_label',
+                'a.id', 'a.avatar', 'a.agent_type', 'a.activity', 'a.activated_at', 'a.country', 'a.country_code', 'a.area', 'u.id as user_id', 'u.name', 'u.email', 'r.name as role', 'r.label as role_label',
                 't.id as team_id', 't.name as team_name', 's.id as sub_team_id', 's.name as sub_team_name', 'ta.joined_at',
             );
+        // Status as people see it (dormant agents read "inactive"); account_status is what the status menu changes.
+        $query->selectRaw(Agent::statusSql().' as status')->addSelect('u.status as account_status');
 
         $this->search($query, $filters['q'] ?? null, ['u.name', 'u.email']);
 
         if ($status = $filters['status'] ?? null) {
-            $query->where('u.status', $status);
+            $query->whereRaw(Agent::statusSql().' = ?', [$status]);
         }
         if ($teamId = $filters['team_id'] ?? null) {
             $query->where('ta.team_id', $teamId);
         }
         if ($type = $filters['agent_type'] ?? null) {
             $query->where('a.agent_type', $type);
-        }
-        if ($activity = $filters['activity'] ?? null) {
-            $query->where('a.activity', $activity);
         }
 
         return $this->sortAndPage($query, $filters, $sorts, 'name');

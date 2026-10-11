@@ -139,7 +139,8 @@ export default function RecruitmentView({ filters, scope, summary, trainees, sta
     ];
 
     const statusBars = (counts: Record<string, number>) =>
-        statuses.map((s) => ({ name: s.charAt(0).toUpperCase() + s.slice(1), value: counts[s] ?? 0 }));
+        // Statistics fold resigned / terminated into inactive (User::statisticCounts); the table filter keeps all four.
+        Object.keys(counts).map((s) => ({ name: s.charAt(0).toUpperCase() + s.slice(1), value: counts[s] ?? 0 }));
 
     return (
         <Box>

@@ -7,9 +7,13 @@ use App\Models\Entities\Agent;
 use App\Models\Entities\Team;
 use App\Models\User;
 use App\Policies\UserPolicy;
+use App\Services\GlobalPartnerService;
+use App\Services\OfficeService;
 use App\Services\RecruitmentService;
+use App\Services\SaleValidationService;
 use App\Services\SalesReportService;
 use App\Support\Areas;
+use App\Support\SocialLinks;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -22,13 +26,7 @@ class AgentProfileController extends Controller
     public function show(Request $request, Agent $agent)
     {
         $user = $request->user();
-        abort_unless(
-            $user->hasAnyRole(UserPolicy::SEARCH_ROLES)
-                || $user->can('manage', Team::class)
-                || $agent->user_id === $user->id
-                || $this->leadsAgent($user, $agent),
-            403,
-        );
+        abort_unless($this->canView($user, $agent), 403);
 
         $agent->load('user:id,name,email,status');
         $filters = $this->reports->filters(['view' => 'agents', 'agent_id' => $agent->id] + $request->only(['from', 'to', 'status']));
@@ -63,11 +61,13 @@ class AgentProfileController extends Controller
                 'phone' => $agent->phone,
                 'address' => $agent->address,
                 'signed_up' => $agent->created_at?->toDateString(),
+                // Joined Leuterio Realty (legacy lr_joined) — often before the portal sign-up.
+                'joined_lr' => $agent->lr_joined_at ? substr((string) $agent->lr_joined_at, 0, 10) : null,
                 'about' => $profile?->about,
                 'skills' => $profile?->skills,
                 'work_experience' => $profile?->work_experience,
                 'links' => array_filter([
-                    'Facebook' => $profile?->facebook,
+                    'Facebook' => SocialLinks::facebook($profile?->facebook),
                     'LinkedIn' => $profile?->linkedin,
                     'WhatsApp' => $profile?->whatsapp,
                     'Twitter / X' => $profile?->twitter,
@@ -102,7 +102,7 @@ class AgentProfileController extends Controller
                 'avatar' => $agent->avatar,
                 'email' => $agent->user?->email ?? $agent->email,
                 'mobile' => $agent->mobile,
-                'status' => $agent->user?->status,
+                'status' => Agent::displayStatus($agent->user?->status, $agent->activity),
                 'role' => $agent->user?->roles()->value('label'),
                 'agent_type' => $agent->agent_type,
                 'activity' => $agent->activity,
@@ -117,6 +117,46 @@ class AgentProfileController extends Controller
             'filters' => $filters,
             'summary' => $seesSales ? fn () => $this->reports->summary($filters) : null,
         ]);
+    }
+
+    // One agent's sales one by one (with statistics): the same people who may open the profile, and for the back office
+    // only with view_reports (like the profile's Sales section).
+    public function sales(Request $request, Agent $agent)
+    {
+        $user = $request->user();
+        abort_unless($this->canView($user, $agent) && (! $user->hasAnyRole(UserPolicy::SEARCH_ROLES) || $user->can('view_reports')), 403);
+
+        // Locked to this agent: the URL can't point it at anyone else.
+        $filters = $this->reports->lockedFilters(['view' => 'agents', 'list' => 'sales'] + $request->query(), ['agent_id' => $agent->id]);
+        $agent->load('user:id,name');
+
+        return inertia('Portal/Agents/Sales', [
+            'agent' => ['id' => $agent->id, 'name' => $agent->user?->name ?? trim("{$agent->first_name} {$agent->last_name}"), 'avatar' => $agent->avatar, 'area' => $agent->area ? Areas::name($agent->area) : null],
+            'filters' => $filters,
+            'summary' => fn () => $this->reports->summary($filters),
+            'totals' => fn () => $this->reports->categoryTotals($filters),
+            'saleList' => function () use ($filters) {
+                $page = $this->reports->saleList($filters);
+
+                return ['data' => $page->items(), 'total' => $page->total(), 'page' => $page->currentPage(), 'per_page' => $page->perPage()];
+            },
+            'saleDetail' => fn () => ($sale = (int) $request->query('sale')) && $this->reports->containsSale($filters, $sale)
+                ? app(SaleValidationService::class)->detail($sale)
+                : null,
+            'options' => ['categories' => SalesReportService::CATEGORIES, 'statuses' => SalesReportService::STATUSES],
+        ]);
+    }
+
+    // Who may open an agent's profile: the back office, team managers, the agent, their leaders, their office's secretary
+    // and, for a global partner, their sponsor.
+    private function canView(User $user, Agent $agent): bool
+    {
+        return $user->hasAnyRole(UserPolicy::SEARCH_ROLES)
+            || $user->can('manage', Team::class)
+            || $agent->user_id === $user->id
+            || $this->leadsAgent($user, $agent)
+            || ($agent->area && in_array($agent->area, app(OfficeService::class)->areasFor($user), true))
+            || app(GlobalPartnerService::class)->canManage($user, $agent);
     }
 
     // Team leaders and unit managers may open the profiles of their own active members.

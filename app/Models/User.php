@@ -23,6 +23,31 @@ class User extends Authenticatable
         self::STATUS_TERMINATED,
     ];
 
+    // Statistics only tell active from not: resigned and terminated count as inactive there (tables, filters and search
+    // keep all four).
+    public const STATISTIC_STATUSES = [self::STATUS_ACTIVE, self::STATUS_INACTIVE];
+
+    public static function statisticStatus(?string $status): string
+    {
+        return $status === self::STATUS_ACTIVE ? self::STATUS_ACTIVE : self::STATUS_INACTIVE;
+    }
+
+    /**
+     * Folds per-status counts into STATISTIC_STATUSES.
+     *
+     * @param  iterable<string, int>  $counts
+     * @return array<string, int>
+     */
+    public static function statisticCounts(iterable $counts): array
+    {
+        $folded = array_fill_keys(self::STATISTIC_STATUSES, 0);
+        foreach ($counts as $status => $n) {
+            $folded[self::statisticStatus($status)] += (int) $n;
+        }
+
+        return $folded;
+    }
+
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
@@ -35,6 +60,15 @@ class User extends Authenticatable
     protected $attributes = [
         'status' => self::STATUS_ACTIVE,
     ];
+
+    // Settings › Preferences: where a link opens (same tab = single-page, or a new tab), colour scheme and text size.
+    public const LINK_MODES = ['spa', 'tab'];
+
+    public const THEMES = ['light', 'dark', 'system'];
+
+    public const FONT_SIZES = ['small', 'default', 'large', 'xlarge'];
+
+    public const PREFERENCES_PERMISSION = 'use_preferences';
 
     protected $fillable = [
         'name',
@@ -53,6 +87,27 @@ class User extends Authenticatable
     ];
 
     /**
+     * Settings › Preferences with defaults filled in. `links.sections` maps a top-level menu path to a link mode.
+     *
+     * @return array{theme: ?string, font_size: string, links: array{default: string, sections: array<string, string>}}
+     */
+    public function preferences(): array
+    {
+        $saved = $this->preferences ?? [];
+        $links = (array) ($saved['links'] ?? []);
+
+        return [
+            // Null = not chosen yet: the device's own light/dark choice stays.
+            'theme' => in_array($saved['theme'] ?? null, self::THEMES, true) ? $saved['theme'] : null,
+            'font_size' => in_array($saved['font_size'] ?? null, self::FONT_SIZES, true) ? $saved['font_size'] : 'default',
+            'links' => [
+                'default' => in_array($links['default'] ?? null, self::LINK_MODES, true) ? $links['default'] : 'spa',
+                'sections' => array_filter((array) ($links['sections'] ?? []), fn ($mode) => in_array($mode, self::LINK_MODES, true)),
+            ],
+        ];
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -63,6 +118,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'status_changed_at' => 'datetime',
             'password' => 'hashed',
+            'preferences' => 'array',
         ];
     }
 

@@ -3,7 +3,7 @@ import { Box, Container, Grid, LinearProgress, Link as MuiLink, Typography } fro
 import { ArrowBackRounded, LoginRounded } from "@mui/icons-material";
 import ConfirmDialog from "../../../components/utils/ConfirmDialog";
 import useAuthUser from "../../../hooks/useAuthUser";
-import { router } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 import AppLayout from "../../../components/layouts/AppLayout";
 import SectionCard from "../../../components/cards/SectionCard";
 import StyledButton from "../../../components/utils/StyledButton";
@@ -61,6 +61,8 @@ interface AgentDetails {
     phone: string | null;
     address: string | null;
     signed_up: string | null;
+    // Joined Leuterio Realty (legacy lr_joined); often before the portal sign-up.
+    joined_lr: string | null;
     about: string | null;
     skills: string | null;
     work_experience: string | null;
@@ -123,7 +125,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 
 function History({ title, rows }: { title: string; rows: Membership[] }) {
     return (
-        <SectionCard title={title}>
+        <SectionCard fill title={title}>
             {rows.length === 0 ? (
                 <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)" }}>
                     None on record.
@@ -183,11 +185,8 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                             </Typography>
                         )}
                         <StatusChip status={agent.agent_type}>{AGENT_TYPE_LABELS[agent.agent_type] ?? agent.agent_type}</StatusChip>
-                        {agent.status && <StatusChip status={agent.status} />}
-                        {agent.activity === "dormant" && (
-                            <StatusChip status="dormant" title="No sale in the last 6 months since activation">
-                                Dormant
-                            </StatusChip>
+                        {agent.status && (
+                            <StatusChip status={agent.status} title={agent.activity === "dormant" ? "Inactive: no sale in the last 6 months since activation" : undefined} />
                         )}
                         <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
                             Agent #{agent.id}
@@ -206,9 +205,10 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                 )}
             </Box>
 
-            <Grid container spacing={2} sx={{ mb: 4 }}>
-                <Grid size={{ xs: 12, md: 4 }}>
-                    <SectionCard title="Upline / sponsor">
+            {/* Even rows of equal cards: six details in two rows of three, About across, then the team history. */}
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+                <Grid size={{ xs: 12, md: 6, lg: 4 }}>
+                    <SectionCard fill title="Upline / sponsor">
                         {sponsor ? (
                             <Box
                                 onClick={sponsor.linkable ? () => router.visit(`/agents/${sponsor.id}`) : undefined}
@@ -239,8 +239,8 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                         </Box>
                     </SectionCard>
                 </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                    <SectionCard title="Contact & location">
+                <Grid size={{ xs: 12, md: 6, lg: 4 }}>
+                    <SectionCard fill title="Contact & location">
                         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                             <Fact label="Email">{agent.email}</Fact>
                             <Fact label="Mobile">{agent.mobile}</Fact>
@@ -254,20 +254,20 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                         </Box>
                     </SectionCard>
                 </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                    <SectionCard title="Personal">
+                <Grid size={{ xs: 12, md: 6, lg: 4 }}>
+                    <SectionCard fill title="Personal">
                         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                             <Fact label="Full name">{[details.first_name, details.middle_name, details.last_name].filter(Boolean).join(" ")}</Fact>
                             <Fact label="Gender">{details.gender}</Fact>
                             <Fact label="Marital status">{details.marital_status}</Fact>
-                            <Fact label="Signed up">{details.signed_up ? formatDate(details.signed_up) : null}</Fact>
+                            <Fact label="Joined Leuterio Realty">{details.joined_lr ? formatDate(details.joined_lr) : null}</Fact>
+                            <Fact label="Signed up on the portal">{details.signed_up ? formatDate(details.signed_up) : null}</Fact>
                             <Fact label="Date activated">{details.date_activated ? formatDate(details.date_activated) : null}</Fact>
                         </Box>
                     </SectionCard>
                 </Grid>
-
-                <Grid size={{ xs: 12, md: 6 }}>
-                    <SectionCard title="Training">
+                <Grid size={{ xs: 12, md: 6, lg: 4 }}>
+                    <SectionCard fill title="Training">
                         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                             <Fact label="NAO progress">
                                 <Bar value={details.nao} />
@@ -292,8 +292,8 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                         </Box>
                     </SectionCard>
                 </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
-                    <SectionCard title="Credentials">
+                <Grid size={{ xs: 12, md: 6, lg: 4 }}>
+                    <SectionCard fill title="Credentials">
                         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                             <Fact label="PRC license expires">
                                 <Expiry date={details.prc_expiration} />
@@ -312,18 +312,8 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                         </Box>
                     </SectionCard>
                 </Grid>
-
-                <Grid size={{ xs: 12, md: 8 }}>
-                    <SectionCard title="About">
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                            <Fact label="About">{details.about}</Fact>
-                            <Fact label="Skills">{details.skills}</Fact>
-                            <Fact label="Work experience">{details.work_experience}</Fact>
-                        </Box>
-                    </SectionCard>
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                    <SectionCard title="Online">
+                <Grid size={{ xs: 12, md: 6, lg: 4 }}>
+                    <SectionCard fill title="Online">
                         {Object.keys(details.links).length === 0 ? (
                             <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)" }}>
                                 No links on record.
@@ -341,7 +331,15 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                         )}
                     </SectionCard>
                 </Grid>
-
+                <Grid size={{ xs: 12 }}>
+                    <SectionCard fill title="About">
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                            <Fact label="About">{details.about}</Fact>
+                            <Fact label="Skills">{details.skills}</Fact>
+                            <Fact label="Work experience">{details.work_experience}</Fact>
+                        </Box>
+                    </SectionCard>
+                </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                     <History title="Teams" rows={teams} />
                 </Grid>
@@ -356,6 +354,9 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                         <Typography variant="h6" sx={{ fontSize: 18, color: "var(--lr-text-primary)", flex: 1 }}>
                             Sales
                         </Typography>
+                        <Link href={`/agents/${agent.id}/sales?from=${filters.from}&to=${filters.to}`} style={{ color: "var(--lr-primary)", fontSize: 14, fontWeight: 500 }}>
+                            See every sale
+                        </Link>
                         <DateRangeField value={filters} presets={reportPresets()} onChange={changeRange} />
                     </Box>
                     {loading && <LinearProgress sx={{ height: 2, mb: 2 }} />}

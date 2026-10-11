@@ -198,3 +198,17 @@ As of 2026-10-11: step 1 = 18,171 · step 2 = 2,788 · step 3 = 378 · step 4 = 
 
 As of 2026-10-11: 19,275 agents have an activation date. After `agents:refresh-activity`: 15,442 active, 67,466
 dormant overall; of the 19,252 users who can sign in, 2,888 active and 16,364 dormant.
+
+## Default country
+
+Members with no country recorded get the Philippines (`PH`), both on import (`LegacyAgentOrigin`, after the agent
+type is decided on the raw value) and for agents saved in the portal (`Agent::saving`). Backfill on 2026-10-11
+(migration `000027`): 18,241 agents set to PH; agent types and areas unchanged. 10 agents keep a foreign country
+the code list doesn't cover (Réunion, Palau, …).
+
+## Global partner confirmation
+
+`members.sponsor_activation_status` = `'confirmed'` (else null) → `agents.sponsor_confirmed_at` (legacy kept no date: the
+activation date, else sign-up date). `php artisan legacy:import-partner-confirmations [--dry-run]` fills blanks only.
+On 2026-10-11: 3,325 members confirmed; 3,190 of our 4,054 global partners confirmed, 864 waiting (the other 135
+confirmed members are local agents under our rule).

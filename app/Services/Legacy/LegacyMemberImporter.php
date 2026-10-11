@@ -72,7 +72,7 @@ class LegacyMemberImporter
         'hashpass', 'password', 'gender', 'maritalstatus', 'phone', 'mobile', 'address', 'city', 'state',
         'photo', 'aboutyourself', 'specialskills', 'workexperience', 'fblink', 'tin', 'dateactivated',
         'nao_video_tracker', 'nao_proof_of_attendance', 'nao_attendance_confirmation', 'nao_date_attended',
-        'fire_certs_count', 'prc_expiry', 'dshud_expiry', 'national_intern', 'country', 'lr_joined', 'registration_status', 'created_at', 'updated_at',
+        'fire_certs_count', 'prc_expiry', 'dshud_expiry', 'national_intern', 'country', 'lr_joined', 'registration_status', 'sponsor_activation_status', 'created_at', 'updated_at',
     ];
 
     private ConnectionInterface $legacy;
@@ -179,6 +179,14 @@ class LegacyMemberImporter
     }
 
     // 194 emails are shared by several members; the most recently updated record represents the person.
+    // members.lr_joined as Y-m-d, or null for "0000-00-00" / blanks.
+    public static function lrJoined(mixed $value): ?string
+    {
+        $value = substr(trim((string) $value), 0, 10);
+
+        return preg_match('/^[12]\d{3}-\d{2}-\d{2}$/', $value) ? $value : null;
+    }
+
     private function chooseMemberPerEmail(): void
     {
         $latest = [];
@@ -391,7 +399,11 @@ class LegacyMemberImporter
                 'marital_status' => in_array(trim((string) $m->maritalstatus), self::MARITAL_STATUSES, true) ? trim($m->maritalstatus) : null,
                 ...$origin,
                 // Unix timestamp; drives agents.activity (run agents:refresh-activity after importing).
-                'activated_at' => (int) $m->dateactivated > 0 ? Carbon::createFromTimestamp((int) $m->dateactivated)->toDateTimeString() : null,
+                // Joined Leuterio Realty (often before the portal sign-up); "0000-00-00" means not recorded.
+                'lr_joined_at' => self::lrJoined($m->lr_joined),
+                'activated_at' => $activatedAt = (int) $m->dateactivated > 0 ? Carbon::createFromTimestamp((int) $m->dateactivated)->toDateTimeString() : null,
+                // Global partner confirmed by their sponsor; legacy kept no date, so the activation (else sign-up) date.
+                'sponsor_confirmed_at' => strtolower(trim((string) ($m->sponsor_activation_status ?? ''))) === 'confirmed' ? ($activatedAt ?? $created ?? now()->toDateTimeString()) : null,
                 'area' => Areas::forAgent($this->clean($m->state), $this->clean($m->city), $origin['country_code']),
             ],
             'profile' => [

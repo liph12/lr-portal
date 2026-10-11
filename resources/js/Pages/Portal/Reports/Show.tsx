@@ -7,6 +7,8 @@ interface ReportShowProps extends Omit<SalesReportViewProps, "title" | "subtitle
     report: string;
     // Leaders see their own team, other field roles their own sales (set by the server).
     scopeLocked: boolean;
+    // Developers by Area: the areas to pick from (none for a locked reader).
+    areaOptions: Record<string, string> | null;
 }
 
 // One report from the Reports cards: date range, statistics and its ranked table.

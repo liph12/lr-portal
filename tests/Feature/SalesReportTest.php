@@ -289,3 +289,195 @@ test('client age bands count only believable ages (18–99) and say how many wer
             ->where('stats.clients.countries', fn ($c) => collect($c)->pluck('sales', 'name')->get('Philippines') === 2)
             ->has('stats.clients.genders', 3));
 });
+
+test('agents without an area count in the totals but never show as an "Unassigned" area', function () {
+    DB::table('agents')->where('id', $this->ana)->update(['area' => 'cebu']);
+    DB::table('agents')->where('id', $this->ben)->update(['area' => null]);
+    $range = ['from' => '2026-01-01', 'to' => '2026-10-11'];
+
+    ($this->report)($range)
+        ->assertInertia(fn ($page) => $page
+            ->where('summary.kpis.value.value', 20_300_000)
+            ->where('summary.areas', fn ($areas) => collect($areas)->pluck('area')->all() === ['cebu']));
+
+    ($this->report)($range + ['view' => 'areas'])
+        ->assertInertia(fn ($page) => $page->where('breakdown.total', 1)->where('breakdown.data.0.name', 'Cebu'));
+
+    // The old "unassigned" drill-down is gone: it's ignored, not a scope.
+    ($this->report)($range + ['view' => 'agents', 'area' => 'unassigned'])
+        ->assertInertia(fn ($page) => $page->where('scope', null)->where('breakdown.total', 2));
+});
+
+test('Top Team Leaders ranks team leaders by their own sales, like Top Unit Managers', function () {
+    $role = Role::create(['name' => 'team_leader', 'label' => 'Team Leader']);
+    User::find(DB::table('agents')->where('id', $this->ana)->value('user_id'))->roles()->attach($role);
+
+    $this->actingAs($this->superadmin)->get('/reports/top-team-leaders?from=2026-01-01&to=2026-10-11')
+        ->assertInertia(fn ($page) => $page->where('filters.view', 'team_leaders')
+            // Only Ana leads; Ben's sales don't count here.
+            ->where('breakdown.data', fn ($rows) => collect($rows)->pluck('name')->all() === ['Ana Reyes'])
+            ->where('summary.kpis.value.value', 16_000_000));
+});
+
+test('Developers by Area: pick an area to rank its developers, then open one to see who sold it there', function () {
+    DB::table('developers')->insert(['id' => 11, 'name' => 'Ayala Land']);
+    DB::table('agents')->where('id', $this->ana)->update(['area' => 'cebu']);
+    DB::table('agents')->where('id', $this->ben)->update(['area' => 'davao']);
+    $t = AgentTransaction::create(['agent_id' => $this->ben, 'sale_type' => 'project', 'commission_status' => 'Unclaimed', 'sale_status' => 'valid']);
+    DB::table('agent_project_transactions')->insert(['agent_transaction_id' => $t->id, 'total_contract_price' => 7_000_000, 'reservation_date' => '2026-06-01', 'developer_id' => 11, 'project_name' => 'Avida']);
+    $range = 'from=2026-01-01&to=2026-10-11';
+
+    $this->actingAs($this->superadmin)->get("/reports/area-developers?{$range}")
+        ->assertInertia(fn ($page) => $page->where('filters.view', 'developers')->where('areaOptions.cebu', 'Cebu')
+            ->where('breakdown.data', fn ($rows) => collect($rows)->pluck('name')->sort()->values()->all() === ['Ayala Land', 'Cebu Landmasters']));
+
+    // Davao: only Ben's sales — Cebu Landmasters (4M) and Ayala Land (7M).
+    $this->actingAs($this->superadmin)->get("/reports/area-developers?{$range}&area=davao")
+        ->assertInertia(fn ($page) => $page->where('breakdown.data', fn ($rows) => collect($rows)->pluck('value', 'name')->map(fn ($v) => (float) $v)->all() == ['Ayala Land' => 7_000_000.0, 'Cebu Landmasters' => 4_000_000.0]));
+
+    // Opening Cebu Landmasters from Cebu: the agents who sold it in Cebu, named in the header with the area.
+    $this->actingAs($this->superadmin)->get("/reports/top-agents?{$range}&area=cebu&developer_id=10")
+        ->assertInertia(fn ($page) => $page->where('scope.type', 'developer')
+            ->where('scope.facts', fn ($facts) => collect($facts)->pluck('value', 'label')->get('Area') === 'Cebu')
+            ->where('breakdown.data', fn ($rows) => collect($rows)->pluck('name')->all() === ['Ana Reyes'])
+            ->where('summary.kpis.value.value', 10_000_000));
+});
+
+test('a locked reader may still open a developer within their reach, and both new reports are permissions', function () {
+    $staffRole = Role::create(['name' => 'staff', 'label' => 'Staff']);
+    grantReports($staffRole);
+    $staffRole->permissions()->detach(Permission::whereIn('name', ['report_top_team_leaders', 'report_area_developers'])->pluck('id'));
+    $staff = User::factory()->create();
+    $staff->roles()->attach($staffRole);
+
+    $this->actingAs($staff)->get('/reports')->assertInertia(fn ($page) => $page->where('available', fn ($a) => ! collect($a)->contains('top-team-leaders') && ! collect($a)->contains('area-developers')));
+    $this->actingAs($staff)->get('/reports/area-developers')->assertForbidden();
+
+    // A team leader (locked to Alpha) opening a developer: Alpha's sales of that developer only.
+    $tl = Role::create(['name' => 'team_leader', 'label' => 'Team Leader']);
+    grantReports($tl);
+    $leader = User::find(DB::table('agents')->where('id', $this->ana)->value('user_id'));
+    $leader->roles()->attach($tl);
+    $this->actingAs($leader)->get('/reports/top-agents?from=2026-01-01&to=2026-10-11&developer_id=10')
+        ->assertInertia(fn ($page) => $page->where('scopeLocked', true)->where('filters.team_id', $this->alpha)->where('filters.developer_id', 10));
+});
+
+test('inside a developer, the Sales tab lists its sales one by one for the same filters (read-only)', function () {
+    DB::table('agent_transaction_details')->insert(['agent_transaction_id' => AgentTransaction::where('agent_id', $this->ana)->where('sale_type', 'project')->orderBy('id')->value('id'), 'client_first_name' => 'Juan Dela Cruz', 'client_mobile' => '1', 'client_country' => 'PH']);
+    $base = '/reports/top-agents?from=2026-01-01&to=2026-10-11&developer_id=10';
+
+    // Top agents by default: no list sent.
+    $this->actingAs($this->superadmin)->get($base)->assertInertia(fn ($page) => $page->where('saleList', null)->where('scope.type', 'developer'));
+
+    // Valid project sales of Cebu Landmasters in range: Ana's 10M (Mar 10) and Ben's 4M (Apr 2) — newest first.
+    $this->actingAs($this->superadmin)->get("{$base}&list=sales")
+        ->assertInertia(fn ($page) => $page->where('filters.list', 'sales')
+            ->where('saleList.total', 2)
+            ->where('saleList.data.0', fn ($r) => $r['agent_name'] === 'Ben Cruz' && $r['project_name'] === 'Mivela' && $r['reservation_date'] === '2026-04-02' && $r['sale_status'] === 'valid' && $r['created_at'] !== null)
+            ->where('saleList.data.1', fn ($r) => $r['agent_name'] === 'Ana Reyes' && $r['client_first_name'] === 'Juan Dela Cruz' && (float) $r['value'] === 10_000_000.0));
+
+    // The date range and status follow: all statuses adds Ana's pending 99M (May 21); April only keeps Ben's.
+    $this->actingAs($this->superadmin)->get("{$base}&list=sales&status=all")->assertInertia(fn ($page) => $page->where('saleList.total', 3));
+    $this->actingAs($this->superadmin)->get('/reports/top-agents?from=2026-04-01&to=2026-04-30&developer_id=10&list=sales')
+        ->assertInertia(fn ($page) => $page->where('saleList.total', 1)->where('saleList.data.0.agent_name', 'Ben Cruz'));
+
+    // Without a developer there's no list (it's only offered inside one).
+    $this->actingAs($this->superadmin)->get('/reports/top-agents?from=2026-01-01&to=2026-10-11&list=sales')->assertInertia(fn ($page) => $page->where('saleList', null));
+});
+
+test('the Sales tab searches by agent, client, project or unit', function () {
+    $ana = AgentTransaction::where('agent_id', $this->ana)->where('sale_type', 'project')->orderBy('id')->value('id');
+    DB::table('agent_transaction_details')->insert(['agent_transaction_id' => $ana, 'client_first_name' => 'Maria Santos', 'client_mobile' => '1', 'client_country' => 'PH']);
+    DB::table('agent_transactions')->where('id', $ana)->update(['unit_number' => 'T7-1203']);
+    $count = fn (string $q) => $this->actingAs($this->superadmin)
+        ->get('/reports/top-agents?from=2026-01-01&to=2026-10-11&developer_id=10&list=sales&q='.urlencode($q))->viewData('page')['props']['saleList']['total'];
+
+    expect($count('ben'))->toBe(1)        // agent
+        ->and($count('santos'))->toBe(1)  // client
+        ->and($count('t7-12'))->toBe(1)   // unit
+        ->and($count('mivela'))->toBe(2)  // project
+        ->and($count('nobody'))->toBe(0);
+});
+
+test('a sale in the Sales tab opens read-only with its details and proof of transaction, only if it\'s in the report', function () {
+    $anaSale = AgentTransaction::where('agent_id', $this->ana)->where('sale_type', 'project')->orderBy('id')->first();
+    DB::table('agent_project_transactions')->where('agent_transaction_id', $anaSale->id)->update(['proof_of_transaction' => 'https://files.test/pot.jpg']);
+    DB::table('agent_transaction_details')->insert(['agent_transaction_id' => $anaSale->id, 'client_first_name' => 'Juan Dela Cruz', 'client_mobile' => '0917', 'client_country' => 'PH']);
+    $base = '/reports/top-agents?from=2026-01-01&to=2026-10-11&developer_id=10&list=sales';
+
+    $this->actingAs($this->superadmin)->get("{$base}&sale={$anaSale->id}")
+        ->assertInertia(fn ($page) => $page
+            ->where('saleDetail.id', $anaSale->id)
+            ->where('saleDetail.property.proof_of_transaction', 'https://files.test/pot.jpg')
+            ->where('saleDetail.client.client_first_name', 'Juan Dela Cruz')
+            ->where('saleDetail.agent.name', 'Ana Reyes')
+            ->where('saleDetail.names.developer', 'Cebu Landmasters'));
+
+    // Outside the report's dates (the Dec 2025 sale) — not opened.
+    $old = AgentTransaction::where('agent_id', $this->ana)->whereHas('projectTransaction', fn ($q) => $q->where('reservation_date', '2025-12-31'))->value('id');
+    $this->actingAs($this->superadmin)->get("{$base}&sale={$old}")->assertInertia(fn ($page) => $page->where('saleDetail', null));
+
+    // A team leader locked to Alpha can't open Ben's sale (he's on Bravo, not Alpha)...
+    $bravo = DB::table('teams')->insertGetId(['name' => 'Bravo', 'agent_id' => $this->ben, 'status' => 'active']);
+    DB::table('team_agents')->insert(['team_id' => $bravo, 'agent_id' => $this->ben, 'joined_at' => '2026-01-01', 'status' => 'active']);
+    $tl = Role::create(['name' => 'team_leader', 'label' => 'Team Leader']);
+    grantReports($tl);
+    $leader = User::find(DB::table('agents')->where('id', $this->ana)->value('user_id'));
+    $leader->roles()->attach($tl);
+    $benSale = AgentTransaction::where('agent_id', $this->ben)->where('sale_type', 'project')->value('id');
+    $this->actingAs($leader)->get("{$base}&sale={$benSale}")->assertInertia(fn ($page) => $page->where('saleDetail', null));
+    // ...but can open their own team's.
+    $this->actingAs($leader)->get("{$base}&sale={$anaSale->id}")->assertInertia(fn ($page) => $page->where('saleDetail.id', $anaSale->id));
+});
+
+test('My Sales lists the signed-in agent\'s own sales one by one, with statistics, and opens only their own', function () {
+    $ana = User::find(DB::table('agents')->where('id', $this->ana)->value('user_id'));
+    $range = 'from=2026-01-01&to=2026-10-11&status=all';
+
+    // Ana: two project sales in range (10M Mar 10, pending 99M May 21) and a brokerage sale (6M May 20); Ben's aren't hers.
+    $this->actingAs($ana)->get("/dashboard/my-sales?{$range}&agent_id={$this->ben}")
+        ->assertInertia(fn ($page) => $page->component('Portal/Dashboard/MySales/Index')
+            ->where('filters.agent_id', $this->ana)
+            ->where('saleList.total', 3)
+            ->where('saleList.data', fn ($rows) => collect($rows)->pluck('category')->all() === ['project', 'brokerage', 'project'])
+            ->where('saleList.data.1.brokerage_area', 'Cebu Brokerage')
+            ->where('summary.kpis.value.value', 115_000_000));
+
+    $benSale = AgentTransaction::where('agent_id', $this->ben)->value('id');
+    $anaSale = AgentTransaction::where('agent_id', $this->ana)->where('sale_type', 'brokerage')->value('id');
+    $this->actingAs($ana)->get("/dashboard/my-sales?{$range}&sale={$benSale}")->assertInertia(fn ($page) => $page->where('saleDetail', null));
+    $this->actingAs($ana)->get("/dashboard/my-sales?{$range}&sale={$anaSale}")->assertInertia(fn ($page) => $page->where('saleDetail.category', 'brokerage'));
+
+    // No agent record: nothing to show.
+    $this->actingAs($this->superadmin)->get('/dashboard/my-sales')->assertForbidden();
+});
+
+test('an agent\'s sales page lists their sales with statistics, for whoever may open their profile', function () {
+    $range = 'from=2026-01-01&to=2026-10-11&status=all';
+
+    // Back office with reports: Ana's three sales, locked to her whatever the URL says.
+    $this->actingAs($this->superadmin)->get("/agents/{$this->ana}/sales?{$range}&agent_id={$this->ben}")
+        ->assertInertia(fn ($page) => $page->component('Portal/Agents/Sales')
+            ->where('agent.name', 'Ana Reyes')
+            ->where('filters.agent_id', $this->ana)
+            ->where('saleList.total', 3)
+            ->where('summary.kpis.value.value', 115_000_000));
+
+    // Picking a category narrows the list, but the totals keep every category.
+    $this->actingAs($this->superadmin)->get("/agents/{$this->ana}/sales?{$range}&category=brokerage")
+        ->assertInertia(fn ($page) => $page
+            ->where('saleList.total', 1)
+            ->where('totals', fn ($totals) => collect($totals)->mapWithKeys(fn ($t) => [$t['category'] => [$t['sales'], $t['value']]])->all()
+                == ['project' => [2, 109_000_000], 'rental' => [0, 0], 'brokerage' => [1, 6_000_000]]));
+
+    // Staff without view_reports see profiles but not sales.
+    $staffRole = Role::create(['name' => 'staff', 'label' => 'Staff']);
+    $staff = User::factory()->create();
+    $staff->roles()->attach($staffRole);
+    $this->actingAs($staff)->get("/agents/{$this->ana}/sales")->assertForbidden();
+
+    // Ana leads Alpha, Ben isn't on it: she can't open his; her own is fine.
+    $ana = User::find(DB::table('agents')->where('id', $this->ana)->value('user_id'));
+    $this->actingAs($ana)->get("/agents/{$this->ben}/sales")->assertForbidden();
+    $this->actingAs($ana)->get("/agents/{$this->ana}/sales")->assertOk();
+});

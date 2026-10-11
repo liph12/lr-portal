@@ -104,3 +104,13 @@ body {
     overflow: hidden;
     overscroll-behavior: none;
 }
+
+/* Inertia's root, so AppLayout can fill the page by percentage. */
+#app {
+    height: 100%;
+}
+
+/* Settings › Preferences text size (helpers/appearance.ts); on body so menus and dialogs scale with the page. */
+body {
+    zoom: var(--lr-zoom, 1);
+}

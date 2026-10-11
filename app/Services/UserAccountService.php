@@ -2,17 +2,28 @@
 
 namespace App\Services;
 
+use App\Models\Entities\Agent;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class UserAccountService
 {
-    public function __construct(private ActivityLogger $activity) {}
+    public function __construct(private ActivityLogger $activity, private AgentActivityService $agentActivity) {}
 
     public function changeStatus(User $actor, User $user, string $status): void
     {
         $previous = $user->status;
+        $agent = $user->agent()->first(['id', 'activity']);
+
+        // A dormant agent shows as inactive though the account is active: setting them active again restarts their
+        // activation date, so the 6-month window starts over.
+        if ($status === User::STATUS_ACTIVE && $agent?->activity === Agent::ACTIVITY_DORMANT && ! $actor->is($user)) {
+            DB::table('agents')->where('id', $agent->id)->update(['activated_at' => now()]);
+            $this->agentActivity->refresh([$agent->id]);
+            $this->activity->describe('user.reactivated', "Reactivated {$user->name} (no sale in 6 months)", $user, ['activated_at' => now()->toDateTimeString()]);
+        }
 
         if ($previous === $status) {
             return;

@@ -14,9 +14,11 @@ import {
     AssessmentRounded,
     Diversity3Rounded,
     FactCheckRounded,
+    PublicRounded,
+    ReceiptLongRounded,
 } from "@mui/icons-material";
 import { REPORTS } from "./components/reports/reportCatalog";
-import { BACKOFFICE, LEADER, TEAM_LEADER } from "./helpers/permissions";
+import { AGENT, BACKOFFICE, LEADER, PARTNERS, SECRETARY, TEAM_LEADER } from "./helpers/permissions";
 
 // The dashboard is the same for every role (shared /dashboard routes); Record Your Sale needs a recording permission.
 export const dashboardRoute = {
@@ -39,10 +41,20 @@ export const dashboardRoute = {
             icon: StorageRounded,
         },
         {
+            name: "My Sales",
+            path: "/dashboard/my-sales",
+            // Anyone with an agent record: their own sales, one by one.
+            permission: AGENT,
+            children: [],
+            icon: ReceiptLongRounded,
+        },
+        {
             name: "Record Your Sale",
             path: "/dashboard/record-sale",
             // Any of these: local roles record project/rental/brokerage, global partners international.
             permission: ["record_sales", "record_international_sales"],
+            // Opened from the sidebar's Record Your Sale button; kept here for breadcrumbs and search.
+            tab: false,
             children: [
                 {
                     name: "Project Sale",
@@ -79,6 +91,19 @@ export const dashboardRoute = {
             permission: ["view_reports", "_leader"],
             children: [],
         },
+    ],
+};
+
+// Global partners: the back office sees every partner, a sponsor their own invites; the badge counts those waiting
+// for confirmation (usePortalRoutes). Their statistics are international sales only, apart from the local reports.
+export const globalPartnersRoute = {
+    name: "Global Partners",
+    path: "/global-partners",
+    icon: PublicRounded,
+    permission: PARTNERS,
+    children: [
+        { name: "Partners", path: "/global-partners", children: [] },
+        { name: "Statistics", path: "/global-partners/statistics", permission: "view_global_partner_statistics", children: [] },
     ],
 };
 
@@ -122,11 +147,13 @@ const managementRoute = (base: string) => ({
 export const useAppRoutes = [
     dashboardRoute,
     reportsRoute,
+    globalPartnersRoute,
     managementRoute("/superadmin/management"),
     {
         name: "Statistics",
         path: "/superadmin/statistics",
         icon: BarChartRounded,
+        permission: "view_statistics",
         children: [],
     },
     {
@@ -170,27 +197,46 @@ export const useAppRoutes = [
                 path: "/superadmin/settings/sales-cutoffs",
                 children: [],
             },
+            {
+                name: "Preferences",
+                path: "/settings/preferences",
+                permission: "use_preferences",
+                children: [],
+            },
         ],
     },
 ];
+
+// Everyone else's Settings: just their own Preferences (theme, text size, where links open).
+export const settingsRoute = {
+    name: "Settings",
+    path: "/settings/preferences",
+    icon: SettingsRounded,
+    permission: "use_preferences",
+    children: [{ name: "Preferences", path: "/settings/preferences", permission: "use_preferences", children: [] }],
+};
 
 // Admin and staff menus. `permission` hides an item (and the route enforces the same gate) unless the
 // user's role has it — manage this in Settings › Roles & permissions.
 export const adminRoutes = [
     dashboardRoute,
     reportsRoute,
-    { name: "Statistics", path: "/admin/statistics", icon: BarChartRounded, permission: "view_reports", children: [] },
+    globalPartnersRoute,
+    { name: "Statistics", path: "/admin/statistics", icon: BarChartRounded, permission: "view_statistics", children: [] },
     managementRoute("/admin/management"),
     { name: "Sales validation", path: "/admin/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
     { name: "Documentation", path: "/admin/documentation", icon: FolderShared, permission: "manage_documents", children: [] },
+    settingsRoute,
 ];
 
 export const staffRoutes = [
     dashboardRoute,
     reportsRoute,
-    { name: "Statistics", path: "/staff/statistics", icon: BarChartRounded, permission: "view_reports", children: [] },
+    globalPartnersRoute,
+    { name: "Statistics", path: "/staff/statistics", icon: BarChartRounded, permission: "view_statistics", children: [] },
     { name: "Sales validation", path: "/staff/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
     { name: "Documentation", path: "/staff/documentation", icon: FolderShared, permission: "manage_documents", children: [] },
+    settingsRoute,
 ];
 
 // Added to any menu for people who lead a team or sub-team (usePortalRoutes checks auth.leads).
@@ -214,8 +260,15 @@ export const pagesOutsideMenu = [
     { name: "Edit profile", path: "/profile" },
 ];
 
-// Roles without a portal (agents, team leaders, unit managers, …): the dashboard is their whole menu.
-export const memberRoutes = [dashboardRoute, reportsRoute];
+// Roles without a portal (agents, team leaders, unit managers, secretaries, …): the dashboard and reports; an office's
+// secretary also validates that office's sales (shared /sales-validation).
+export const memberRoutes = [
+    dashboardRoute,
+    reportsRoute,
+    globalPartnersRoute,
+    { name: "Sales validation", path: "/sales-validation", icon: FactCheckRounded, permission: SECRETARY, requires: ["sales_validation"], children: [] },
+    settingsRoute,
+];
 
 export const portalRoutes = {
     superadmin: useAppRoutes,

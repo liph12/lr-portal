@@ -180,7 +180,6 @@ export interface StatsSummary {
     monthly: { month: string; sales: number; value: number }[];
     developers: { name: string; sales: number; value: number }[];
     propertyTypes: { name: string; sales: number; value: number }[];
-    commission: { status: string; sales: number }[];
     // Clients of the period's project sales.
     clients: {
         countries: { name: string; code: string | null; sales: number; value: number }[];
@@ -233,6 +232,8 @@ export interface AgentRow {
     avatar: string | null;
     status: string;
     agent_type: "local" | "global_partner";
+    // Shown status (dormant agents read "inactive"); account_status is the real users.status the menu changes.
+    account_status: string;
     // Dormant: 6 months without a sale since activation (never blocks sign-in).
     activity: "active" | "dormant";
     activated_at: string | null;

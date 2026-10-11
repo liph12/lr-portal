@@ -12,8 +12,9 @@ class Permission extends Model
     public const SECTIONS = [
         'Dashboard & sales' => ['view_dashboard', 'record_sales', 'record_international_sales', 'sales_validation', 'view_leaderboards'],
         'Reports' => ['view_reports', 'create_report'],
+        'Statistics' => ['view_statistics', 'view_global_partner_statistics'],
         'Documentation' => ['manage_documents'],
-        'Users & settings' => ['view_profile', 'search_user', 'edit_user', 'edit_settings'],
+        'Users & settings' => ['view_profile', 'search_user', 'edit_user', 'edit_settings', 'use_preferences'],
     ];
 
     public const OTHER_SECTION = 'Other';

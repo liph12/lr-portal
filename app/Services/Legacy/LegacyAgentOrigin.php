@@ -18,10 +18,14 @@ final class LegacyAgentOrigin
     {
         ['name' => $country, 'code' => $code] = Countries::resolve($member->country ?? null);
 
+        // The type is decided on what legacy recorded; only then does a missing country default to the Philippines.
+        $type = Agent::typeFromLegacy($member->national_intern ?? null, self::joinedOn($member), $country, $code);
+        $blank = $country === null && $code === null;
+
         return [
-            'country' => $country,
-            'country_code' => $code,
-            'agent_type' => Agent::typeFromLegacy($member->national_intern ?? null, self::joinedOn($member), $country, $code),
+            'country' => $blank ? Agent::DEFAULT_COUNTRY : $country,
+            'country_code' => $blank ? Agent::DEFAULT_COUNTRY_CODE : $code,
+            'agent_type' => $type,
         ];
     }
 

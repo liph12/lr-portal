@@ -7,6 +7,8 @@ import SideRail from "./SideRail";
 import ViewAsBanner from "../utils/user/ViewAsBanner";
 import ImpersonationBanner from "../utils/user/ImpersonationBanner";
 import useAuthUser from "../../hooks/useAuthUser";
+import useLinkBehaviour from "../../hooks/useLinkBehaviour";
+import useAppearance from "../../hooks/useAppearance";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
     const theme = useTheme();
@@ -22,12 +24,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
     // Persistent layouts survive navigation, so close the drawer once a link lands.
     useEffect(() => setDrawerOpen(false), [url]);
+    useLinkBehaviour(() => setDrawerOpen(false));
+    useAppearance();
 
     return (
         <Box
             sx={{
-                height: "100vh",
-                "@supports (height: 100dvh)": { height: "100dvh" },
+                // The page's height (html → body → #app), not 100vh: viewport units would grow with the text-size zoom.
+                height: "100%",
                 display: "flex",
                 flexDirection: "column",
                 overflow: "hidden",

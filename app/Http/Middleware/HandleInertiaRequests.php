@@ -5,11 +5,16 @@ namespace App\Http\Middleware;
 use App\Models\Entities\Team;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\GlobalPartnerService;
 use App\Services\GroupSearchService;
 use App\Services\ImpersonationService;
+use App\Services\OfficeService;
 use App\Services\TeamLeadershipService;
+use App\Services\UserPreferenceService;
 use App\Services\LeaderboardService;
 use App\Services\OnlineUsersService;
+use App\Services\SaleValidationService;
+use App\Support\Areas;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -60,6 +65,18 @@ class HandleInertiaRequests extends Middleware
                 'impersonator' => ($impersonator = app(ImpersonationService::class)->impersonator($request)) ? ['id' => $impersonator->id, 'name' => $impersonator->name] : null,
                 // Teams / sub-teams this user leads: drives the My Team menu and its switcher.
                 'leads' => app(TeamLeadershipService::class)->summaryFor($request->user()),
+                // Global partners in reach (everyone's for the back office, their invites for a sponsor) and how many wait
+                // for confirmation: the menu item and its badge.
+                'global_partners' => ($gp = app(GlobalPartnerService::class))->reach($request->user()) === false
+                    ? null
+                    : ['pending' => $gp->pendingCount($request->user())],
+                // Pending sales this user can validate (all for the back office, their area's for a secretary), any date:
+                // the Sales validation menu badge. Null when they don't validate sales.
+                'sales_validation' => ($pending = app(SaleValidationService::class)->pendingCount($request->user())) === null
+                    ? null
+                    : ['pending' => $pending],
+                // Areas of the offices this user is the secretary of: their sales validation and statistics reach.
+                'office_areas' => collect(app(OfficeService::class)->areasFor($request->user()))->map(fn ($a) => Areas::name($a))->values(),
                 'view_as_roles' => $request->user()->reallyHasRole(Role::SUPERADMIN)
                     ? Role::where('name', '!=', Role::SUPERADMIN)->orderBy('label')->get(['name', 'label'])
                     : [],
@@ -70,6 +87,8 @@ class HandleInertiaRequests extends Middleware
                 'avatar' => $request->user()->agent()->value('avatar'),
                 // Imported agents keep their legacy member id, which is also their referral number.
                 'agent_id' => $request->user()->agent()->value('id'),
+                // Settings › Preferences (links, theme, text size); null without use_preferences = defaults.
+                'preferences' => app(UserPreferenceService::class)->sharedFor($request->user()),
                 'can' => [
                     'access_superadmin' => $request->user()->hasRole(Role::SUPERADMIN),
                     'search_users' => $request->user()->can('search', User::class),

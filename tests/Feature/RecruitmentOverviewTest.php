@@ -58,7 +58,10 @@ test('cards: members by status, recruits in range, NAO finished and FIRE as perc
     $this->actingAs($this->superadmin)->get('/reports/recruits?from=2026-01-01&to=2026-10-11')
         ->assertInertia(fn ($page) => $page->component('Portal/Reports/Recruits')
             ->where('summary.members.total', 6)
-            ->where('summary.members.by_status', ['active' => 4, 'inactive' => 1, 'resigned' => 1, 'terminated' => 0])
+            // Statistics only split active / inactive: Eve (resigned) counts as inactive.
+            ->where('summary.members.by_status', ['active' => 4, 'inactive' => 2])
+            // The table's status filter still offers every status.
+            ->where('statuses', ['active', 'inactive', 'resigned', 'terminated'])
             ->where('summary.recruits.total', 4)
             // Ann, Ben, Cy (Dee sold, Eve signed up earlier)
             ->where('summary.trainees', 3)

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\RecruitProgressService;
 use App\Services\RecruitmentService;
+use App\Services\SaleValidationService;
 use App\Services\SalesReportService;
 use App\Services\TeamLeadershipService;
 use Illuminate\Http\Request;
@@ -24,6 +25,9 @@ class ReportsController extends Controller
         'area-sales' => 'areas',
         'top-agents' => 'agents',
         'top-unit-managers' => 'unit_managers',
+        'top-team-leaders' => 'team_leaders',
+        // The developer ranking with an area picker; a developer opens the agents who sold it there.
+        'area-developers' => 'developers',
     ];
 
     // Each report is its own permission (Settings › Roles & permissions › Reports): "report_" + slug.
@@ -104,8 +108,25 @@ class ReportsController extends Controller
             'report' => $report,
             'filters' => $filters,
             'scopeLocked' => $lock !== null,
+            // Developers by Area picks the area — for readers who see every area (a locked reader's group can't change).
+            'areaOptions' => $report === 'area-developers' && $lock === null
+                ? collect(config('areas'))->map(fn ($a) => $a['name'])
+                : null,
             'scope' => fn () => $this->reports->scope($filters),
             'summary' => fn () => $this->reports->summary($filters),
+            // A sale clicked in the Sales tab (?sale=ID), read-only — only one that's in this report and the reader's reach.
+            'saleDetail' => fn () => ($sale = (int) $request->query('sale')) && $filters['list'] === 'sales' && $this->reports->containsSale($filters, $sale)
+                ? app(SaleValidationService::class)->detail($sale)
+                : null,
+            // Inside a developer, the Sales tab: its sales one by one.
+            'saleList' => function () use ($filters) {
+                if ($filters['list'] !== 'sales' || ! $filters['developer_id']) {
+                    return null;
+                }
+                $page = $this->reports->saleList($filters);
+
+                return ['data' => $page->items(), 'total' => $page->total(), 'page' => $page->currentPage(), 'per_page' => $page->perPage()];
+            },
             'breakdown' => function () use ($filters) {
                 $page = $this->reports->breakdown($filters);
 
@@ -147,7 +168,7 @@ class ReportsController extends Controller
             'team_id' => $request->integer('team_id'),
             'sub_team_id' => $request->integer('sub_team_id'),
             'sponsor_id' => $request->integer('sponsor_id'),
-            'area' => is_string($area) && ($area === SalesReportService::UNASSIGNED_AREA || array_key_exists($area, config('areas'))) ? $area : null,
+            'area' => is_string($area) && array_key_exists($area, config('areas')) ? $area : null,
         ]);
     }
 

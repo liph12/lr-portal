@@ -5,9 +5,11 @@ interface SectionCardProps {
     title: string;
     subtitle?: string;
     children: ReactNode;
+    // Fill the grid cell, so cards side by side end level (only when it's the cell's one card).
+    fill?: boolean;
 }
 
-export default function SectionCard({ title, subtitle, children }: SectionCardProps) {
+export default function SectionCard({ title, subtitle, children, fill = false }: SectionCardProps) {
     return (
         <Box
             component="section"
@@ -16,6 +18,9 @@ export default function SectionCard({ title, subtitle, children }: SectionCardPr
                 borderRadius: 3,
                 backgroundColor: "var(--lr-surface)",
                 overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+                ...(fill ? { height: "100%" } : {}),
             }}
         >
             <Box sx={{ px: { xs: 2, sm: 3 }, pt: 2.5, pb: 2 }}>
@@ -29,7 +34,7 @@ export default function SectionCard({ title, subtitle, children }: SectionCardPr
                 )}
             </Box>
             <Divider sx={{ borderColor: "var(--lr-border)" }} />
-            <Box sx={{ p: { xs: 2, sm: 3 } }}>{children}</Box>
+            <Box sx={{ p: { xs: 2, sm: 3 }, flex: 1, display: "flex", flexDirection: "column" }}>{children}</Box>
         </Box>
     );
 }

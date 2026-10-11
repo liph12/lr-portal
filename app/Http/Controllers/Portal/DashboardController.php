@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Portal;
 use App\Http\Controllers\Controller;
 use App\Models\Entities\AgentTransaction;
 use App\Models\Entities\InternationalSale;
+use App\Services\SaleValidationService;
 use App\Services\SalesReportService;
 use App\Services\SalesEncodingService;
 use App\Services\TeamLeadershipService;
@@ -29,7 +30,8 @@ class DashboardController extends Controller
         $filters = $reports->lockedFilters(['view' => 'agents', 'per_page' => 25] + $request->query(), $lock);
         // Back office ranks teams; a team leader ranks their sub-teams; a unit manager's sub-team has nothing below it.
         $groupView = match (true) {
-            $lock === null => 'teams',
+            // An office area ranks the teams with members there (only those members' sales count).
+            $lock === null, isset($lock['area']) => 'teams',
             isset($lock['team_id']) => 'sub_teams',
             default => null,
         };
@@ -42,6 +44,32 @@ class DashboardController extends Controller
             'topGroups' => fn () => $groupView
                 ? ['view' => $groupView, 'rows' => array_slice($reports->breakdown(['view' => $groupView] + $filters)->items(), 0, 5)]
                 : null,
+        ]);
+    }
+
+    // My Sales: the signed-in agent's own sales one by one (any category), with their statistics. Personal — no
+    // permission beyond having an agent record.
+    public function mySales(Request $request, SalesReportService $reports)
+    {
+        $agentId = $request->user()->agent()->value('id');
+        abort_unless($agentId, 403);
+
+        // Their own sales only: the agent lock wins over anything in the URL.
+        $filters = $reports->lockedFilters(['view' => 'agents', 'list' => 'sales'] + $request->query(), ['agent_id' => (int) $agentId]);
+
+        return inertia('Portal/Dashboard/MySales/Index', [
+            'filters' => $filters,
+            'summary' => fn () => $reports->summary($filters),
+            'totals' => fn () => $reports->categoryTotals($filters),
+            'saleList' => function () use ($reports, $filters) {
+                $page = $reports->saleList($filters);
+
+                return ['data' => $page->items(), 'total' => $page->total(), 'page' => $page->currentPage(), 'per_page' => $page->perPage()];
+            },
+            'saleDetail' => fn () => ($sale = (int) $request->query('sale')) && $reports->containsSale($filters, $sale)
+                ? app(SaleValidationService::class)->detail($sale)
+                : null,
+            'options' => ['categories' => SalesReportService::CATEGORIES, 'statuses' => SalesReportService::STATUSES],
         ]);
     }
 

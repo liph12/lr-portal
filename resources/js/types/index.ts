@@ -17,11 +17,31 @@ export interface SaleStepProps<T> {
     errors: FormErrors;
 }
 
+export type LinkMode = "spa" | "tab";
+
+// Where links open: `sections` maps a top-level menu path to a mode; others follow `default`.
+export interface LinkPreferences {
+    default: LinkMode;
+    sections: Record<string, LinkMode>;
+}
+
+export type ThemeMode = "light" | "dark" | "system";
+export type FontSize = "small" | "default" | "large" | "xlarge";
+
+// Settings › Preferences. `theme` null = not chosen yet (the device's own choice stays).
+export interface UserPreferences {
+    theme: ThemeMode | null;
+    font_size: FontSize;
+    links: LinkPreferences;
+}
+
 export interface AuthUser {
     id: number;
     name: string;
     first_name: string;
     agent_id: number | null;
+    // Null without the use_preferences permission: everything stays at its default.
+    preferences: UserPreferences | null;
     email: string;
     role: string | null;
     avatar: string | null;
@@ -34,6 +54,12 @@ export interface AuthUser {
     impersonator: { id: number; name: string } | null;
     // Teams / sub-teams this user leads (My Team).
     leads: { teams: { id: number; name: string }[]; sub_teams: { id: number; name: string; team: string | null }[] };
+    // Area names of the offices this user is the secretary of (empty for everyone else).
+    office_areas: string[];
+    // Null when the user sees no global partners (not back office, never invited one); pending = waiting to be confirmed.
+    global_partners: { pending: number } | null;
+    // Pending sales this user can validate (menu badge); null when they don't validate sales.
+    sales_validation: { pending: number } | null;
     view_as_roles: { name: string; label: string }[];
     can: {
         access_superadmin: boolean;

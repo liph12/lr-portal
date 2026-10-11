@@ -70,7 +70,7 @@ function Overview({ filters, scope, summary, topAgents, topGroups }: OverviewPro
                 <Grid size={{ xs: 12, lg: topGroups ? 6 : 12 }}>
                     <SectionCard title="Top agents">
                         <BarList
-                            items={topAgents.map((a) => ({ name: a.name, value: a.value, detail: [a.team, a.area].filter(Boolean).join(" · ") || undefined }))}
+                            items={topAgents.map((a) => ({ name: a.name, value: a.value, detail: [a.team, a.area].filter(Boolean).join(" · ") || undefined, href: a.id ? `/agents/${a.id}/sales?${query}` : undefined }))}
                             caption="Top 5 agents by total sales"
                             formatValue={formatPesoCompact}
                             emptyText="No sales in this range."

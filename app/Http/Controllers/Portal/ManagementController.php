@@ -49,10 +49,9 @@ class ManagementController extends Controller
 
     public function agents(Request $request)
     {
-        $filters = $request->only(['q', 'status', 'team_id', 'agent_type', 'activity', 'sort', 'dir', 'per_page']);
+        $filters = $request->only(['q', 'status', 'team_id', 'agent_type', 'sort', 'dir', 'per_page']);
 
         return inertia('Portal/Management/Agents', [
-            'activities' => Agent::ACTIVITIES,
             'agents' => $this->page($this->directory->agents($filters)),
             'filters' => $filters,
             'teams' => $this->directory->teamOptions(),

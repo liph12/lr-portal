@@ -57,7 +57,10 @@ test('a slow request that started before the switch can no longer undo it', func
 });
 
 test('the previewed role gets only its own permissions, and the account is untouched', function () {
-    $this->staffRole->permissions()->attach(Permission::create(['name' => 'view_reports', 'label' => 'View Reports']));
+    $this->staffRole->permissions()->attach([
+        Permission::create(['name' => 'view_reports', 'label' => 'View Reports'])->id,
+        Permission::firstOrCreate(['name' => 'view_statistics'], ['label' => 'View Statistics'])->id,
+    ]);
 
     ($this->as)('staff')->get('/staff/statistics')->assertOk();
     ($this->as)('agent')->get('/staff/statistics')->assertForbidden();

@@ -78,17 +78,21 @@ test('portals are private to their role and show a forbidden page otherwise', fu
     }
 });
 
-test('statistics follow the view_reports permission through the gate', function () {
+test('statistics follow their own view_statistics permission, not view_reports', function () {
     $staff = ($this->make)('staff', 'staff@example.com');
 
-    expect($staff->can('view_reports'))->toBeFalse();
+    expect($staff->can('view_statistics'))->toBeFalse();
     $this->actingAs($staff)->get('/staff/statistics')->assertForbidden();
 
+    // Reports access alone isn't enough any more.
     $this->roles['staff']->permissions()->attach($this->viewReports);
+    $this->actingAs($staff->fresh())->get('/staff/statistics')->assertForbidden();
+
+    $this->roles['staff']->permissions()->attach(Permission::firstOrCreate(['name' => 'view_statistics'], ['label' => 'View Statistics']));
 
     // A real request loads the user fresh; the test's model still caches the old role permissions.
     $staff = $staff->fresh();
-    expect($staff->can('view_reports'))->toBeTrue();
+    expect($staff->can('view_statistics'))->toBeTrue();
     $this->actingAs($staff)->get('/staff/statistics')->assertOk()->assertInertia(fn ($page) => $page->component('Portal/Statistics'));
 });
 
@@ -120,3 +124,15 @@ test('unknown pages render the not found page, and JSON callers still get JSON',
     $staff = ($this->make)('staff', 'staff@example.com');
     $this->actingAs($staff)->getJson('/superadmin/settings')->assertForbidden()->assertJsonStructure(['message']);
 });
+
+test('sections not built yet show the shared under-construction page with their own title', function (string $path, string $title) {
+    $superadmin = ($this->make)('superadmin', 'boss@example.com');
+
+    $this->actingAs($superadmin)->get($path)
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('Portal/UnderConstruction')->where('title', $title)->missing('user'));
+})->with([
+    ['/superadmin/accounting', 'Accounting'],
+    ['/superadmin/human-resource', 'Human Resource'],
+    ['/superadmin/inbox', 'Inbox'],
+]);

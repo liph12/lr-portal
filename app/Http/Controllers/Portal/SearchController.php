@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Models\Entities\Agent;
 use App\Models\Entities\AgentTransaction;
 use App\Models\Entities\Team;
 use App\Models\Role;
 use App\Models\User;
 use App\Policies\UserPolicy;
+use App\Services\AgentActivityService;
+use App\Services\FireCertificateService;
 use App\Services\GroupSearchService;
 use App\Services\ImpersonationService;
 use App\Services\TeamLeadershipService;
+use App\Support\SocialLinks;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +26,7 @@ class SearchController extends Controller
 {
     private const LIMIT = 8;
 
-    public function users(Request $request, TeamLeadershipService $leadership): JsonResponse
+    public function users(Request $request, TeamLeadershipService $leadership, AgentActivityService $activity): JsonResponse
     {
         Gate::authorize('search', User::class);
 
@@ -43,12 +47,15 @@ class SearchController extends Controller
                 ->whereIn('id', $leadership->ledMemberIds($me))
                 ->select('user_id')))
             ->where(fn ($q) => $q->where('name', 'like', $like)->orWhere('email', 'like', $like))
-            ->with(['roles:id,name,label', 'agent:id,user_id,avatar'])
+            ->with(['roles:id,name,label', 'agent:id,user_id,avatar,activity'])
             ->orderByRaw('CASE WHEN name LIKE ? THEN 0 ELSE 1 END', [addcslashes($term, '%_\\').'%'])
             ->orderBy('name')
             ->limit(self::LIMIT)
-            ->get(['id', 'name', 'email', 'status'])
-            ->map(fn (User $user) => [
+            ->get(['id', 'name', 'email', 'status', 'last_active_at']);
+
+        $details = $this->personDetails($users->pluck('agent.id')->filter()->all(), $activity);
+
+        $users = $users->map(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
@@ -57,13 +64,84 @@ class SearchController extends Controller
                 'agent_id' => $user->agent?->id,
                 'role_id' => $user->roles->first()?->id,
                 'role_label' => $user->roles->first()?->label,
-                'status' => $user->status,
+                'status' => Agent::displayStatus($user->status, $user->agent?->activity),
                 'can_impersonate' => $canImpersonate && ! $user->is($me) && $user->status === 'active'
                     && ! $user->roles->contains('name', Role::SUPERADMIN),
+                // Legacy account's last update for now; the activity logs later.
+                'last_active_at' => $user->last_active_at ? (string) $user->last_active_at : null,
+                'details' => $user->agent ? ($details[$user->agent->id] ?? null) : null,
             ]);
 
         // Roles and statuses are changed in Management, not from the search results.
         return response()->json(['users' => $users]);
+    }
+
+    // FIRE courses of one person from the training site (max 3), for the button in the search results. Same reach as
+    // the people search: the back office anyone, a leader their own members.
+    public function certificates(Request $request, User $user, TeamLeadershipService $leadership, FireCertificateService $fire): JsonResponse
+    {
+        Gate::authorize('search', User::class);
+        $me = $request->user();
+        if (! $me->hasAnyRole(UserPolicy::SEARCH_ROLES)) {
+            $agentId = $user->agent()->value('id');
+            abort_unless($agentId && DB::query()->fromSub($leadership->ledMemberIds($me), 'm')->where('agent_id', $agentId)->exists(), 403);
+        }
+
+        $result = $fire->for($user->email);
+
+        return $result === null
+            ? response()->json(['message' => "Couldn't reach the training site. Try again later."], 503)
+            : response()->json($result);
+    }
+
+    /**
+     * What the search results show about each person: team / sub-team (and since when), registration, licences,
+     * contact and their 6-month activity window.
+     *
+     * @param  int[]  $agentIds
+     * @return array<int, array<string, mixed>>
+     */
+    private function personDetails(array $agentIds, AgentActivityService $activity): array
+    {
+        if (! $agentIds) {
+            return [];
+        }
+
+        $rows = DB::table('agents as a')
+            ->leftJoin('agent_credentials as c', 'c.agent_id', '=', 'a.id')
+            ->leftJoin('team_agents as ta', fn ($j) => $j->on('ta.agent_id', '=', 'a.id')->where('ta.status', 'active'))
+            ->leftJoin('teams as t', 't.id', '=', 'ta.team_id')
+            ->leftJoin('sub_team_agents as sa', fn ($j) => $j->on('sa.agent_id', '=', 'a.id')->where('sa.status', 'active'))
+            ->leftJoin('sub_teams as s', 's.id', '=', 'sa.sub_team_id')
+            ->leftJoin('agent_attributes as at', 'at.agent_id', '=', 'a.id')
+            ->leftJoin('agent_profiles as pr', 'pr.agent_id', '=', 'a.id')
+            ->whereIn('a.id', $agentIds)
+            ->get(['a.id', 'a.created_at', 'a.lr_joined_at', 'a.mobile', 'a.phone', 'a.address', 'a.city', 'a.state', 'c.prc_expiration', 'c.dhsud_expiration',
+                't.name as team', 'ta.joined_at as team_joined', 's.name as sub_team', 'sa.joined_at as sub_team_joined', 'at.fire_certificates', 'pr.facebook'])
+            ->keyBy('id');
+        $windows = $activity->windows($agentIds);
+        // How many sales each has (valid or pending, international too) — so a row shows at a glance who has sold.
+        $sales = DB::table('agent_transactions')->whereIn('agent_id', $agentIds)->whereIn('sale_status', ['valid', 'pending'])
+            ->selectRaw('agent_id, COUNT(*) as n')->groupBy('agent_id')->pluck('n', 'agent_id');
+        $international = DB::table('international_sales')->whereIn('agent_id', $agentIds)->whereIn('sale_status', ['valid', 'pending'])
+            ->selectRaw('agent_id, COUNT(*) as n')->groupBy('agent_id')->pluck('n', 'agent_id');
+
+        return $rows->map(fn ($r) => [
+            'team' => $r->team,
+            'team_joined' => $r->team_joined ? substr((string) $r->team_joined, 0, 10) : null,
+            'sub_team' => $r->sub_team,
+            'sub_team_joined' => $r->sub_team_joined ? substr((string) $r->sub_team_joined, 0, 10) : null,
+            // Joined Leuterio Realty (legacy lr_joined), else the portal sign-up.
+            'registered' => $r->lr_joined_at ? substr((string) $r->lr_joined_at, 0, 10) : ($r->created_at ? substr((string) $r->created_at, 0, 10) : null),
+            'mobile' => $r->mobile ?: $r->phone,
+            'address' => collect([$r->address, $r->city, $r->state])->filter()->unique()->implode(', ') ?: null,
+            'prc_expiration' => $r->prc_expiration,
+            'dhsud_expiration' => $r->dhsud_expiration,
+            'fire_count' => (int) ($r->fire_certificates ?? 0),
+            'facebook' => SocialLinks::facebook($r->facebook),
+            'sales' => (int) ($sales[$r->id] ?? 0) + (int) ($international[$r->id] ?? 0),
+            'activity' => $windows[$r->id] ?? null,
+        ])->all();
     }
 
     // Teams, sub-teams and areas within the reader's report reach, each with the link to open.

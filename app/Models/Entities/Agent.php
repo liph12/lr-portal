@@ -14,10 +14,18 @@ class Agent extends Model
 {
     public const MARITAL_STATUSES = ['Single', 'Married', 'Widowed', 'Separated'];
 
+    public const DEFAULT_COUNTRY_CODE = 'PH';
+    public const DEFAULT_COUNTRY = 'Philippines';
+
     // Re-derive the area whenever where the agent is based changes (profile edits, Management, imports via the model).
     protected static function booted(): void
     {
         static::saving(function (Agent $agent) {
+            // No country recorded means the Philippines.
+            if (blank($agent->country_code) && blank($agent->country)) {
+                $agent->country_code = self::DEFAULT_COUNTRY_CODE;
+                $agent->country = self::DEFAULT_COUNTRY;
+            }
             if (! $agent->exists || $agent->isDirty(['state', 'city', 'country_code'])) {
                 $agent->area = Areas::forAgent($agent->state, $agent->city, $agent->country_code);
             }
@@ -40,6 +48,19 @@ class Agent extends Model
     public const ACTIVITIES = [self::ACTIVITY_ACTIVE, self::ACTIVITY_DORMANT];
     public const DORMANT_AFTER_MONTHS = 6;
     public const ACTIVITY_EXEMPT_ROLES = ['superadmin', 'admin', 'staff', 'secretary', 'team_leader', 'unit_manager'];
+
+    // The status people see, filter and count by: an active account whose agent is dormant reads "inactive". Only the
+    // account status (users.status) controls sign-in, so a dormant agent can still sign in and record the sale that
+    // makes them active again.
+    public static function displayStatus(?string $accountStatus, ?string $activity): ?string
+    {
+        return $accountStatus === User::STATUS_ACTIVE && $activity === self::ACTIVITY_DORMANT ? User::STATUS_INACTIVE : $accountStatus;
+    }
+
+    public static function statusSql(string $accountStatus = 'u.status', string $activity = 'a.activity'): string
+    {
+        return "CASE WHEN {$accountStatus} = '".User::STATUS_ACTIVE."' AND {$activity} = '".self::ACTIVITY_DORMANT."' THEN '".User::STATUS_INACTIVE."' ELSE {$accountStatus} END";
+    }
 
     // Last step of the registration stepper (agent_attributes.registration_status 1–4). Below it the agent never
     // finished signing up (mostly no team yet), so member and recruit statistics leave them out.

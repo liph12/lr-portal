@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 import { GridPaginationModel, GridSortModel } from "@mui/x-data-grid";
 
@@ -50,8 +50,13 @@ export default function useServerTable<R>(prop: string, page: ServerPage<R>, fil
         // Only the typed term should trigger this; filters/page are read fresh inside visit().
     }, [search]);
 
-    const paginationModel: GridPaginationModel = { page: page.page - 1, pageSize: page.per_page };
-    const sortModel: GridSortModel = filters.sort ? [{ field: String(filters.sort), sort: filters.dir === "desc" ? "desc" : "asc" }] : [];
+    // Memoised: DataGrid re-applies a controlled model whenever its reference changes, and a "new" sort model makes it
+    // jump back to page 1 — so a fresh array on every render undid each page change.
+    const paginationModel = useMemo<GridPaginationModel>(() => ({ page: page.page - 1, pageSize: page.per_page }), [page.page, page.per_page]);
+    const sortModel = useMemo<GridSortModel>(
+        () => (filters.sort ? [{ field: String(filters.sort), sort: filters.dir === "desc" ? "desc" : "asc" }] : []),
+        [filters.sort, filters.dir],
+    );
 
     return {
         loading,

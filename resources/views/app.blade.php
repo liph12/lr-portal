@@ -2,7 +2,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        {{-- Apply the saved light/dark mode before first paint so dark users never see a white flash. --}}
+        {{-- Apply the saved light/dark mode and text size before first paint so there's no flash or jump. --}}
         <script>
             (function () {
                 try {
@@ -10,6 +10,8 @@
                     var dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
                     document.documentElement.classList.remove('light', 'dark');
                     document.documentElement.classList.add(dark ? 'dark' : 'light');
+                    var zoom = parseFloat(localStorage.getItem('lr-font-size'));
+                    if (zoom > 0) document.documentElement.style.setProperty('--lr-zoom', String(zoom));
                 } catch (e) {}
             })();
         </script>

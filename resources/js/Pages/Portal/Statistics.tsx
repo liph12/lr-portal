@@ -145,16 +145,6 @@ function Statistics({ stats }: { stats: StatsSummary }) {
                         </SectionCard>
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
-                        <SectionCard title="Commission status" subtitle="Share of sales in this period">
-                            <ShareBar
-                                caption="Sales by commission status"
-                                segments={stats.commission.map((c) => ({ label: c.status, value: c.sales }))}
-                                unit={["sale", "sales"]}
-                                emptyText="No sales in this period yet."
-                            />
-                        </SectionCard>
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
                         <SectionCard title="Clients by country" subtitle="Total contract value">
                             <BarList
                                 caption="Total project sales by the client's country"

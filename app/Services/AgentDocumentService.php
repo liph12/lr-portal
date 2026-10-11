@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Entities\Agent;
 use App\Models\Entities\AgentDocument;
 use App\Models\Entities\AgentDocumentComment;
 use App\Models\User;
@@ -91,7 +92,7 @@ class AgentDocumentService
                 'name' => $document->agent?->user?->name ?? trim("{$document->agent?->first_name} {$document->agent?->last_name}"),
                 'email' => $document->agent?->user?->email ?? $document->agent?->email,
                 'avatar' => $document->agent?->avatar,
-                'status' => $document->agent?->user?->status,
+                'status' => Agent::displayStatus($document->agent?->user?->status, $document->agent?->activity),
             ],
             'history' => AgentDocument::where('agent_id', $document->agent_id)->where('type', $document->type)->where('id', '!=', $document->id)
                 ->orderByDesc('created_at')->orderByDesc('id')

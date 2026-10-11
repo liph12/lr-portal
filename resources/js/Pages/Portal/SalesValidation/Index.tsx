@@ -67,6 +67,8 @@ interface SalesValidationProps {
     agentSales: AgentSales | null;
     editOptions: EditOptions | null;
     saleDetail: SaleDetail | null;
+    // An office secretary with one area: there's no area to pick or change.
+    singleArea: boolean;
 }
 
 const STATUS_LABELS: Record<string, string> = { pending: "Pending", valid: "Validated", invalid: "Invalid", cancelled: "Cancelled" };
@@ -110,8 +112,10 @@ const iconSx = {
 const clientName = (r: SaleRow) => [r.client_first_name, r.client_last_name].filter(Boolean).join(" ") || "No client name";
 
 // Sales validation: pick an area, then a category, then validate its sales status by status.
-function SalesValidation({ filters, statuses, categories, areaName, areas, counts, sales, agentSales, editOptions, saleDetail }: SalesValidationProps) {
-    const baseUrl = `/${useAuthUser()?.portal ?? "superadmin"}/sales-validation`;
+function SalesValidation({ filters, statuses, categories, areaName, areas, counts, sales, agentSales, editOptions, saleDetail, singleArea }: SalesValidationProps) {
+    // Back office in its portal; an office secretary (no portal) at the shared /sales-validation.
+    const portal = useAuthUser()?.portal;
+    const baseUrl = portal ? `/${portal}/sales-validation` : "/sales-validation";
     // Every step keeps the reservation-date range (default: this month).
     const range = { from: filters.from, to: filters.to };
     const go = (query: Record<string, string>) => router.get(baseUrl, { ...range, ...query }, { preserveScroll: false });
@@ -158,7 +162,7 @@ function SalesValidation({ filters, statuses, categories, areaName, areas, count
                                 Change sale type
                             </StyledButton>
                         )}
-                        {filters.area && (
+                        {filters.area && !singleArea && (
                             <StyledButton size="small" variant="text" onClick={() => go({})} sx={{ color: "var(--lr-primary)" }}>
                                 Change area
                             </StyledButton>

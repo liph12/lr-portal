@@ -7,6 +7,8 @@ export interface PortalRoute {
     name: string;
     path: string;
     icon?: ElementType;
+    // A count shown on the menu item (things waiting for the user).
+    badge?: number;
     // One permission, or several alternatives (any grants it).
     permission?: string | string[];
     // Also needed on top of `permission` (all of them), e.g. a report's own report_* permission.
@@ -19,20 +21,28 @@ export interface PortalRoute {
 export default function usePortalRoutes(): PortalRoute[] {
     const user = useAuthUser();
     const portal = user?.portal ?? null;
-    const permissions = grantedWithLeadership(user?.permissions, user?.leads, user?.portal).join(",");
+    const permissions = grantedWithLeadership(user?.permissions, user?.leads, user?.portal, user?.office_areas, user?.global_partners, user?.agent_id).join(",");
+    // Counters on menu items, by path (e.g. global partners waiting for confirmation).
+    const partnersPending = user?.global_partners?.pending ?? 0;
+    const salesPending = user?.sales_validation?.pending ?? 0;
     const leads = !!(user?.leads?.teams.length || user?.leads?.sub_teams.length);
 
     return useMemo(() => {
         const granted = permissions.split(",");
         const allowed = (route: PortalRoute) =>
             hasAnyPermission(granted, route.permission) && (route.requires ?? []).every((p) => granted.indexOf(p) !== -1);
+        const badges: Record<string, number> = {
+            "/global-partners": partnersPending,
+            // Sales validation lives in each back-office portal and, for office secretaries, at the shared path.
+            ...Object.fromEntries(["/superadmin", "/admin", "/staff", ""].map((p) => [`${p}/sales-validation`, salesPending])),
+        };
         const filter = (routes: PortalRoute[]): PortalRoute[] =>
-            routes.filter(allowed).map((r) => ({ ...r, children: filter(r.children ?? []) }));
+            routes.filter(allowed).map((r) => ({ ...r, badge: badges[r.path] || undefined, children: filter(r.children ?? []) }));
 
         // No portal (agents, team leaders, …) still get the shared dashboard.
         const routes = filter((portal ? portalRoutes[portal] : memberRoutes) as PortalRoute[]);
 
         // Leaders of a team or sub-team get My Team right after the dashboard.
         return leads ? [routes[0], myTeamRoute as PortalRoute, ...routes.slice(1)].filter(Boolean) : routes;
-    }, [portal, permissions, leads]);
+    }, [portal, permissions, leads, partnersPending, salesPending]);
 }

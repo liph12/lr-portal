@@ -16,3 +16,4 @@ Route::prefix('reports')->name('reports.')->group(function () {
 
 // Read-only agent profile opened from report rows; the controller allows view_reports or team managers.
 Route::get('/agents/{agent}', [AgentProfileController::class, 'show'])->name('agents.show');
+Route::get('/agents/{agent}/sales', [AgentProfileController::class, 'sales'])->name('agents.sales');

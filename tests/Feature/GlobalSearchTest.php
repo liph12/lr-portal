@@ -51,7 +51,8 @@ test('superadmins find users by name or email, with role, status, profile link a
 
 test('admins and staff can search and open profiles but not sign in as anyone', function (string $role) {
     $agentId = \Illuminate\Support\Facades\DB::table('agents')->insertGetId(['user_id' => $this->juan->id, 'email' => $this->juan->email]);
-    $reader = ($this->userWith)($role);
+    // A fixed name: a random factory name could itself match "juan".
+    $reader = ($this->userWith)($role, ['name' => 'Rhea Reader']);
 
     $this->actingAs($reader)
         ->getJson('/search/users?q=juan')

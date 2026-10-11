@@ -3,15 +3,15 @@
 namespace App\Http\Controllers\Portal\SuperAdmin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
+// Not built yet: the shared "under construction" page keeps the menu item and its route working.
 class AccountingController extends Controller
 {
     public function index()
-{
-    return inertia('SuperAdmin/Accounting/index', [
-        'user' => Auth::user()
-    ]);
-}
+    {
+        return inertia('Portal/UnderConstruction', [
+            'title' => 'Accounting',
+            'description' => 'Commissions, payouts and the money side of sales.',
+        ]);
+    }
 }

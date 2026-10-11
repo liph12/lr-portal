@@ -107,8 +107,9 @@ class RecruitProgressService
             ->mapWithKeys(fn ($k) => [$k => $rows->sum(fn ($r) => (float) $r->{$k})])->all();
 
         $totals = $sum($cells);
-        $areas = $cells->groupBy(fn ($r) => $r->area ?? '')
-            ->map(fn ($rows, $area) => ['area' => $area ?: null, 'name' => Areas::name($area ?: null), ...$this->row($sum($rows))])
+        // Recruits without an area count in the totals but get no "Unassigned" bar.
+        $areas = $cells->whereNotNull('area')->groupBy('area')
+            ->map(fn ($rows, $area) => ['area' => $area, 'name' => Areas::name($area), ...$this->row($sum($rows))])
             ->sortByDesc('recruits')
             ->values()
             ->all();
@@ -224,7 +225,7 @@ class RecruitProgressService
             $query->where('at.referral_id', $scope['sponsor_id']);
         }
         if (isset($scope['area'])) {
-            $scope['area'] === SalesReportService::UNASSIGNED_AREA ? $query->whereNull('a.area') : $query->where('a.area', $scope['area']);
+            $query->where('a.area', $scope['area']);
         }
 
         return $query;

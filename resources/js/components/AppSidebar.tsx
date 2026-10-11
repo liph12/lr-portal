@@ -107,6 +107,27 @@ export default function AppSidebar() {
                                     variant="body2"
                                 >
                                     <r.icon fontSize="small" /> {r.name}
+                                    {!!r.badge && (
+                                        <Box
+                                            component="span"
+                                            aria-label={`${r.badge} waiting`}
+                                            sx={{
+                                                ml: "auto",
+                                                minWidth: 22,
+                                                height: 20,
+                                                px: 0.75,
+                                                borderRadius: 99,
+                                                fontSize: 11,
+                                                fontWeight: 700,
+                                                lineHeight: "20px",
+                                                textAlign: "center",
+                                                color: "var(--lr-on-primary)",
+                                                backgroundColor: "var(--lr-error)",
+                                            }}
+                                        >
+                                            {r.badge > 999 ? "999+" : r.badge}
+                                        </Box>
+                                    )}
                                 </Typography>
                             </Link>
                         </Box>

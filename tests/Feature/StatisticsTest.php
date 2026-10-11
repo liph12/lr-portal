@@ -56,12 +56,10 @@ test('the statistics page summarises project sales for the last 12 months by def
             ->where('stats.monthly.0', ['month' => '2025-11', 'sales' => 0, 'value' => 0])
             ->where('stats.developers.0', ['name' => 'Cebu Landmasters', 'sales' => 2, 'value' => 43_000_000])
             ->where('stats.propertyTypes.0', ['name' => 'Condominiums', 'sales' => 2, 'value' => 25_000_000])
-            ->where('stats.commission', [
-                ['status' => 'Unclaimed', 'sales' => 2],
-                ['status' => 'Partially Claimed', 'sales' => 0],
-                ['status' => 'Fully Claimed', 'sales' => 1],
-            ])
-            ->where('stats.kpis.active_users', ['value' => 1, 'total' => 1]));
+            // Commission status isn't a statistic.
+            ->missing('stats.commission')
+            ->where('stats.kpis.active_users', ['value' => 1, 'total' => 1])
+            ->where('stats.team.byStatus', fn ($s) => collect($s)->pluck('status')->all() === ['active', 'inactive']));
 });
 
 test('this year and all time narrow or widen the window', function () {

@@ -84,7 +84,7 @@ class RecruitmentService
     public function summary(array $f, ?array $scope): array
     {
         $byStatus = fn (Builder $q) => (clone $q)->join('users as su', 'su.id', '=', 'a.user_id')
-            ->selectRaw('su.status as status, COUNT(*) as n')->groupBy('su.status')->pluck('n', 'status')->map(fn ($n) => (int) $n);
+            ->selectRaw(Agent::statusSql('su.status').' as status, COUNT(*) as n')->groupByRaw(Agent::statusSql('su.status'))->pluck('n', 'status')->map(fn ($n) => (int) $n);
 
         $members = $byStatus($this->agents($scope));
         $recruits = $byStatus($this->recruits($f, $scope));
@@ -147,7 +147,7 @@ class RecruitmentService
             ->leftJoin('agents as sp', 'sp.id', '=', 'at.referral_id')
             ->leftJoin('users as spu', 'spu.id', '=', 'sp.user_id')
             ->select(
-                'a.id', 'a.avatar', 'a.area', 'a.created_at as signed_up', 'u.name', 'u.email', 'u.status', 't.name as team',
+                'a.id', 'a.avatar', 'a.area', 'a.created_at as signed_up', 'u.name', 'u.email', 't.name as team',
                 's.name as sub_team', 'at.referral_id as sponsor_id', 'spu.name as sponsor_name', 'spu.email as sponsor_email',
             )
             ->selectRaw('CASE WHEN COALESCE(at.nao_video_tracker, 0) > ? THEN ? ELSE COALESCE(at.nao_video_tracker, 0) END as nao', [self::NAO_COMPLETE, self::NAO_COMPLETE])
@@ -167,8 +167,9 @@ class RecruitmentService
                 : $query->where('at.fire_certificates', (int) $f['fire']);
         }
 
+        $query->selectRaw(Agent::statusSql().' as status');
         if ($f['status']) {
-            $query->where('u.status', $f['status']);
+            $query->whereRaw(Agent::statusSql().' = ?', [$f['status']]);
         }
         if ($f['q'] !== null && mb_strlen($f['q']) >= 2) {
             $like = '%'.addcslashes($f['q'], '%_\\').'%';
@@ -209,7 +210,7 @@ class RecruitmentService
             $query->whereIn('a.id', DB::table('sub_team_agents')->where('sub_team_id', $scope['sub_team_id'])->where('status', 'active')->select('agent_id'));
         }
         if (isset($scope['area'])) {
-            $scope['area'] === SalesReportService::UNASSIGNED_AREA ? $query->whereNull('a.area') : $query->where('a.area', $scope['area']);
+            $query->where('a.area', $scope['area']);
         }
         // Recruits of one sponsor (upline).
         if (isset($scope['sponsor_id'])) {
@@ -238,7 +239,7 @@ class RecruitmentService
      */
     private function statusCounts($counts): array
     {
-        return collect(User::STATUSES)->mapWithKeys(fn ($s) => [$s => (int) ($counts[$s] ?? 0)])->all();
+        return User::statisticCounts($counts);
     }
 
     private function date(mixed $value): ?CarbonImmutable

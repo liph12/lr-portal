@@ -18,7 +18,7 @@ use Illuminate\Validation\ValidationException;
 // Team leaders manage their sub-teams and move members inside the team; unit managers only monitor.
 class TeamLeadershipService
 {
-    public function __construct(private TeamManagementService $teams) {}
+    public function __construct(private TeamManagementService $teams, private OfficeService $offices) {}
 
     /**
      * @return Collection<int, Team>
@@ -98,8 +98,9 @@ class TeamLeadershipService
     }
 
     /**
-     * How far a user's sales reports reach. Back office (superadmin, admin, staff) sees the whole system (null);
-     * a team leader / unit manager only their own group; anyone else only their own sales. False: no reports.
+     * How far a user's sales reports reach. Back office (superadmin, admin, staff) sees the whole system (null); an
+     * office secretary their office's area (agents, unit managers and the teams with members there); a team leader /
+     * unit manager only their own group; anyone else only their own sales. False: no reports.
      *
      * @return array<string, int>|null|false filter keys to force on every report
      */
@@ -107,6 +108,11 @@ class TeamLeadershipService
     {
         if ($user->hasAnyRole(UserPolicy::SEARCH_ROLES)) {
             return $user->can('view_reports') ? null : false;
+        }
+
+        // One office (and so one area) per secretary in the data; the first if that ever changes.
+        if ($user->can('view_reports') && ($area = $this->offices->areasFor($user)[0] ?? null)) {
+            return ['area' => $area];
         }
 
         if ($current = $this->current($user, null, null)) {
@@ -148,7 +154,8 @@ class TeamLeadershipService
             ->leftJoin('roles as r', 'r.id', '=', 'ru.role_id')
             ->where("m.{$column}", $group->id)
             ->where('m.status', 'active')
-            ->select('a.id', 'a.avatar', 'a.area', 'u.name', 'u.email', 'u.status', 'r.label as role', 'm.joined_at');
+            ->select('a.id', 'a.avatar', 'a.area', 'u.name', 'u.email', 'r.label as role', 'm.joined_at')
+            ->selectRaw(Agent::statusSql().' as status');
 
         if ($type === 'team') {
             // Their current sub-team, if it's one of this team's.

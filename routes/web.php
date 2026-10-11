@@ -28,10 +28,13 @@ Route::middleware(['auth', 'active'])->group(function(){
     Route::get('/home', fn () => redirect(auth()->user()->homeUrl()))->name('home');
 
     require base_path('routes/profile.php');
+    require base_path('routes/settings.php');
     require base_path('routes/dashboard.php');
     require base_path('routes/reports.php');
     require base_path('routes/my-team.php');
     require base_path('routes/search.php');
+    require base_path('routes/global-partners.php');
+    (require base_path('routes/sales-validation.php'))();
 
     // Superadmin role preview; the requests check the real role, so the way back always works.
     Route::post('/view-as', [ViewAsController::class, 'store'])->name('view-as.start');

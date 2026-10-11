@@ -36,7 +36,7 @@ beforeEach(function () {
         }
         foreach (['email', 'fn', 'mn', 'ln', 'completename', 'status', 'membertype', 'hashpass', 'password', 'maritalstatus',
             'phone', 'mobile', 'address', 'city', 'state', 'photo', 'aboutyourself', 'specialskills', 'workexperience',
-            'fblink', 'tin', 'nao_proof_of_attendance', 'nao_attendance_confirmation', 'nao_date_attended', 'prc_expiry', 'dshud_expiry', 'national_intern', 'country', 'lr_joined'] as $c) {
+            'fblink', 'tin', 'nao_proof_of_attendance', 'nao_attendance_confirmation', 'nao_date_attended', 'prc_expiry', 'dshud_expiry', 'national_intern', 'country', 'lr_joined', 'sponsor_activation_status'] as $c) {
             $t->text($c)->nullable();
         }
         $t->timestamps();
@@ -243,7 +243,8 @@ test('global partners are international, joined since 2024-02-01 and based abroa
     ])
         ->and($agents[$global]->only(['country', 'country_code']))->toBe(['country' => 'United Arab Emirates', 'country_code' => 'AE'])
         ->and($agents[$inPh]->only(['country', 'country_code']))->toBe(['country' => 'Philippines', 'country_code' => 'PH'])
-        ->and($agents[$noCountry]->country)->toBeNull()
+        // No country recorded: the Philippines (and so local, whatever national_intern says).
+        ->and($agents[$noCountry]->only(['country', 'country_code']))->toBe(['country' => 'Philippines', 'country_code' => 'PH'])
         // Plain agents abroad get the Global Partner role.
         ->and(User::where('email', 'abroad@example.com')->sole()->roles()->pluck('name')->all())->toBe(['global_partner'])
         ->and(User::where('email', 'early@example.com')->sole()->roles()->pluck('name')->all())->toBe(['agent']);

@@ -14,6 +14,11 @@ return [
     |
     */
 
+    // FIRE training certificates by email (FireCertificateService).
+    'fire_certificates' => [
+        'url' => env('FIRE_CERTIFICATES_URL', 'https://realestatetraining.ph/get-certificates'),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

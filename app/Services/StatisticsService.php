@@ -40,7 +40,6 @@ class StatisticsService
             'monthly' => $this->monthly($current, $start, $end),
             'developers' => $this->topDevelopers($start, $end),
             'propertyTypes' => $this->byPropertyType($start, $end),
-            'commission' => $this->byCommissionStatus($start, $end),
             'clients' => $this->clients($start, $end),
             'team' => $this->team(),
         ];
@@ -182,22 +181,6 @@ class StatisticsService
     }
 
     /**
-     * @return array<int, array{status: string, sales: int}>
-     */
-    private function byCommissionStatus(?CarbonImmutable $start, CarbonImmutable $end): array
-    {
-        $counts = $this->salesQuery($start, $end)
-            ->groupBy('t.commission_status')
-            ->selectRaw('t.commission_status as status, COUNT(*) as sales')
-            ->pluck('sales', 'status');
-
-        // Fixed order so each status keeps its colour across periods.
-        return collect(['Unclaimed', 'Partially Claimed', 'Fully Claimed'])
-            ->map(fn ($status) => ['status' => $status, 'sales' => (int) ($counts[$status] ?? 0)])
-            ->all();
-    }
-
-    /**
      * @return array<string, mixed>
      */
     private function team(): array
@@ -211,11 +194,12 @@ class StatisticsService
             ->values()
             ->all();
 
-        $statusCounts = User::query()->groupBy('status')->selectRaw('status, COUNT(*) as users')->pluck('users', 'status');
+        $statusCounts = DB::table('users as u')->leftJoin('agents as a', 'a.user_id', '=', 'u.id')
+            ->selectRaw(Agent::statusSql().' as status, COUNT(DISTINCT u.id) as users')->groupByRaw(Agent::statusSql())->pluck('users', 'status');
 
         return [
             'byRole' => $byRole,
-            'byStatus' => collect(User::STATUSES)->map(fn ($s) => ['status' => $s, 'users' => (int) ($statusCounts[$s] ?? 0)])->all(),
+            'byStatus' => collect(User::statisticCounts($statusCounts))->map(fn ($n, $s) => ['status' => $s, 'users' => $n])->values()->all(),
         ];
     }
 }

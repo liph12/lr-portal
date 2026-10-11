@@ -10,7 +10,11 @@ class ValidateSaleRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('sales_validation');
+        // A secretary may only touch sales of their own office's area.
+        $validation = app(SaleValidationService::class);
+        $allowed = $validation->allowedAreas($this->user());
+
+        return $this->user()->can('sales_validation') && $allowed !== false && $validation->inAllowedArea($this->route('sale')->id, $allowed);
     }
 
     /**

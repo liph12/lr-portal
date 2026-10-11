@@ -22,13 +22,10 @@ import {
     Android,
     LinkRounded,
 } from "@mui/icons-material";
-import { hasAnyPermission, RECORD_PERMISSIONS } from "../../../helpers/permissions";
 import SectionTitle from "../../../components/utils/SectionTitle";
 import useAuthUser from "../../../hooks/useAuthUser";
 import { buildUserLinks } from "../../../helpers/userLinks";
 import StyledButton from "../../../components/utils/StyledButton";
-import NoteAddIcon from "@mui/icons-material/NoteAdd";
-import { Link } from "@inertiajs/react";
 
 function LinkCard({ label, url }: { label: string; url: string }) {
     return (
@@ -151,26 +148,6 @@ function Dashboard() {
                         gap: { xs: 1, sm: 2 },
                     }}
                 >
-                    {hasAnyPermission(user?.permissions, RECORD_PERMISSIONS) && (
-                        <StyledButton
-                            variant="contained"
-                            size="small"
-                            sx={{
-                                borderRadius: 99,
-                                textTransform: "none",
-                                backgroundColor: "var(--lr-primary)",
-                                px: 2.5,
-                                ":hover": {
-                                    backgroundColor: "var(--lr-primary-hover)",
-                                },
-                            }}
-                            startIcon={<NoteAddIcon />}
-                            LinkComponent={Link}
-                            href="/dashboard/record-sale"
-                        >
-                            Record Your Sale
-                        </StyledButton>
-                    )}
                     <StyledButton
                         variant="outlined"
                         size="small"

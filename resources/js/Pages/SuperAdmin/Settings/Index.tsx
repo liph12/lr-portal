@@ -1,6 +1,6 @@
 import { ElementType, ReactNode } from "react";
 import { Box, Container, Grid, Typography } from "@mui/material";
-import { AdminPanelSettingsOutlined, ChevronRightRounded, EventBusyOutlined } from "@mui/icons-material";
+import { AdminPanelSettingsOutlined, ChevronRightRounded, EventBusyOutlined, TuneRounded } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
 import AppLayout from "../../../components/layouts/AppLayout";
 import SectionTitle from "../../../components/utils/SectionTitle";
@@ -20,9 +20,12 @@ interface SettingsCardProps {
 
 function SettingsCard({ href, icon: Icon, title, detail }: SettingsCardProps) {
     return (
-        <Link href={href} style={{ textDecoration: "none" }}>
+        <Link href={href} style={{ textDecoration: "none", display: "block", height: "100%" }}>
             <Box
                 sx={{
+                    // Equal heights across a row, whatever the detail line's length.
+                    height: "100%",
+                    boxSizing: "border-box",
                     display: "flex",
                     alignItems: "center",
                     gap: 2,
@@ -83,6 +86,9 @@ function Settings({ counts, salesEncoding }: SettingsProps) {
                         title="Sales cutoff"
                         detail={`${counts.sales_cutoffs} monthly cutoffs · recording ${salesEncoding.enabled ? "on" : "off"}`}
                     />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
+                    <SettingsCard href="/settings/preferences" icon={TuneRounded} title="Preferences" detail="Theme, text size and links" />
                 </Grid>
             </Grid>
         </Container>

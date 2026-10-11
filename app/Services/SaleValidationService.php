@@ -6,6 +6,7 @@ use App\Http\Requests\Portal\Sales\SaleRequest;
 use App\Models\Entities\AgentTransaction;
 use App\Models\Entities\ProjectPropertyType;
 use App\Models\User;
+use App\Policies\UserPolicy;
 use App\Support\Areas;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -38,15 +39,34 @@ class SaleValidationService
     // Not offered as areas to validate (still counted under All areas).
     private const HIDDEN_AREAS = ['abroad'];
 
-    public function __construct(private ActivityLogger $activity, private AgentActivityService $agentActivity) {}
+    public function __construct(private ActivityLogger $activity, private AgentActivityService $agentActivity, private OfficeService $offices) {}
+
+    /**
+     * Which areas a reader may validate: every one for the back office (null), their offices' areas for a secretary,
+     * none (false) for anyone else with the permission.
+     *
+     * @return array<int, string>|null|false
+     */
+    public function allowedAreas(User $user): array|null|false
+    {
+        if ($user->hasAnyRole(UserPolicy::SEARCH_ROLES)) {
+            return null;
+        }
+
+        return $this->offices->areasFor($user) ?: false;
+    }
 
     /**
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>
      */
-    public function filters(array $input): array
+    /**
+     * @param  array<int, string>|null  $allowed  area keys the reader may validate (an office secretary); null = all
+     */
+    public function filters(array $input, ?array $allowed = null): array
     {
         $area = $input['area'] ?? null;
+        $offered = $allowed ?? array_keys(array_diff_key(config('areas'), array_flip(self::HIDDEN_AREAS)));
         $today = CarbonImmutable::today();
         $from = $this->date($input['from'] ?? null) ?? $today->startOfMonth();
         $to = $this->date($input['to'] ?? null) ?? $today;
@@ -57,7 +77,9 @@ class SaleValidationService
         return [
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
-            'area' => is_string($area) && ($area === self::ALL_AREAS || (array_key_exists($area, config('areas')) && ! in_array($area, self::HIDDEN_AREAS, true))) ? $area : null,
+            'area' => is_string($area) && ($area === self::ALL_AREAS || in_array($area, $offered, true)) ? $area : null,
+            // Kept in the filters so every query below stays inside the reader's areas.
+            'allowed' => $allowed,
             'category' => in_array($input['category'] ?? null, self::CATEGORIES, true) ? $input['category'] : null,
             'status' => in_array($input['status'] ?? null, self::STATUSES, true) ? $input['status'] : 'pending',
             'q' => trim((string) ($input['q'] ?? '')) ?: null,
@@ -69,6 +91,24 @@ class SaleValidationService
     }
 
     /**
+     * Pending sales the user can validate in the range the page opens on (this month): the menu badge, equal to the
+     * "All areas" card (back office) or their area's card (office secretary). Null when they don't validate sales.
+     */
+    public function pendingCount(User $user): ?int
+    {
+        $allowed = $this->allowedAreas($user);
+        if ($allowed === false || ! $user->can('sales_validation')) {
+            return null;
+        }
+
+        $f = $this->filters([], $allowed);
+
+        return $this->inRange($this->base(), $f)->where('t.sale_status', 'pending')
+            ->when($allowed !== null, fn ($q) => $q->whereIn(DB::raw(self::AREA), $allowed))
+            ->count();
+    }
+
+    /**
      * Step 1: every office area with its pending sales (all categories), plus "All areas".
      *
      * @return array<int, array{key: string, name: string, pending: int}>
@@ -76,17 +116,21 @@ class SaleValidationService
     public function areas(array $f): array
     {
         $pending = $this->inRange($this->base(), $f)->where('t.sale_status', 'pending')
+            ->when($f['allowed'] !== null, fn ($q) => $q->whereIn(DB::raw(self::AREA), $f['allowed']))
             // No area groups under '' (a null key can't index the counts).
             ->selectRaw('COALESCE('.self::AREA.", '') as area, COUNT(*) as n")->groupByRaw('COALESCE('.self::AREA.", '')")
             ->pluck('n', 'area')->map(fn ($n) => (int) $n);
 
         $rows = collect(config('areas'))->except(self::HIDDEN_AREAS)
+            ->when($f['allowed'] !== null, fn ($areas) => $areas->only($f['allowed']))
             ->map(fn ($a, $key) => ['key' => $key, 'name' => $a['name'], 'pending' => (int) ($pending[$key] ?? 0)])->values();
 
-        return [
-            ['key' => self::ALL_AREAS, 'name' => 'All areas', 'pending' => $pending->sum()],
-            ...$rows->sortByDesc('pending')->values()->all(),
-        ];
+        // "All areas" is everyone's for the back office; a secretary with several areas gets "All my areas".
+        $all = $f['allowed'] === null
+            ? [['key' => self::ALL_AREAS, 'name' => 'All areas', 'pending' => $pending->sum()]]
+            : ($rows->count() > 1 ? [['key' => self::ALL_AREAS, 'name' => 'All my areas', 'pending' => $rows->sum('pending')]] : []);
+
+        return [...$all, ...$rows->sortByDesc('pending')->values()->all()];
     }
 
     /**
@@ -96,7 +140,7 @@ class SaleValidationService
      */
     public function categoryCounts(array $f): array
     {
-        $counts = $this->inRange($this->inArea($this->base(), $f['area']), $f)
+        $counts = $this->inRange($this->inArea($this->base(), $f), $f)
             ->selectRaw('t.sale_type, t.sale_status, COUNT(*) as n')->groupBy('t.sale_type', 't.sale_status')->get();
 
         return collect(self::CATEGORIES)->mapWithKeys(fn ($category) => [$category => collect(self::STATUSES)->mapWithKeys(
@@ -110,7 +154,7 @@ class SaleValidationService
     public function table(array $f): LengthAwarePaginator
     {
         $category = $f['category'];
-        $query = $this->inArea($this->base(), $f['area'])
+        $query = $this->inArea($this->base(), $f)
             ->join(self::TABLES[$category].' as c', 'c.agent_transaction_id', '=', 't.id')
             ->leftJoin('agent_transaction_details as cd', 'cd.agent_transaction_id', '=', 't.id')
             ->leftJoin('users as au', 'au.id', '=', 'a.user_id')
@@ -162,7 +206,7 @@ class SaleValidationService
     {
         $agent = DB::table('agents as a')->leftJoin('users as u', 'u.id', '=', 'a.user_id')->where('a.id', $agentId)
             ->first(['a.id', 'a.avatar', 'a.area', 'u.name', 'u.email']);
-        if (! $agent) {
+        if (! $agent || ($f['allowed'] !== null && ! in_array($agent->area, $f['allowed'], true))) {
             return null;
         }
 
@@ -298,10 +342,10 @@ class SaleValidationService
      *
      * @return array<string, mixed>|null
      */
-    public function detail(int $saleId): ?array
+    public function detail(int $saleId, ?array $allowed = null): ?array
     {
         $sale = DB::table('agent_transactions')->where('id', $saleId)->first();
-        if (! $sale || ! isset(self::TABLES[$sale->sale_type])) {
+        if (! $sale || ! isset(self::TABLES[$sale->sale_type]) || ! $this->inAllowedArea($saleId, $allowed)) {
             return null;
         }
 
@@ -449,8 +493,24 @@ class SaleValidationService
         }
     }
 
-    private function inArea(Builder $query, string $area): Builder
+    // Whether a sale's area (credited agent's, else recorder's) is one the reader may validate; null = any.
+    public function inAllowedArea(int $saleId, ?array $allowed): bool
     {
-        return $area === self::ALL_AREAS ? $query : $query->whereRaw(self::AREA.' = ?', [$area]);
+        if ($allowed === null) {
+            return true;
+        }
+
+        $area = $this->base()->where('t.id', $saleId)->selectRaw(self::AREA.' as area')->value('area');
+
+        return in_array($area, $allowed, true);
+    }
+
+    private function inArea(Builder $query, array $f): Builder
+    {
+        if ($f['area'] !== self::ALL_AREAS) {
+            return $query->whereRaw(self::AREA.' = ?', [$f['area']]);
+        }
+
+        return $f['allowed'] === null ? $query : $query->whereIn(DB::raw(self::AREA), $f['allowed']);
     }
 }

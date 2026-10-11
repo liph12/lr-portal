@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Portal\SuperAdmin\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SuperAdmin\Settings\StoreRoleRequest;
 use App\Http\Requests\SuperAdmin\Settings\UpdateRoleRequest;
+use App\Models\Entities\Agent;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -59,7 +60,7 @@ class RoleController extends Controller
                 $like = '%'.addcslashes($search, '%_\\').'%';
                 $q->where(fn ($w) => $w->where('users.name', 'like', $like)->orWhere('users.email', 'like', $like));
             })
-            ->with('agent:id,user_id,avatar')
+            ->with('agent:id,user_id,avatar,activity')
             ->orderBy('users.name')
             ->paginate(self::MEMBERS_PER_PAGE, ['users.id', 'users.name', 'users.email', 'users.status'], 'members_page')
             ->withQueryString();
@@ -76,7 +77,7 @@ class RoleController extends Controller
                     'email' => $user->email,
                     'avatar' => $user->agent?->avatar,
                     'role_id' => $selectedId,
-                    'status' => $user->status,
+                    'status' => Agent::displayStatus($user->status, $user->agent?->activity),
                 ]),
                 'page' => $members->currentPage(),
                 'last_page' => $members->lastPage(),
