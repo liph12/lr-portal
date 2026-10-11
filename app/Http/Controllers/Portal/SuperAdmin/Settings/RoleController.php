@@ -37,10 +37,14 @@ class RoleController extends Controller
                 'permission_ids' => $role->permissions->pluck('id'),
             ]);
 
+        $order = array_flip([...array_keys(Permission::SECTIONS), Permission::OTHER_SECTION]);
         $permissions = Permission::query()
             ->withCount('roles')
             ->orderBy('label')
-            ->get(['id', 'name', 'label']);
+            ->get(['id', 'name', 'label'])
+            ->map(fn (Permission $p) => [...$p->only(['id', 'name', 'label', 'roles_count']), 'section' => Permission::sectionOf($p->name)])
+            ->sortBy(fn ($p) => $order[$p['section']])
+            ->values();
 
         // The open role comes from the URL (?role=), else the one just created/changed, else the first.
         $selectedId = (int) ($request->query('role') ?: $request->session()->get('selected_role') ?: $roles->first()['id'] ?? 0);

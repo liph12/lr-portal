@@ -33,6 +33,14 @@ class Agent extends Model
     // Global partners recruited from this date on are the ones selling from abroad.
     public const GLOBAL_PARTNER_SINCE = '2024-02-01';
 
+    // Activity (AgentActivityService): dormant after DORMANT_AFTER_MONTHS without a sale since activation. Unlike the
+    // account status it never blocks sign-in. Leaders and back-office roles are always active.
+    public const ACTIVITY_ACTIVE = 'active';
+    public const ACTIVITY_DORMANT = 'dormant';
+    public const ACTIVITIES = [self::ACTIVITY_ACTIVE, self::ACTIVITY_DORMANT];
+    public const DORMANT_AFTER_MONTHS = 6;
+    public const ACTIVITY_EXEMPT_ROLES = ['superadmin', 'admin', 'staff', 'secretary', 'team_leader', 'unit_manager'];
+
     // Last step of the registration stepper (agent_attributes.registration_status 1–4). Below it the agent never
     // finished signing up (mostly no team yet), so member and recruit statistics leave them out.
     public const FULLY_REGISTERED = 4;
@@ -85,6 +93,7 @@ class Agent extends Model
         return [
             // Legacy schema: true = male, false = female.
             'gender' => 'boolean',
+            'activated_at' => 'datetime',
         ];
     }
 

@@ -131,6 +131,8 @@ export interface PermissionItem {
     name: string;
     label: string;
     roles_count: number;
+    // Heading it's grouped under on the Roles page (Permission::SECTIONS).
+    section: string;
 }
 
 export interface RoleUserItem {
@@ -154,6 +156,18 @@ export interface RoleMembersPage {
 
 export type StatsPeriod = "12m" | "year" | "all";
 
+// The three local sale categories (sales validation, reports).
+export type SaleCategory = "project" | "brokerage" | "rental";
+
+// Sales by the client's age band (App\Support\ClientStats::ages).
+export interface ClientAges {
+    // Fixed bands (18–24 … 65+), youngest first.
+    rows: { name: string; sales: number; value: number }[];
+    counted: number;
+    // Sales with no age recorded, or one that isn't a real age (under 18, 100+): left out of the bands.
+    excluded: number;
+}
+
 export interface StatsSummary {
     period: StatsPeriod;
     range: { start: string | null; end: string };
@@ -167,6 +181,12 @@ export interface StatsSummary {
     developers: { name: string; sales: number; value: number }[];
     propertyTypes: { name: string; sales: number; value: number }[];
     commission: { status: string; sales: number }[];
+    // Clients of the period's project sales.
+    clients: {
+        countries: { name: string; code: string | null; sales: number; value: number }[];
+        genders: { name: string; sales: number; value: number }[];
+        ages: ClientAges;
+    };
     team: {
         byRole: { name: string; users: number }[];
         byStatus: { status: UserStatus; users: number }[];
@@ -213,6 +233,9 @@ export interface AgentRow {
     avatar: string | null;
     status: string;
     agent_type: "local" | "global_partner";
+    // Dormant: 6 months without a sale since activation (never blocks sign-in).
+    activity: "active" | "dormant";
+    activated_at: string | null;
     country: string | null;
     country_code: string | null;
     // config/areas.php key; null when unassigned.

@@ -35,7 +35,7 @@ beforeEach(function () {
             'files', 'rental_deposit_slip', 'validSale', 'prop_details', 'logs', 'created_at'] as $c) {
             $t->text($c)->nullable();
         }
-        foreach (['devid', 'projid', 'prop_type_id', 'agentid', 'deleted'] as $c) {
+        foreach (['devid', 'projid', 'prop_type_id', 'agentid', 'deleted', 'clientAge'] as $c) {
             $t->integer($c)->nullable();
         }
         $t->double('tcprice')->nullable();
@@ -56,7 +56,8 @@ beforeEach(function () {
     DB::table('developer_projects')->insert(['id' => 77, 'developer_id' => 10, 'name' => 'Mivela Garden', 'project_property_type_id' => 1]);
 
     $this->sale = fn (array $attrs) => DB::connection('legacy')->table('salesreport')->insertGetId(array_merge([
-        'name' => 'Juan', 'clientfamilyname' => 'Dela Cruz', 'clientGender' => 'male', 'clientEmail' => 'JUAN@example.com',
+        // name is the agent's own name; clientfamilyname is the client's full name.
+        'name' => 'Ana Agent', 'clientfamilyname' => 'Juan Dela Cruz', 'clientGender' => 'male', 'clientAge' => 34, 'clientEmail' => 'JUAN@example.com',
         'clientCountry' => 'Philippines', 'unitnum' => '12B', 'reservationdate' => '03/15/2025', 'dateadded' => '03/16/2025',
         'termofpayment' => '12 Months', 'status' => 'Unclaimed', 'validSale' => 'Yes', 'agentid' => 9001, 'deleted' => 0,
         'prop_type_id' => 1, 'tcprice' => 3500000,
@@ -83,9 +84,11 @@ test('a project sale keeps its legacy id, links the agent via memberid, and maps
         ->and($sale->commission_status)->toBe('Fully Claimed')
         ->and($sale->sale_status)->toBe('valid')
         ->and($sale->created_at->toDateString())->toBe('2025-03-16')
-        ->and($sale->detail->client_last_name)->toBe('Dela Cruz')
+        ->and($sale->detail->client_first_name)->toBe('Juan Dela Cruz')
+        ->and($sale->detail->client_last_name)->toBeNull()
         ->and($sale->detail->client_email)->toBe('juan@example.com')
         ->and($sale->detail->client_gender)->toBe('Male')
+        ->and($sale->detail->client_age)->toBe(34)
         ->and($project->developer_id)->toBe(10)
         ->and($project->developer_project_id)->toBe(77)
         ->and($project->project_property_type_id)->toBe(1)
@@ -200,4 +203,19 @@ test('sales reserved before 4 Jan 2017 with a blank validSale are valid; invalid
         ->and(AgentTransaction::find($invalidOld)->sale_status)->toBe('invalid')
         ->and(AgentTransaction::find($cancelledOld)->sale_status)->toBe('cancelled')
         ->and(AgentTransaction::find($blankNew)->sale_status)->toBe('pending');
+});
+
+test('client names imported the old way are fixed, keeping any corrected since', function () {
+    $old = ($this->sale)(['name' => 'Ana Agent', 'clientfamilyname' => 'Juan Dela Cruz']);
+    $edited = ($this->sale)(['name' => 'Ana Agent', 'clientfamilyname' => 'Maria & Jose Santos']);
+    (new LegacySalesImporter)->run();
+    // As the old import wrote them: first = the agent's name, last = the client's full name; one corrected by hand since.
+    DB::table('agent_transaction_details')->where('agent_transaction_id', $old)->update(['client_first_name' => 'Ana Agent', 'client_last_name' => 'Juan Dela Cruz']);
+    DB::table('agent_transaction_details')->where('agent_transaction_id', $edited)->update(['client_first_name' => 'Maria', 'client_last_name' => 'Santos']);
+
+    $this->artisan('legacy:import-client-names')->assertSuccessful();
+
+    expect(DB::table('agent_transaction_details')->where('agent_transaction_id', $old)->first())
+        ->client_first_name->toBe('Juan Dela Cruz')->client_last_name->toBeNull()
+        ->and(DB::table('agent_transaction_details')->where('agent_transaction_id', $edited)->value('client_first_name'))->toBe('Maria');
 });

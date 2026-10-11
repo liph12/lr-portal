@@ -40,6 +40,26 @@ class TeamLeadershipService
         return $agentId ? SubTeam::with('team:id,name')->where('agent_id', $agentId)->where('status', '!=', Team::STATUS_DEACTIVATED)->orderBy('name')->get() : collect();
     }
 
+    public function leadsAny(User $user): bool
+    {
+        return $this->teamsLedBy($user)->isNotEmpty() || $this->subTeamsLedBy($user)->isNotEmpty();
+    }
+
+    /**
+     * Agent ids of the current members of every team and sub-team the user leads (null when they lead none).
+     */
+    public function ledMemberIds(User $user): ?\Illuminate\Database\Query\Builder
+    {
+        $teams = $this->teamsLedBy($user)->pluck('id');
+        $subTeams = $this->subTeamsLedBy($user)->pluck('id');
+        if ($teams->isEmpty() && $subTeams->isEmpty()) {
+            return null;
+        }
+
+        return DB::table('team_agents')->where('status', 'active')->whereIn('team_id', $teams)->select('agent_id')
+            ->union(DB::table('sub_team_agents')->where('status', 'active')->whereIn('sub_team_id', $subTeams)->select('agent_id'));
+    }
+
     public function leadsTeam(User $user, Team $team): bool
     {
         return $team->status !== Team::STATUS_DEACTIVATED && $team->agent_id !== null && $team->agent_id === $user->agent()->value('id');

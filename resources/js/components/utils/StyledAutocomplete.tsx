@@ -9,37 +9,7 @@ type StyledAutocompleteProps = AutocompleteProps<
     false // freeSolo
 >;
 
+// MUI's Autocomplete with the theme's own popup, matching the Sales validation sale form; spread props, size small.
 export default function StyledAutocomplete(props: StyledAutocompleteProps) {
-    return (
-        <Autocomplete
-            {...props}
-            size="small"
-            fullWidth
-            disablePortal
-            slotProps={{
-                paper: {
-                    sx: {
-                        borderRadius: 0,
-                    },
-                },
-                listbox: {
-                    sx: {
-                        "& .MuiAutocomplete-option": {
-                            fontSize: "0.8rem",
-                            minHeight: 32,
-                            paddingY: 0.5,
-                        },
-                        "& .MuiAutocomplete-option.Mui-focused": {
-                            backgroundColor: "rgba(15, 48, 81, 0.12)",
-                        },
-                        "& .MuiAutocomplete-option[aria-selected='true']": {
-                            backgroundColor: "rgba(46, 135, 224, 0.1)",
-                            fontWeight: "bold",
-                            color: "rgb(37, 106, 174)",
-                        },
-                    },
-                },
-            }}
-        />
-    );
+    return <Autocomplete {...props} size="small" fullWidth disablePortal />;
 }

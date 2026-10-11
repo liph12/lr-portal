@@ -13,8 +13,8 @@ use App\Support\Areas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-// A read-only agent profile, opened from the reports: for the back office, team managers, the agent's own
-// leaders, and the agent themself.
+// A read-only agent profile, opened from the reports and the navbar search: for the back office (superadmin, admin,
+// staff), the agent's own leaders, and the agent themself. Their sales need view_reports for the back office.
 class AgentProfileController extends Controller
 {
     public function __construct(private SalesReportService $reports) {}
@@ -23,7 +23,7 @@ class AgentProfileController extends Controller
     {
         $user = $request->user();
         abort_unless(
-            ($user->hasAnyRole(UserPolicy::SEARCH_ROLES) && $user->can('view_reports'))
+            $user->hasAnyRole(UserPolicy::SEARCH_ROLES)
                 || $user->can('manage', Team::class)
                 || $agent->user_id === $user->id
                 || $this->leadsAgent($user, $agent),
@@ -47,6 +47,8 @@ class AgentProfileController extends Controller
         $sponsorId = $attributes?->referral_id ? (int) $attributes->referral_id : null;
         $sponsor = $sponsorId ? DB::table('agents as a')->leftJoin('users as u', 'u.id', '=', 'a.user_id')
             ->where('a.id', $sponsorId)->first(['a.id', 'a.avatar', 'a.area', 'u.name', 'u.email']) : null;
+
+        $seesSales = ! $user->hasAnyRole(UserPolicy::SEARCH_ROLES) || $user->can('view_reports');
 
         // The tax number stays with the back office and the agent themself, not with team leaders.
         $seesPrivate = $user->hasAnyRole(UserPolicy::SEARCH_ROLES) || $agent->user_id === $user->id;
@@ -75,7 +77,7 @@ class AgentProfileController extends Controller
                 'prc_expiration' => $credentials?->prc_expiration,
                 'dhsud_expiration' => $credentials?->dhsud_expiration,
                 'referral_link' => $attributes?->referral_link,
-                'date_activated' => $attributes?->date_activated ? substr((string) $attributes->date_activated, 0, 10) : null,
+                'date_activated' => $agent->activated_at?->toDateString(),
                 'nao' => min((int) ($attributes?->nao_video_tracker ?? 0), RecruitmentService::NAO_COMPLETE),
                 'nao_attendance_status' => $attributes?->nao_attendance_status ?: null,
                 'nao_date_of_attendance' => $attributes?->nao_date_of_attendance,
@@ -103,6 +105,7 @@ class AgentProfileController extends Controller
                 'status' => $agent->user?->status,
                 'role' => $agent->user?->roles()->value('label'),
                 'agent_type' => $agent->agent_type,
+                'activity' => $agent->activity,
                 'area' => $agent->area ? Areas::name($agent->area) : null,
                 'city' => $agent->city,
                 'state' => $agent->state,
@@ -112,7 +115,7 @@ class AgentProfileController extends Controller
             'teams' => $memberships('team_agents', 'teams', 'team_id'),
             'subTeams' => $memberships('sub_team_agents', 'sub_teams', 'sub_team_id'),
             'filters' => $filters,
-            'summary' => fn () => $this->reports->summary($filters),
+            'summary' => $seesSales ? fn () => $this->reports->summary($filters) : null,
         ]);
     }
 

@@ -48,6 +48,10 @@ class ImportLegacyMembers extends Command
 
         $this->info($dryRun ? 'Dry run finished: nothing was saved.' : 'Import finished.');
 
+        if (! $dryRun) {
+            $this->call('agents:refresh-activity');
+        }
+
         return self::SUCCESS;
     }
 }

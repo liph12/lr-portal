@@ -13,6 +13,15 @@ const TONES: Record<string, [string, string]> = {
     terminated: ["var(--lr-error-soft)", "var(--lr-error)"],
     local: ["var(--lr-surface-container)", "var(--lr-text-body)"],
     global_partner: ["var(--lr-primary-soft)", "var(--lr-primary)"],
+    // Agent activity: dormant = 6 months without a sale.
+    dormant: ["var(--lr-warning-soft)", "var(--lr-warning)"],
+    // Sales (validation): pending / valid share the document tones below.
+    invalid: ["var(--lr-error-soft)", "var(--lr-error)"],
+    cancelled: ["var(--lr-surface-container)", "var(--lr-text-secondary)"],
+    // Agent documents (Documentation).
+    pending: ["var(--lr-warning-soft)", "var(--lr-warning)"],
+    valid: ["var(--lr-success-soft)", "var(--lr-success)"],
+    for_reupload: ["var(--lr-error-soft)", "var(--lr-error)"],
 };
 
 export default function StatusChip({ status, sx, ...props }: StatusChipProps) {

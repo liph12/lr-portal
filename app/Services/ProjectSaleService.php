@@ -15,6 +15,7 @@ class ProjectSaleService
     public function __construct(
         private SaleFileStorage $files,
         private ActivityLogger $activity,
+        private AgentActivityService $agentActivity,
     ) {}
 
     /**
@@ -49,6 +50,11 @@ class ProjectSaleService
         }
 
         $project = $transaction->projectTransaction;
+
+        // A new sale makes a dormant agent active again right away.
+        if ($transaction->agent_id) {
+            $this->agentActivity->refresh([$transaction->agent_id]);
+        }
 
         $this->activity->describe(
             'sale.project.recorded',

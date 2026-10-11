@@ -6,10 +6,8 @@ import useAuthUser from "../../../hooks/useAuthUser";
 import usePortalRoutes from "../../../hooks/usePortalRoutes";
 import { buildPageIndex, PageResult, searchPages } from "../../../helpers/searchPages";
 import ConfirmDialog from "../ConfirmDialog";
-import UserSearchResult, { UserChange, UserSearchItem } from "./UserSearchResult";
+import UserSearchResult, { UserSearchItem } from "./UserSearchResult";
 import GroupSearchResult, { GroupSearchItem } from "./GroupSearchResult";
-import { STATUS_LABELS } from "../user/UserStatusChip";
-import { UserStatus } from "../../../types/app-data-types";
 
 interface GlobalSearchProps {
     autoFocus?: boolean;
@@ -19,8 +17,6 @@ interface GlobalSearchProps {
 
 interface UserSearchResponse {
     users: UserSearchItem[];
-    roles: { id: number; label: string }[];
-    statuses: UserStatus[];
 }
 
 const DEBOUNCE_MS = 250;
@@ -44,7 +40,6 @@ const isTypingTarget = (el: EventTarget | null) =>
 export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearchProps) {
     const user = useAuthUser();
     const canSearchUsers = !!user?.can.search_users;
-    const canManage = !!user?.can.manage_users;
     const canSearchGroups = !!user?.can.search_groups;
     const canSearchRemote = canSearchUsers || canSearchGroups;
 
@@ -54,13 +49,12 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
     const [open, setOpen] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
     const [loading, setLoading] = useState(false);
-    const [people, setPeople] = useState<UserSearchResponse>({ users: [], roles: [], statuses: [] });
+    const [people, setPeople] = useState<UserSearchResponse>({ users: [] });
     const [groups, setGroups] = useState<GroupSearchItem[]>([]);
     const [peopleError, setPeopleError] = useState<string | null>(null);
     const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
-    const [pending, setPending] = useState<{ user: UserSearchItem; change: UserChange } | null>(null);
-    const [saving, setSaving] = useState(false);
-    const [refreshKey, setRefreshKey] = useState(0);
+    // The person a superadmin is about to sign in as (confirmed first).
+    const [pending, setPending] = useState<UserSearchItem | null>(null);
 
     const portalRoutes = usePortalRoutes();
     const pageIndex = useMemo(() => buildPageIndex(portalRoutes), [portalRoutes]);
@@ -87,7 +81,7 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
 
     useEffect(() => {
         if (!canSearchRemote || term.length < 2) {
-            setPeople((p) => ({ ...p, users: [] }));
+            setPeople({ users: [] });
             setGroups([]);
             setLoading(false);
             return;
@@ -111,7 +105,7 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
                     canSearchUsers ? get("/search/users") : null,
                     canSearchGroups ? get("/search/groups") : null,
                 ]);
-                setPeople(peopleResult ?? { users: [], roles: [], statuses: [] });
+                setPeople(peopleResult ?? { users: [] });
                 setGroups(groupResult?.groups ?? []);
             } catch (e) {
                 if (!controller.signal.aborted) setPeopleError(e instanceof Error ? e.message : "Couldn't search people right now.");
@@ -124,7 +118,7 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
             controller.abort();
             window.clearTimeout(timer);
         };
-    }, [term, canSearchUsers, canSearchGroups, canSearchRemote, refreshKey]);
+    }, [term, canSearchUsers, canSearchGroups, canSearchRemote]);
 
     useEffect(() => setActiveIndex(0), [query]);
 
@@ -141,33 +135,17 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
         onDone?.();
     };
 
-    const applyChange = () => {
+    const signInAs = () => {
         if (!pending) return;
-        const { user: target, change } = pending;
+        const target = pending;
         setPending(null);
-
-        const [url, data] =
-            change.kind === "role"
-                ? [`/superadmin/settings/users/${target.id}/role`, { role_id: change.roleId }]
-                : [`/superadmin/settings/users/${target.id}/status`, { status: change.status }];
-
-        router.put(url, data, {
-            preserveScroll: true,
-            preserveState: true,
-            onStart: () => setSaving(true),
-            onFinish: () => setSaving(false),
+        router.post(`/impersonate/${target.id}`, {}, {
             onSuccess: () => {
-                setNotice({
-                    tone: "success",
-                    text:
-                        change.kind === "role"
-                            ? `${target.name} is now a ${change.label}.`
-                            : `${target.name} is now ${STATUS_LABELS[change.status]}.`,
-                });
-                setRefreshKey((k) => k + 1);
+                close();
+                setQuery("");
+                onDone?.();
             },
-            onError: (errors) =>
-                setNotice({ tone: "error", text: errors.role ?? errors.status ?? errors.role_id ?? "That change wasn't saved." }),
+            onError: (errors) => setNotice({ tone: "error", text: errors.user ?? `Couldn't sign in as ${target.name}.` }),
         });
     };
 
@@ -189,29 +167,9 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
             const item = items[activeIndex];
             if (item?.type === "page") goTo(item.page.path);
             else if (item?.type === "group") goTo(item.group.url);
+            else if (item?.type === "user" && item.user.agent_id) goTo(`/agents/${item.user.agent_id}`);
         }
     };
-
-    const confirmText = (() => {
-        if (!pending) return { title: "", message: "", label: "" };
-        const { user: target, change } = pending;
-        if (change.kind === "role") {
-            return {
-                title: `Make ${target.name} a ${change.label}?`,
-                message: `They will be moved from ${target.role_label ?? "no role"} to ${change.label} and get its permissions.`,
-                label: `Move to ${change.label}`,
-            };
-        }
-        const label = STATUS_LABELS[change.status];
-        return {
-            title: `Mark ${target.name} as ${label}?`,
-            message:
-                change.status === "active"
-                    ? "They will be able to sign in again."
-                    : "They will be signed out and can't sign in. Their records stay in the portal.",
-            label: `Mark as ${label}`,
-        };
-    })();
 
     const showPanel = open && term.length > 0;
     const nothingFound = !loading && !peopleError && items.length === 0 && (term.length >= 2 || !canSearchRemote);
@@ -220,7 +178,7 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
     return (
         <ClickAwayListener
             onClickAway={(e) => {
-                // Role/status menus and the confirm dialog are portalled outside this box; clicks in them aren't "away".
+                // The confirm dialog is portalled outside this box; clicks in it aren't "away".
                 if (pending || (e.target instanceof Element && e.target.closest(".MuiPopover-root, .MuiDialog-root"))) return;
                 close();
             }}
@@ -383,12 +341,9 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
                                         user={u}
                                         active={activeIndex === usersOffset + i}
                                         isSelf={u.id === user?.id}
-                                        canManage={canManage}
-                                        busy={saving}
-                                        roles={people.roles}
-                                        statuses={people.statuses}
-                                        onChange={(target, change) => setPending({ user: target, change })}
                                         onHover={() => setActiveIndex(usersOffset + i)}
+                                        onOpen={goTo}
+                                        onSignInAs={setPending}
                                     />
                                 ))}
                             </>
@@ -410,11 +365,11 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
 
                 <ConfirmDialog
                     open={pending !== null}
-                    title={confirmText.title}
-                    message={confirmText.message}
-                    confirmLabel={confirmText.label}
-                    tone={pending?.change.kind === "status" && pending.change.status !== "active" ? "danger" : "primary"}
-                    onConfirm={applyChange}
+                    title={`Sign in as ${pending?.name ?? ""}?`}
+                    message="You'll see the portal exactly as they do. Everything you do is recorded as them and as you. Use the red banner to return to your own account."
+                    confirmLabel="Sign in as them"
+                    tone="primary"
+                    onConfirm={signInAs}
                     onClose={() => setPending(null)}
                 />
             </Box>

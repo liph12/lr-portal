@@ -14,6 +14,7 @@ class BrokerageSaleService
     public function __construct(
         private SaleFileStorage $files,
         private ActivityLogger $activity,
+        private AgentActivityService $agentActivity,
     ) {}
 
     /**
@@ -47,6 +48,11 @@ class BrokerageSaleService
         }
 
         $brokerage = $transaction->brokerageTransaction()->with('brokerageArea:id,name')->first();
+
+        // A new sale makes a dormant agent active again right away.
+        if ($transaction->agent_id) {
+            $this->agentActivity->refresh([$transaction->agent_id]);
+        }
 
         $this->activity->describe(
             'sale.brokerage.recorded',

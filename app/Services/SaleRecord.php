@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Entities\AgentTransaction;
 use App\Models\User;
 use App\Policies\UserPolicy;
+use Illuminate\Support\Carbon;
 
 // The sale row and client details every category shares; category services add their own table.
 final class SaleRecord
@@ -32,12 +33,23 @@ final class SaleRecord
             'client_email' => $data['client_email'] ?? null,
             'client_mobile' => $data['client_mobile'],
             'client_birthdate' => $data['client_birthdate'] ?? null,
+            'client_age' => self::ageAt($data['client_birthdate'] ?? null, $data['reservation_date'] ?? null),
             'client_gender' => $data['client_gender'] ?? null,
             'client_country' => $data['client_country'],
             'client_address' => $data['client_address'] ?? null,
         ]);
 
         return $transaction;
+    }
+
+    // The client's age on the reservation date (what the statistics split by); null without a birthdate.
+    public static function ageAt(?string $birthdate, ?string $reservedOn): ?int
+    {
+        if (! $birthdate) {
+            return null;
+        }
+
+        return (int) Carbon::parse($birthdate)->diffInYears(Carbon::parse($reservedOn ?? 'today'));
     }
 
     // Field roles record their own sales, so the sale counts for them; back-office staff record on

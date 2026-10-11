@@ -23,16 +23,25 @@ beforeEach(function () {
     ($this->userWith)('agent', ['name' => 'Maria Clara', 'email' => 'maria@example.com']);
 });
 
-test('superadmins find users by name or email and get the controls to manage them', function () {
+test('superadmins find users by name or email, with role, status, profile link and sign-in', function () {
+    $agentId = \Illuminate\Support\Facades\DB::table('agents')->insertGetId(['user_id' => $this->juan->id, 'email' => $this->juan->email]);
+
     $this->actingAs($this->superadmin)
         ->getJson('/search/users?q=juan')
         ->assertOk()
         ->assertJsonCount(2, 'users')
         ->assertJsonPath('users.0.name', 'Juan Dela Cruz')
         ->assertJsonPath('users.0.role_label', 'Agent')
+        ->assertJsonPath('users.0.agent_id', $agentId)
+        ->assertJsonPath('users.0.can_impersonate', true)
         ->assertJsonPath('users.1.status', 'resigned')
-        ->assertJsonPath('statuses', ['active', 'inactive', 'resigned', 'terminated'])
-        ->assertJsonCount(4, 'roles');
+        // Resigned users can't sign in, so nobody can sign in as them; accounts without an agent have no profile.
+        ->assertJsonPath('users.1.can_impersonate', false)
+        ->assertJsonPath('users.1.agent_id', null)
+        ->assertJsonMissingPath('roles')
+        ->assertJsonMissingPath('statuses');
+
+    $this->actingAs($this->superadmin)->getJson('/search/users?q=philip')->assertJsonPath('users.0.can_impersonate', false);
 
     $this->actingAs($this->superadmin)
         ->getJson('/search/users?q=maria@')
@@ -40,13 +49,19 @@ test('superadmins find users by name or email and get the controls to manage the
         ->assertJsonPath('users.0.email', 'maria@example.com');
 });
 
-test('admins and staff can search but get no management options', function (string $role) {
-    $this->actingAs(($this->userWith)($role))
+test('admins and staff can search and open profiles but not sign in as anyone', function (string $role) {
+    $agentId = \Illuminate\Support\Facades\DB::table('agents')->insertGetId(['user_id' => $this->juan->id, 'email' => $this->juan->email]);
+    $reader = ($this->userWith)($role);
+
+    $this->actingAs($reader)
         ->getJson('/search/users?q=juan')
         ->assertOk()
         ->assertJsonCount(2, 'users')
-        ->assertJsonPath('roles', [])
-        ->assertJsonPath('statuses', []);
+        ->assertJsonPath('users.0.can_impersonate', false);
+
+    // Without view_reports the profile opens without the sales.
+    $this->actingAs($reader)->get("/agents/{$agentId}")
+        ->assertInertia(fn ($page) => $page->component('Portal/Agents/Show')->where('agent.name', 'Juan Dela Cruz')->where('summary', null));
 })->with(['admin', 'staff']);
 
 test('other roles and guests cannot search users', function () {

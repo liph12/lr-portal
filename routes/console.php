@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('model:prune', ['--model' => [ActivityLog::class]])->daily();
+
+// Rolling 6-month window, so it has to move forward every day even when nobody records a sale.
+Schedule::command('agents:refresh-activity')->dailyAt('01:00');

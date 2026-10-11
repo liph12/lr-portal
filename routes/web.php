@@ -48,6 +48,7 @@ Route::middleware(['auth', 'active'])->group(function(){
         require base_path('routes/superadmin/superadmin-statistics.php');
         require base_path('routes/superadmin/superadmin-accounting.php');
         require base_path('routes/superadmin/superadmin-documentation.php');
+        require base_path('routes/superadmin/superadmin-sales-validation.php');
         require base_path('routes/superadmin/superadmin-humanresource.php');
         require base_path('routes/superadmin/superadmin-inbox.php'); 
         require base_path('routes/superadmin/superadmin-settings.php'); 
@@ -57,11 +58,15 @@ Route::middleware(['auth', 'active'])->group(function(){
 
         require base_path('routes/admin/admin-dashboard.php');
         require base_path('routes/admin/admin-management.php');
+        require base_path('routes/admin/admin-documentation.php');
+        require base_path('routes/admin/admin-sales-validation.php');
     });
 
     Route::prefix('staff')->middleware('role:staff')->group(function(){
 
         require base_path('routes/staff/staff-dashboard.php');
+        require base_path('routes/staff/staff-documentation.php');
+        require base_path('routes/staff/staff-sales-validation.php');
 
     });
 

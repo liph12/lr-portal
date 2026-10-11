@@ -8,13 +8,13 @@ import { SalesEncodingState } from "../../../../types/app-data-types";
 import FhDevelopersLogo from "../../../../../assets/fh-logo-dark.png";
 import RentphLogo from "../../../../../assets/rentph-logo.png";
 import LrLogo from "../../../../../assets/lr-logo.svg";
-import StyledButton from "../../../../components/utils/StyledButton";
-import Add from "@mui/icons-material/Add";
+import { ChevronRightRounded } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
 
 interface SaleOption {
     title: string;
     subTitle: string;
+    description: string;
     logo: string;
     href: string;
     // Which recording permission the card needs.
@@ -25,6 +25,7 @@ const SALE_OPTIONS: SaleOption[] = [
     {
         title: "Project Sale",
         subTitle: "Developer",
+        description: "A unit or lot sold in a developer's project.",
         logo: FhDevelopersLogo,
         href: "/dashboard/record-sale/project",
         kind: "local",
@@ -32,6 +33,7 @@ const SALE_OPTIONS: SaleOption[] = [
     {
         title: "Rental Sale",
         subTitle: "Rent PH",
+        description: "A lease you closed, with its deposit and remittance slips.",
         logo: RentphLogo,
         href: "/dashboard/record-sale/rental",
         kind: "local",
@@ -39,6 +41,7 @@ const SALE_OPTIONS: SaleOption[] = [
     {
         title: "Brokerage Sale",
         subTitle: "Leuterio Realty",
+        description: "A resale or brokerage deal in one of our brokerage areas.",
         logo: LrLogo,
         href: "/dashboard/record-sale/brokerage",
         kind: "local",
@@ -46,94 +49,61 @@ const SALE_OPTIONS: SaleOption[] = [
     {
         title: "International Sale",
         subTitle: "Global Partner",
+        description: "A sale you closed as a global partner, from abroad.",
         logo: LrLogo,
         href: "/dashboard/record-sale/international",
         kind: "international",
     },
 ];
 
-function SaleCard({ title, subTitle, logo, href }: SaleOption) {
+// Same card as the Reports page: the whole card opens the form; the logo sits in a white tile on the left.
+function SaleCard({ title, subTitle, description, logo, href }: SaleOption) {
     return (
-        <Box
-            sx={{
-                border: "1px solid var(--lr-border)",
-                borderRadius: 3,
-                backgroundColor: "var(--lr-surface)",
-                display: "flex",
-                flexDirection: "column",
-                overflow: "hidden",
-                transition: "box-shadow 0.2s ease",
-                ":hover": {
-                    boxShadow:
-                        "0 1px 3px rgba(60,64,67,.15), 0 4px 8px rgba(60,64,67,.1)",
-                },
-            }}
-        >
+        <Link href={href} style={{ textDecoration: "none" }}>
             <Box
                 sx={{
+                    height: "100%",
                     display: "flex",
-                    justifyContent: "space-between",
                     alignItems: "center",
                     gap: 2,
                     p: 2.5,
+                    border: "1px solid var(--lr-border)",
+                    borderRadius: 3,
+                    backgroundColor: "var(--lr-surface)",
+                    transition: "box-shadow 0.2s ease",
+                    ":hover": { boxShadow: "0 1px 3px rgba(60,64,67,.15), 0 4px 8px rgba(60,64,67,.1)" },
                 }}
             >
-                <Box>
-                    <Typography
-                        variant="body2"
-                        sx={{ fontWeight: 500, color: "var(--lr-text-primary)" }}
-                    >
-                        {title}
-                    </Typography>
-                    <Typography
-                        variant="body2"
-                        sx={{ color: "var(--lr-text-secondary)", fontSize: 13 }}
-                    >
-                        {subTitle}
-                    </Typography>
-                </Box>
                 <Box
                     sx={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 2.5,
-                        // Brand logos are drawn for white, so the tile stays white in dark mode
-                        backgroundColor: "#fff",
+                        width: 72,
+                        height: 72,
+                        borderRadius: 3,
+                        backgroundColor: "var(--lr-logo-tile)",
                         border: "1px solid var(--lr-border)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         flexShrink: 0,
+                        p: 1,
                     }}
                 >
-                    <Box
-                        component="img"
-                        src={logo}
-                        alt=""
-                        sx={{ maxWidth: 34, maxHeight: 28 }}
-                    />
+                    <Box component="img" src={logo} alt="" sx={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
                 </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="body1" sx={{ fontWeight: 500, color: "var(--lr-text-primary)" }}>
+                        {title}
+                    </Typography>
+                    <Typography variant="caption" component="div" sx={{ color: "var(--lr-primary)", fontWeight: 500 }}>
+                        {subTitle}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)", mt: 0.5 }}>
+                        {description}
+                    </Typography>
+                </Box>
+                <ChevronRightRounded sx={{ color: "var(--lr-text-secondary)" }} />
             </Box>
-            <StyledButton
-                fullWidth
-                size="small"
-                variant="text"
-                endIcon={<Add />}
-                LinkComponent={Link}
-                href={href}
-                sx={{
-                    borderRadius: 0,
-                    borderTop: "1px solid var(--lr-border)",
-                    textTransform: "none",
-                    fontWeight: 500,
-                    color: "var(--lr-primary)",
-                    py: 1.25,
-                    ":hover": { backgroundColor: "var(--lr-primary-soft)" },
-                }}
-            >
-                Record Sale
-            </StyledButton>
-        </Box>
+        </Link>
     );
 }
 

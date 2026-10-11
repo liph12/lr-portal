@@ -34,7 +34,7 @@ with their legacy ids; they are not developers. Rentals carry no developer
 | `status` | `commission_status`: Unclaimed · Partially Claimed (`Partial…`) · Fully Claimed (`Full Claimed`, `claimed`, `Claim`) |
 | `status` = Cancelled, else `validSale` Yes/No/blank | `sale_status`: `cancelled` · `valid` · `invalid` · `pending` |
 | `dateadded` (MM/DD/YYYY), `dateupdated` | `created_at`, `updated_at` |
-| `name`, `clientfamilyname`, `clientEmail`, `clientMobile`, `clientGender`, `clientCountry`, `clientAddress` | `agent_transaction_details` |
+| `clientfamilyname` (the client's **full** name → `client_first_name`, last name empty), `clientEmail`, `clientMobile`, `clientGender`, `clientCountry`, `clientAddress` | `agent_transaction_details` |
 | `reservationdate`, `tcprice`, `prop_type_id` | each category table's `reservation_date`, `total_contract_price`, `project_property_type_id` |
 | `files` | project `proof_of_transaction`; **rental and brokerage `remittance_slip`** (their proof). Full URL; relative `proofoftrans/…` → `https://leuteriorealty.com/…` |
 | `projectname` / `projid` | project only: `project_name`, `developer_project_id` |
@@ -73,3 +73,18 @@ Sales reserved before **2017-01-04** were never reviewed in the old system. A bl
 `validSale` counts as **valid**; `No` stays invalid and cancelled stays cancelled. Applied to the
 imported data by migration `2026_10_11_000010_validate_pre_2017_unreviewed_sales` (18,172 pending →
 valid) and by `LegacySalesImporter` on any re-import. Sales with no reservation date are unchanged.
+
+## Client age
+
+`salesreport.clientAge` (int) → `agent_transaction_details.client_age`, kept as recorded (negatives / ≥ 1000 dropped).
+Backfill for sales imported earlier: `php artisan legacy:import-client-ages [--dry-run]`. Statistics only count ages
+18–99 (`App\Support\ClientStats`): on 2026-10-11, 60,253 sales had an age, 60,139 of them in that range; the rest are
+typos such as 0–17 or 100+.
+
+## Client name
+
+`salesreport.name` is the **agent's** name (it equals the agent's own name on 157,575 of 191,096 sales), not the
+client's. The client is `clientfamilyname`, a full name kept whole in `client_first_name` (couples, "Dela Cruz",
+"Cruz, Juan" don't split reliably), `client_last_name` left empty. Sales imported before this fix:
+`php artisan legacy:import-client-names [--dry-run]` — only rows still exactly as the old import wrote them change.
+Run on 2026-10-11: 191,482 fixed, 0 edited since, 53 never imported.

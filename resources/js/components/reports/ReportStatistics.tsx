@@ -7,6 +7,8 @@ import BarList from "../charts/BarList";
 import ShareBar from "../charts/ShareBar";
 import { formatCount, formatPesoCompact } from "../../helpers/formatNumber";
 import { formatDate } from "../../helpers/formatDate";
+import ClientAgeChart from "./ClientAgeChart";
+import { ClientAges } from "../../types/app-data-types";
 
 export interface Kpi {
     value: number;
@@ -22,6 +24,7 @@ export interface ReportSummary {
     client_countries: { name: string; code: string | null; sales: number; value: number }[];
     // Always Male, Female, Not specified (in that order, so each keeps its colour).
     client_genders: { name: string; sales: number; value: number }[];
+    client_ages: ClientAges;
     property_types: { name: string; sales: number; value: number }[];
     // Project sales only (empty when the report excludes project sales); share is of `total`.
     developers: { total: number; rows: { id: number; name: string; sales: number; value: number; share: number }[] };
@@ -123,6 +126,11 @@ export default function ReportStatistics({ summary, showCategories = true, showA
                             unit={["sale", "sales"]}
                             emptyText="No sales match these filters."
                         />
+                    </SectionCard>
+                </Grid>
+                <Grid size={{ xs: 12, lg: 4 }}>
+                    <SectionCard title="By client age">
+                        <ClientAgeChart ages={summary.client_ages} />
                     </SectionCard>
                 </Grid>
                 <Grid size={{ xs: 12, lg: 4 }}>

@@ -13,6 +13,7 @@ import {
     BarChartRounded,
     AssessmentRounded,
     Diversity3Rounded,
+    FactCheckRounded,
 } from "@mui/icons-material";
 import { REPORTS } from "./components/reports/reportCatalog";
 import { BACKOFFICE, LEADER, TEAM_LEADER } from "./helpers/permissions";
@@ -82,10 +83,8 @@ export const dashboardRoute = {
 };
 
 // Who may open a report beyond Reports itself (ReportsController::available): Top Teams only with the whole system in
-// reach, Top Sub-teams also inside a team, Recruits for the back office and leaders.
+// reach, Top Sub-teams also inside a team. Recruits follow Reports (an agent sees the recruits they sponsored).
 const REPORT_ACCESS: Record<string, string[]> = {
-    recruits: [BACKOFFICE, LEADER],
-    "recruits-progress": [BACKOFFICE, LEADER],
     "top-teams": [BACKOFFICE],
     "top-sub-teams": [BACKOFFICE, TEAM_LEADER],
 };
@@ -97,7 +96,14 @@ export const reportsRoute = {
     path: "/reports",
     icon: AssessmentRounded,
     permission: ["view_reports", LEADER],
-    children: REPORTS.map((r) => ({ name: r.title, path: `/reports/${r.slug}`, permission: REPORT_ACCESS[r.slug], children: [] })),
+    children: REPORTS.map((r) => ({
+        name: r.title,
+        path: `/reports/${r.slug}`,
+        permission: REPORT_ACCESS[r.slug],
+        // Each report is also its own permission (ReportsController::permission).
+        requires: [`report_${r.slug.replace(/-/g, "_")}`],
+        children: [],
+    })),
 };
 
 // The same Management pages serve /superadmin/management and /admin/management (tabs in ManagementLayout).
@@ -129,10 +135,12 @@ export const useAppRoutes = [
         icon: Payments,
         children: [],
     },
+    { name: "Sales validation", path: "/superadmin/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
     {
         name: "Documentation",
         path: "/superadmin/documentation",
         icon: FolderShared,
+        permission: "manage_documents",
         children: [],
     },
     {
@@ -173,12 +181,16 @@ export const adminRoutes = [
     reportsRoute,
     { name: "Statistics", path: "/admin/statistics", icon: BarChartRounded, permission: "view_reports", children: [] },
     managementRoute("/admin/management"),
+    { name: "Sales validation", path: "/admin/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
+    { name: "Documentation", path: "/admin/documentation", icon: FolderShared, permission: "manage_documents", children: [] },
 ];
 
 export const staffRoutes = [
     dashboardRoute,
     reportsRoute,
     { name: "Statistics", path: "/staff/statistics", icon: BarChartRounded, permission: "view_reports", children: [] },
+    { name: "Sales validation", path: "/staff/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
+    { name: "Documentation", path: "/staff/documentation", icon: FolderShared, permission: "manage_documents", children: [] },
 ];
 
 // Added to any menu for people who lead a team or sub-team (usePortalRoutes checks auth.leads).

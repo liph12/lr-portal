@@ -48,12 +48,10 @@ class RecruitProgressService
      */
     public function groupsFor(?array $scope): array
     {
-        if (isset($scope['sponsor_id'])) {
-            return [];
-        }
-
-        // Drop the levels the page is already narrowed to (or above).
+        // Drop the levels the page is already narrowed to (or above); one sponsor's recruits group by team, unit
+        // manager or location, never by sponsor.
         $hidden = [
+            ...(isset($scope['sponsor_id']) ? ['sponsors'] : []),
             ...(isset($scope['team_id']) || isset($scope['sub_team_id']) ? ['teams'] : []),
             ...(isset($scope['sub_team_id']) ? ['sub_teams'] : []),
             ...(isset($scope['area']) ? ['areas'] : []),

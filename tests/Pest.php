@@ -41,7 +41,11 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+// What a role could open before reports got one permission each: view_reports plus every report_* permission.
+function grantReports(\App\Models\Role $role): void
 {
-    // ..
+    $role->permissions()->syncWithoutDetaching(
+        \App\Models\Permission::where('name', 'view_reports')->orWhere('name', 'like', 'report_%')->pluck('id')
+            ->push(\App\Models\Permission::firstOrCreate(['name' => 'view_reports'], ['label' => 'View Reports'])->id)->unique()
+    );
 }

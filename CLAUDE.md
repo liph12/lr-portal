@@ -78,6 +78,8 @@ at the matching path. Nothing else.
   `resources/js/components/utils/StyledButton.tsx` (spread props, merge caller `sx` last).
   Do **not** add Tailwind classes or styled-components/`styled()` — both are installed but
   unused (`docs/ARCHITECTURE.md` §6); keep it that way.
+  Inputs: `components/utils/StyledTextField.tsx` / `StyledAutocomplete.tsx` are MUI's outlined field on the theme (same as
+  the Sales validation sale form); pass `label` for a floating label, or print a label above as the record-sale forms do.
 - **Colors / dark mode**: never hardcode hex in components — use the `var(--lr-*)` tokens from
   `resources/css/app.css` (`--lr-text-primary`, `--lr-surface`, `--lr-border`, `--lr-primary`, …),
   which flip under `html.dark`. MUI's palette (`providers/appTheme.ts`) mirrors them — change both
@@ -154,7 +156,8 @@ at the matching path. Nothing else.
 - **Recruits Progress** (Reports › Recruits Progress `/reports/recruits-progress`; `RecruitProgressService`): recruits
   (signed up in range) vs recruits who sold (any recorded sale), their total valid sales (any date), NAO / FIRE of those
   still in training; grouped by team, sub-team / unit manager, or sponsor (`agent_attributes.referral_id`); top areas +
-  sign-ups over time. Same reach as Recruits; leaders lose the groupings that would only show themselves.
+  sign-ups over time. Same reach as Recruits; leaders lose the groupings that would only show themselves, and a sponsor scope (an agent's own
+  recruits, or a clicked sponsor) groups by team / unit manager / location.
   KPIs are `RecruitsPanel` (ordinary stat tiles + FIRE / NAO / Overall cards: not started · on progress · finished,
   for recruits without a sale — the legacy numbers, in this app's style). Groupings: team, unit manager, location
   (area), sponsor. Rows drill down by `team_id` / `sub_team_id` / `area` / `sponsor_id` (merged with the reader's
@@ -165,7 +168,8 @@ at the matching path. Nothing else.
   new recruits signed up in the date range (`agents.created_at`), and onboarding of recruits **without any sale** (local or
   international): NAO = `agent_attributes.nao_video_tracker` % (100 = finished), FIRE = `fire_certificates` with 3 = 100%
   (capped). Cards first, then the server-paged trainees table (filter NAO / FIRE level / status). Reach: back office all;
-  leaders their team / sub-team; others 403 (menu pseudo-grants `_backoffice` / `_leader`). Portable SQL only (CASE, not
+  leaders their team / sub-team; anyone else with reports the recruits they sponsored (`sponsor_id` lock,
+  `ReportsController::recruitLock`) (menu pseudo-grants `_backoffice` / `_leader`). Portable SQL only (CASE, not
   LEAST — tests run on SQLite).
 - **Dashboard (shared)**: `/dashboard/{main,overview,view-sales,record-sale/...}` (`routes/dashboard.php`,
   `Portal\DashboardController`, pages in `Pages/Portal/Dashboard/`) is the **same for every role** and is
@@ -197,6 +201,12 @@ at the matching path. Nothing else.
   Members panel on the Roles page) replaces the user's role; you can't change your own role or move
   the last superadmin. Sign-in sends everyone to the shared dashboard, or to a remembered page under
   `/dashboard`, `/profile` or their own portal (`AuthUserService::redirect`).
+- **Agent activity** (`agents.activity`, `Agent::ACTIVITIES` active / dormant — **not** the account status, never blocks
+  sign-in): dormant when activated (`agents.activated_at` = legacy `dateactivated`, else `created_at`) over 6 months ago
+  and no valid/pending sale (any category, international too) reserved in the last 6 months; rolling, so a sale wakes them
+  up. Roles in `Agent::ACTIVITY_EXEMPT_ROLES` are always active. `AgentActivityService::refresh()` runs daily
+  (`agents:refresh-activity`, scheduled 01:00), after each recorded sale for that agent, and after `legacy:import-members`.
+  Shown in Management › Agents (column + filter) and on the agent profile.
 - **User status**: `users.status` is one of `User::STATUSES` (active, inactive, resigned, terminated),
   changed only through `UserAccountService::changeStatus` (not mass-assignable). Only `active` users
   can sign in; the `active` middleware on the `auth` route group signs out anyone deactivated
@@ -223,6 +233,30 @@ at the matching path. Nothing else.
   one active stint per agent per table. Team photos go through `ProfilePhotoService::uploadSquare`
   (`team-logos/`). Agent status/photo: admins may change agents and staff but not admins/superadmins
   (`UserPolicy::updateStatus/updatePhoto`).
+- **Documentation** (`/{superadmin,admin,staff}/documentation`, routes from `routes/documentation.php` called per portal,
+  `can:manage,AgentDocument` = permission `manage_documents`; `Portal\DocumentationController`, `AgentDocumentService`):
+  agents' requirement documents in `agent_documents` (type `AgentDocument::TYPES`, status `AgentDocument::STATUSES`,
+  `is_current` = the latest of its type per agent — keep exactly one) + reviewers' `agent_document_comments`. Server-paged
+  table (latest only by default), status tabs from the `counts` prop, review drawer opened by `?document=` (partial reload of
+  `document`). Sending back (`for_reupload`) requires remarks. Legacy: `legacy:import-documents`, see
+  `docs/legacy-migration/documents.md`.
+- **Sales validation** (`/{superadmin,admin,staff}/sales-validation`, routes from `routes/sales-validation.php` per portal,
+  `can:sales_validation`; `SalesValidationController`, `SaleValidationService`): everything is within a reservation-date
+  range (`from`/`to`, default this month — first day to today; joined from the three category tables). Pick an area (the credited agent's
+  `agents.area`, else the recorder's; plus All areas — Abroad and no-area aren't offered) → a category (project / brokerage / rental, counts as status-coloured `StatusChip`s: amber pending, green valid, red
+  invalid, grey cancelled)
+  → a server-paged table per status (pending, valid, invalid, cancelled) with client, agent, project + developer /
+  brokerage area / closing agent, unit, price, reserved, date added and the files (POT; remittance + deposit slips).
+  Status via `StatusMenu` → `ValidateSaleRequest`; `setStatus` stores `validated_by` / `validated_at`, appends to
+  `update_logs`, logs `sale.validate` and refreshes the agent's activity.
+  Clicking an agent opens `AgentSalesPanel` (`?agent=ID`, partial reload of `agentSales`, `agent_dates=all` for every date):
+  their sales client first in Project / Brokerage / Rental tabs (newest 100 each), with status chips and `StatusMenu`.
+  Clicking a sale (table row → right drawer; agent panel card → expands in place) loads `saleDetail` (`?sale=ID`,
+  `SaleValidationService::detail`: agent, client, property, payment, files, history) into `SaleDetailsForm`, where every
+  field is editable: `PUT …/sales-validation/{sale}` (`UpdateValidatedSaleRequest`, keys = column names, fields by
+  category, measurements optional but cleared when the property type doesn't use them) → `SaleValidationService::update`
+  (`EDITABLE` map) writes one `update_logs` line listing every change, logs `sale.edit`, recomputes `client_age` from a new
+  birthdate, then sets the status. Pickers: `editOptions` prop. Controls inside a row stop the click (`stop`).
 - **Sign in as a user** (superadmin only; Management › Agents row action, agent profile button): `POST /impersonate/{user}`,
   `DELETE /impersonate`, `ImpersonationService` (session key `impersonator_id`; the session id is regenerated on each switch
   so slow background requests can't undo it). Never on superadmins or inactive users; `ImpersonationBanner` in `AppLayout`;
@@ -268,7 +302,10 @@ at the matching path. Nothing else.
   **Reports** (`/reports`, sidebar item for every portal and field roles, same reach rule; `ReportsController`): cards from
   `components/reports/reportCatalog.ts` → `/reports/{slug}`, each one view of the same service (Top Agents, Top Unit
   Managers = agents with role `unit_manager`, own sales; Top Teams, Top Sub-teams, Developer / Brokerage / Rental
-  Sales — brokerage and rental rank agents). Both pages render `components/reports/SalesReportView.tsx` (View Sales with view tabs, a report without).
+  Sales — brokerage and rental rank agents). **Each report is also its own permission** `report_{slug}` (`ReportsController::permission`,
+  migration `000024`; granted to every role that had view_reports) — checked on the page and in `available()`, and as
+  `requires` on the menu children (all-of, on top of `permission`'s any-of). Settings › Roles & permissions groups
+  permissions by `Permission::SECTIONS` (report_* → Reports); add new permission names to a section there. Both pages render `components/reports/SalesReportView.tsx` (View Sales with view tabs, a report without).
   Drill-down: Teams / Sub-teams / Developers rows open that group's top agents (`team_id` / `sub_team_id` /
   `developer_id` filter → `SalesReportService::sales()` scope; teams by the stint covering each reservation date;
   shared `scope` prop names it for the chip).
@@ -280,14 +317,16 @@ at the matching path. Nothing else.
 - **Report layout**: the ranked table comes first (name, Area / location, Team where relevant, Total sales — no
   count / average / share columns); statistics (`components/reports/ReportStatistics.tsx`: tiles, trend, by
   category, by area, by client country — codes and legacy names merged via `Countries::resolve`, top 10 + Other —
-  by client gender, by property type, and Top developers with % share of project sales when the report includes
+  by client gender, by client age, by property type, and Top developers with % share of project sales when the report includes
   project sales) sit underneath. A drill-down shows `ReportScopeHeader` (photo, name, facts, total, "Show
   everyone") under the title instead of a chip; `scope` carries `avatar` + `facts`. People rows open the read-only agent profile `/agents/{agent}`
   (`AgentProfileController`, view_reports or team managers; same service with an `agent_id` scope).
   Date ranges use `components/utils/DateRangeField.tsx` (free `@mui/x-date-pickers` DateCalendar + dayjs, quick
   ranges + click first/last day) — MUI's DateRangePicker is Pro-only, don't add it.
 - **Charts / statistics**: `/superadmin/statistics` (`StatisticsController` → `StatisticsService`,
-  sales dated by `reservation_date`). Charts are plain MUI in `components/charts/` (`StatTile`,
+  sales dated by `reservation_date`). Client splits (country, gender, age) for both pages come from `App\Support\ClientStats`; ages
+  outside 18–99 are typos and only counted as `excluded` (`agent_transaction_details.client_age`: legacy `clientAge` via
+  `legacy:import-client-ages`, new sales from the birthdate at the reservation date in `SaleRecord`); UI `ClientAgeChart`. Charts are plain MUI in `components/charts/` (`StatTile`,
   `MonthlyColumnChart`, `BarList`, `ShareBar`) — no chart library. Series colours are the validated
   `--lr-series-1..3` tokens in fixed order (light/dark in `app.css`); text always uses text tokens;
   every chart carries a visually hidden data table (`srOnly`). Money: `helpers/formatNumber.ts`.
@@ -315,7 +354,8 @@ at the matching path. Nothing else.
   (teams, sales) join legacy member ids straight onto `agents.id` — never via a lookup table.
   Sales (`legacy:import-sales`): `agent_transactions.id` = `salesreport.id`; category from legacy
   `developers.isbroker` (0 project, 1 brokerage → `brokerage_areas`, 3 rental); `agent_id` from
-  `agentid → members.memberid → members.id`. Rental/brokerage property details live in their own
+  `agentid → members.memberid → members.id`. Client name = legacy `clientfamilyname` (full
+  name in `client_first_name`; legacy `name` is the *agent*). Rental/brokerage property details live in their own
   tables (see `docs/legacy-migration/sales.md`). Teams (`legacy:import-teams`): `teams.id` /
   `sub_teams.id` = legacy ids; members via `memid`/`memID`/`LeadID` (= `members.id`), never the
   legacy `agentid`; per agent only the newest membership can be `active` (see `teams.md`).
@@ -325,7 +365,9 @@ at the matching path. Nothing else.
   list users must page/search server-side — there are ~83k users now.
 - **Global search** (navbar, `components/utils/search/GlobalSearch.tsx`): pages come from `app-data`
   routes via `helpers/searchPages.ts` (client-side); people come from `GET /search/users`
-  (`Portal\SearchController`), teams / sub-teams / areas from `GET /search/groups` (`GroupSearchService`, same reach as
+  (`Portal\SearchController`; rows show role + status read-only and open `/agents/{agent}` — back-office roles may open
+  any profile, sales only with view_reports; superadmins get a "Sign in" button per row, `can_impersonate`; team leaders / unit managers also search, finding only the current members of the groups
+  they lead — `TeamLeadershipService::ledMemberIds` — whose profiles they may open with sales), teams / sub-teams / areas from `GET /search/groups` (`GroupSearchService`, same reach as
   reports: back office → any group, opening `/reports/top-agents?team_id|sub_team_id|area=`; leaders → only groups they
   lead, opening My Team; `auth.can.search_groups`) — with `/search/agents`, the **only sanctioned JSON endpoints**, because typeahead can't be an
   Inertia visit. Don't add other JSON endpoints without the same reason. Who may do what is shared as

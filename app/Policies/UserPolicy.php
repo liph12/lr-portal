@@ -4,15 +4,17 @@ namespace App\Policies;
 
 use App\Models\Role;
 use App\Models\User;
+use App\Services\TeamLeadershipService;
 
 class UserPolicy
 {
-    // Back-office roles that may look people up from the global search.
+    // Back-office roles that may look anyone up from the global search.
     public const SEARCH_ROLES = [Role::SUPERADMIN, 'admin', 'staff'];
 
+    // Team leaders and unit managers search too, but only find their own members (SearchController::users).
     public function search(User $user): bool
     {
-        return $user->hasAnyRole(self::SEARCH_ROLES);
+        return $user->hasAnyRole(self::SEARCH_ROLES) || app(TeamLeadershipService::class)->leadsAny($user);
     }
 
     public function manage(User $user): bool

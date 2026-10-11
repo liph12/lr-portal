@@ -60,6 +60,32 @@ test('reports need view_reports', function () {
     $this->actingAs($staff)->get('/reports')->assertForbidden();
     $this->actingAs($staff)->get('/reports/top-teams')->assertForbidden();
 
-    $staffRole->permissions()->attach($this->viewReports);
+    grantReports($staffRole);
     $this->actingAs($staff->fresh())->get('/reports/top-teams')->assertOk();
+});
+
+test('each report is its own permission: unticking one hides its card and blocks its page', function () {
+    $staffRole = Role::create(['name' => 'staff', 'label' => 'Staff']);
+    grantReports($staffRole);
+    $staffRole->permissions()->detach(Permission::whereIn('name', ['report_top_teams', 'report_recruits'])->pluck('id'));
+    $staff = User::factory()->create();
+    $staff->roles()->attach($staffRole);
+
+    $this->actingAs($staff)->get('/reports')
+        ->assertInertia(fn ($page) => $page->where('available', fn ($a) => ! collect($a)->contains('top-teams') && ! collect($a)->contains('recruits')
+            && collect($a)->contains('top-agents') && collect($a)->contains('recruits-progress')));
+    $this->actingAs($staff)->get('/reports/top-teams')->assertForbidden();
+    $this->actingAs($staff)->get('/reports/recruits')->assertForbidden();
+    $this->actingAs($staff)->get('/reports/top-agents')->assertOk();
+});
+
+test('the roles page groups permissions into sections, with every report under Reports', function () {
+    $this->actingAs($this->superadmin)->get('/superadmin/settings/roles')
+        ->assertInertia(fn ($page) => $page
+            ->where('permissions', fn ($ps) => collect($ps)->where('section', 'Reports')->pluck('name')
+                ->contains(fn ($n) => $n === 'report_top_agents')
+                && collect($ps)->where('section', 'Reports')->pluck('name')->contains('view_reports')
+                && collect($ps)->firstWhere('name', 'record_sales')['section'] === 'Dashboard & sales'
+                // Sections come in display order, so the page can group them as they arrive.
+                && collect($ps)->pluck('section')->unique()->values()->all() === collect($ps)->pluck('section')->unique()->values()->sortBy(fn ($s) => array_search($s, ['Dashboard & sales', 'Reports', 'Documentation', 'Users & settings', 'Other']))->values()->all()));
 });

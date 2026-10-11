@@ -37,6 +37,20 @@ export default function RoleEditorForm({ role, permissions }: RoleEditorFormProp
                 : form.data.permission_ids.filter((p) => p !== id),
         );
 
+    // Permissions arrive sorted by section (RoleController); keep that order.
+    const sections = permissions.reduce<[string, PermissionItem[]][]>((groups, p) => {
+        const last = groups[groups.length - 1];
+        if (last && last[0] === p.section) last[1].push(p);
+        else groups.push([p.section, [p]]);
+        return groups;
+    }, []);
+
+    const setSection = (ids: number[], on: boolean) =>
+        form.setData(
+            "permission_ids",
+            on ? [...form.data.permission_ids.filter((id) => ids.indexOf(id) === -1), ...ids] : form.data.permission_ids.filter((id) => ids.indexOf(id) === -1),
+        );
+
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
         form.put(`/superadmin/settings/roles/${role.id}`, {
@@ -112,40 +126,61 @@ export default function RoleEditorForm({ role, permissions }: RoleEditorFormProp
                     No permissions yet. Add one in the Permissions panel.
                 </Typography>
             ) : (
-                <Box
-                    sx={{
-                        display: "grid",
-                        gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
-                        gap: 0.5,
-                    }}
-                >
-                    {permissions.map((p) => {
-                        const checked = form.data.permission_ids.indexOf(p.id) !== -1;
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    {sections.map(([section, items]) => {
+                        const ids = items.map((p) => p.id);
+                        const granted = ids.filter((id) => form.data.permission_ids.indexOf(id) !== -1).length;
                         return (
-                            <Box
-                                key={p.id}
-                                component="label"
-                                sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 0.5,
-                                    pr: 1,
-                                    borderRadius: 2,
-                                    cursor: locked ? "default" : "pointer",
-                                    ":hover": { backgroundColor: locked ? "transparent" : "var(--lr-surface-dim)" },
-                                }}
-                            >
-                                <Checkbox size="small" checked={checked} disabled={locked} onChange={() => toggle(p.id)} />
-                                <Box sx={{ minWidth: 0 }}>
-                                    <Typography variant="body2" sx={{ color: "var(--lr-text-body)", lineHeight: 1.3 }}>
-                                        {p.label}
+                            <Box key={section} component="fieldset" sx={{ border: "1px solid var(--lr-border)", borderRadius: 3, m: 0, p: 1.5, pt: 1 }}>
+                                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mb: 0.5 }}>
+                                    <Typography component="legend" variant="body2" sx={{ fontWeight: 600, color: "var(--lr-text-primary)", px: 0.5 }}>
+                                        {section}
+                                        <Typography component="span" variant="caption" sx={{ color: "var(--lr-text-secondary)", ml: 1, fontWeight: 400 }}>
+                                            {granted} of {ids.length}
+                                        </Typography>
                                     </Typography>
-                                    <Typography
-                                        variant="caption"
-                                        sx={{ color: "var(--lr-text-secondary)", fontFamily: "Google Sans Code, monospace", fontSize: 11 }}
-                                    >
-                                        {p.name}
-                                    </Typography>
+                                    {!locked && (
+                                        <StyledButton
+                                            size="small"
+                                            onClick={() => setSection(ids, granted < ids.length)}
+                                            sx={{ color: "var(--lr-primary)", minWidth: 0 }}
+                                        >
+                                            {granted < ids.length ? "Select all" : "Clear"}
+                                        </StyledButton>
+                                    )}
+                                </Box>
+                                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 0.5 }}>
+                                    {items.map((p) => {
+                                        const checked = form.data.permission_ids.indexOf(p.id) !== -1;
+                                        return (
+                                            <Box
+                                                key={p.id}
+                                                component="label"
+                                                sx={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: 0.5,
+                                                    pr: 1,
+                                                    borderRadius: 2,
+                                                    cursor: locked ? "default" : "pointer",
+                                                    ":hover": { backgroundColor: locked ? "transparent" : "var(--lr-surface-dim)" },
+                                                }}
+                                            >
+                                                <Checkbox size="small" checked={checked} disabled={locked} onChange={() => toggle(p.id)} />
+                                                <Box sx={{ minWidth: 0 }}>
+                                                    <Typography variant="body2" sx={{ color: "var(--lr-text-body)", lineHeight: 1.3 }}>
+                                                        {section === "Reports" ? p.label.replace(/^Report:\s*/, "") : p.label}
+                                                    </Typography>
+                                                    <Typography
+                                                        variant="caption"
+                                                        sx={{ color: "var(--lr-text-secondary)", fontFamily: "Google Sans Code, monospace", fontSize: 11 }}
+                                                    >
+                                                        {p.name}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                        );
+                                    })}
                                 </Box>
                             </Box>
                         );

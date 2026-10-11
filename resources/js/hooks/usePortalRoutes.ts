@@ -9,6 +9,8 @@ export interface PortalRoute {
     icon?: ElementType;
     // One permission, or several alternatives (any grants it).
     permission?: string | string[];
+    // Also needed on top of `permission` (all of them), e.g. a report's own report_* permission.
+    requires?: string[];
     children?: PortalRoute[];
 }
 
@@ -22,7 +24,8 @@ export default function usePortalRoutes(): PortalRoute[] {
 
     return useMemo(() => {
         const granted = permissions.split(",");
-        const allowed = (route: PortalRoute) => hasAnyPermission(granted, route.permission);
+        const allowed = (route: PortalRoute) =>
+            hasAnyPermission(granted, route.permission) && (route.requires ?? []).every((p) => granted.indexOf(p) !== -1);
         const filter = (routes: PortalRoute[]): PortalRoute[] =>
             routes.filter(allowed).map((r) => ({ ...r, children: filter(r.children ?? []) }));
 

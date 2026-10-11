@@ -35,6 +35,7 @@ interface AgentProfileProps {
         status: string | null;
         role: string | null;
         agent_type: string;
+        activity: string;
         area: string | null;
         city: string | null;
         state: string | null;
@@ -47,7 +48,8 @@ interface AgentProfileProps {
     // The upline; name / email are null when the sponsor wasn't imported, linkable when the reader may open them.
     sponsor: { id: number; name: string | null; email: string | null; avatar: string | null; area: string | null; linkable: boolean } | null;
     filters: { from: string; to: string };
-    summary: ReportSummary;
+    // Null for back-office readers without view_reports: the profile without the sales.
+    summary: ReportSummary | null;
 }
 
 interface AgentDetails {
@@ -182,6 +184,11 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                         )}
                         <StatusChip status={agent.agent_type}>{AGENT_TYPE_LABELS[agent.agent_type] ?? agent.agent_type}</StatusChip>
                         {agent.status && <StatusChip status={agent.status} />}
+                        {agent.activity === "dormant" && (
+                            <StatusChip status="dormant" title="No sale in the last 6 months since activation">
+                                Dormant
+                            </StatusChip>
+                        )}
                         <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
                             Agent #{agent.id}
                         </Typography>
@@ -343,14 +350,18 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                 </Grid>
             </Grid>
 
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", mb: 2 }}>
-                <Typography variant="h6" sx={{ fontSize: 18, color: "var(--lr-text-primary)", flex: 1 }}>
-                    Sales
-                </Typography>
-                <DateRangeField value={filters} presets={reportPresets()} onChange={changeRange} />
-            </Box>
-            {loading && <LinearProgress sx={{ height: 2, mb: 2 }} />}
-            <ReportStatistics summary={summary} showAreas={false} showAgentsTile={false} />
+            {summary && (
+                <>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", mb: 2 }}>
+                        <Typography variant="h6" sx={{ fontSize: 18, color: "var(--lr-text-primary)", flex: 1 }}>
+                            Sales
+                        </Typography>
+                        <DateRangeField value={filters} presets={reportPresets()} onChange={changeRange} />
+                    </Box>
+                    {loading && <LinearProgress sx={{ height: 2, mb: 2 }} />}
+                    <ReportStatistics summary={summary} showAreas={false} showAgentsTile={false} />
+                </>
+            )}
             <ConfirmDialog
                 open={confirming}
                 title={`Sign in as ${agent.name}?`}

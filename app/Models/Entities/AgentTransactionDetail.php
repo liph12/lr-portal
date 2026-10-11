@@ -15,6 +15,8 @@ class AgentTransactionDetail extends Model
         'client_email',
         'client_mobile',
         'client_birthdate',
+        // Age on the reservation date (SaleRecord), or legacy salesreport.clientAge.
+        'client_age',
         'client_gender',
         'client_country',
         'client_address',
@@ -24,6 +26,7 @@ class AgentTransactionDetail extends Model
     {
         return [
             'client_birthdate' => 'date',
+            'client_age' => 'integer',
         ];
     }
 

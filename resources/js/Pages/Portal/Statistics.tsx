@@ -9,6 +9,7 @@ import MonthlyColumnChart from "../../components/charts/MonthlyColumnChart";
 import BarList from "../../components/charts/BarList";
 import ShareBar from "../../components/charts/ShareBar";
 import UserStatusChip from "../../components/utils/user/UserStatusChip";
+import ClientAgeChart from "../../components/reports/ClientAgeChart";
 import { formatCount, formatPeso, formatPesoCompact } from "../../helpers/formatNumber";
 import { StatsPeriod, StatsSummary } from "../../types/app-data-types";
 
@@ -152,6 +153,31 @@ function Statistics({ stats }: { stats: StatsSummary }) {
                                 emptyText="No sales in this period yet."
                             />
                         </SectionCard>
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                        <SectionCard title="Clients by country" subtitle="Total contract value">
+                            <BarList
+                                caption="Total project sales by the client's country"
+                                items={stats.clients.countries.map((c) => ({ name: c.name, value: c.value, detail: salesWord(c.sales) }))}
+                                formatValue={formatPesoCompact}
+                                emptyText="No sales in this period yet."
+                            />
+                        </SectionCard>
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                        <SectionCard title="Clients by gender" subtitle="Share of sales in this period">
+                            <ShareBar
+                                caption="Project sales by the client's gender"
+                                segments={stats.clients.genders.map((g) => ({ label: g.name, value: g.sales }))}
+                                unit={["sale", "sales"]}
+                                emptyText="No sales in this period yet."
+                            />
+                        </SectionCard>
+                        <Box sx={{ mt: 2 }}>
+                            <SectionCard title="Clients by age" subtitle="Ages 18–99 only">
+                                <ClientAgeChart ages={stats.clients.ages} />
+                            </SectionCard>
+                        </Box>
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
                         <SectionCard title="Team" subtitle="All accounts, any period">

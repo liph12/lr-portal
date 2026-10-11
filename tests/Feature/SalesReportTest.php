@@ -268,3 +268,24 @@ test('top developers show each one\'s share of project sales, also inside a team
     // No project sales in a rental report, so no developers.
     ($this->report)($range + ['view' => 'rental'])->assertInertia(fn ($page) => $page->where('summary.developers.rows', []));
 });
+
+test('client age bands count only believable ages (18–99) and say how many were left out', function () {
+    $ids = AgentTransaction::orderBy('id')->pluck('id');
+    $detail = fn (int $id, ?int $age) => ['agent_transaction_id' => $id, 'client_first_name' => 'A', 'client_last_name' => 'A', 'client_mobile' => '1', 'client_country' => 'PH', 'client_age' => $age];
+    DB::table('agent_transaction_details')->insert([$detail($ids[0], 30), $detail($ids[1], 5), $detail($ids[2], 120), $detail($ids[3], 67)]);
+
+    ($this->report)(['from' => '2026-01-01', 'to' => '2026-10-11'])
+        ->assertInertia(fn ($page) => $page
+            ->where('summary.client_ages.counted', 2)
+            // Ages 5 and 120 are typos; the 2026 sale outside these four has no detail row at all.
+            ->where('summary.client_ages.excluded', 2)
+            ->where('summary.client_ages.rows', fn ($rows) => collect($rows)->pluck('sales', 'name')->all() === ['18–24' => 0, '25–34' => 1, '35–44' => 0, '45–54' => 0, '55–64' => 0, '65+' => 1]));
+
+    // Statistics (project sales): the same split, with countries and genders.
+    $this->actingAs($this->superadmin)->get('/superadmin/statistics?period=all')
+        ->assertInertia(fn ($page) => $page
+            ->where('stats.clients.ages.counted', 1)
+            ->where('stats.clients.ages.rows.1.sales', 1)
+            ->where('stats.clients.countries', fn ($c) => collect($c)->pluck('sales', 'name')->get('Philippines') === 2)
+            ->has('stats.clients.genders', 3));
+});

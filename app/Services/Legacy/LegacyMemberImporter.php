@@ -390,6 +390,8 @@ class LegacyMemberImporter
                 'avatar' => $avatar,
                 'marital_status' => in_array(trim((string) $m->maritalstatus), self::MARITAL_STATUSES, true) ? trim($m->maritalstatus) : null,
                 ...$origin,
+                // Unix timestamp; drives agents.activity (run agents:refresh-activity after importing).
+                'activated_at' => (int) $m->dateactivated > 0 ? Carbon::createFromTimestamp((int) $m->dateactivated)->toDateTimeString() : null,
                 'area' => Areas::forAgent($this->clean($m->state), $this->clean($m->city), $origin['country_code']),
             ],
             'profile' => [
@@ -401,7 +403,6 @@ class LegacyMemberImporter
             'attributes' => [
                 // Legacy members.inviterid as-is (the sponsor's member id = their agent id); 0 means none.
                 'referral_id' => (int) $m->inviterid > 0 ? (int) $m->inviterid : null,
-                'date_activated' => (int) $m->dateactivated > 0 ? Carbon::createFromTimestamp((int) $m->dateactivated)->toDateTimeString() : null,
                 'nao_video_tracker' => (int) $m->nao_video_tracker,
                 'nao_proof_of_attendance' => $this->clean($m->nao_proof_of_attendance),
                 'nao_attendance_status' => $this->clean($m->nao_attendance_confirmation),

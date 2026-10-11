@@ -62,3 +62,31 @@ test('leaders find only their own groups, opened in My Team; agents can\'t searc
     $this->actingAs($this->agentUser)->get('/profile')->assertInertia(fn ($page) => $page->where('auth.can.search_groups', false));
     $this->actingAs($this->superadmin)->get('/profile')->assertInertia(fn ($page) => $page->where('auth.can.search_groups', true));
 });
+
+test('leaders search people too, but only find the current members of the groups they lead', function () {
+    $member = function (string $name, ?int $team, ?int $subTeam) {
+        [$user, $agent] = ($this->person)($name, 'agent');
+        $team && DB::table('team_agents')->insert(['team_id' => $team, 'agent_id' => $agent, 'joined_at' => '2025-01-01', 'status' => 'active']);
+        $subTeam && DB::table('sub_team_agents')->insert(['sub_team_id' => $subTeam, 'agent_id' => $agent, 'joined_at' => '2025-01-01', 'status' => 'active']);
+
+        return $agent;
+    };
+    $inUnit = $member('Zed Unitmember', $this->alpha, $this->unit);
+    $member('Zed Teamonly', $this->alpha, null);
+    $member('Zed Elsewhere', $this->bravo, null);
+    [, $gone] = ($this->person)('Zed Former', 'agent');
+    DB::table('team_agents')->insert(['team_id' => $this->alpha, 'agent_id' => $gone, 'joined_at' => '2024-01-01', 'transferred_at' => '2025-01-01', 'status' => 'inactive']);
+
+    $names = fn (User $user) => collect($this->actingAs($user)->getJson('/search/users?q=zed')->assertOk()->json('users'))->pluck('name')->sort()->values()->all();
+
+    expect($names($this->leaderUser))->toBe(['Zed Teamonly', 'Zed Unitmember'])
+        ->and($names($this->umUser))->toBe(['Zed Unitmember'])
+        ->and($names($this->superadmin))->toBe(['Zed Elsewhere', 'Zed Former', 'Zed Teamonly', 'Zed Unitmember']);
+
+    $this->actingAs($this->agentUser)->getJson('/search/users?q=zed')->assertForbidden();
+    $this->actingAs($this->umUser)->get('/profile')->assertInertia(fn ($page) => $page->where('auth.can.search_users', true));
+
+    // The result opens the member's profile, with their sales statistics.
+    $this->actingAs($this->umUser)->get("/agents/{$inUnit}")
+        ->assertInertia(fn ($page) => $page->component('Portal/Agents/Show')->where('summary', fn ($s) => $s !== null));
+});

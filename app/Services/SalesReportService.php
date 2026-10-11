@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\Entities\Agent;
 use App\Support\Areas;
-use App\Support\Countries;
+use App\Support\ClientStats;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
@@ -247,8 +247,9 @@ class SalesReportService
                 ->map(fn ($r) => ['area' => $r->area, 'name' => Areas::name($r->area === self::UNASSIGNED_AREA ? null : $r->area), 'sales' => (int) $r->sales, 'value' => (float) $r->value])
                 ->all(),
             'developers' => $this->topDevelopers($f),
-            'client_countries' => $this->clientCountries($f),
-            'client_genders' => $this->clientGenders($f),
+            'client_countries' => ClientStats::countries($this->sales($f)),
+            'client_genders' => ClientStats::genders($this->sales($f)),
+            'client_ages' => ClientStats::ages($this->sales($f)),
             'property_types' => DB::query()->fromSub($this->sales($f), 's')
                 ->leftJoin('project_property_types as pt', 'pt.id', '=', 's.property_type_id')
                 ->groupBy('s.property_type_id', 'pt.name')
@@ -382,65 +383,6 @@ class SalesReportService
         return ['total' => $total, 'rows' => $rows];
     }
 
-    // Shown by name; past the top ones everything is "Other countries" so the list stays readable.
-    private const TOP_COUNTRIES = 10;
-
-    /**
-     * Sales by the client's country. Stored values are a mix of ISO codes (new forms) and free-typed names
-     * (legacy), so they're grouped raw here and merged after resolving to canonical names.
-     *
-     * @return array<int, array{name: string, code: ?string, sales: int, value: float}>
-     */
-    private function clientCountries(array $f): array
-    {
-        $merged = [];
-        DB::query()->fromSub($this->sales($f), 's')
-            ->groupBy('s.client_country')
-            ->selectRaw('s.client_country as raw, COUNT(*) as sales, COALESCE(SUM(s.value), 0) as value')
-            ->get()
-            ->each(function ($r) use (&$merged) {
-                ['name' => $name, 'code' => $code] = Countries::resolve($r->raw);
-                $key = $name ?? 'Not specified';
-                $merged[$key] ??= ['name' => $key, 'code' => $code, 'sales' => 0, 'value' => 0.0];
-                $merged[$key]['sales'] += (int) $r->sales;
-                $merged[$key]['value'] += (float) $r->value;
-            });
-
-        usort($merged, fn ($a, $b) => $b['value'] <=> $a['value']);
-        $top = array_slice($merged, 0, self::TOP_COUNTRIES);
-        $rest = array_slice($merged, self::TOP_COUNTRIES);
-
-        if ($rest) {
-            $top[] = ['name' => 'Other countries', 'code' => null, 'sales' => array_sum(array_column($rest, 'sales')), 'value' => array_sum(array_column($rest, 'value'))];
-        }
-
-        return $top;
-    }
-
-    /**
-     * @return array<int, array{name: string, sales: int, value: float}>
-     */
-    private function clientGenders(array $f): array
-    {
-        $rows = ['Male' => ['name' => 'Male', 'sales' => 0, 'value' => 0.0], 'Female' => ['name' => 'Female', 'sales' => 0, 'value' => 0.0], 'Not specified' => ['name' => 'Not specified', 'sales' => 0, 'value' => 0.0]];
-
-        DB::query()->fromSub($this->sales($f), 's')
-            ->groupBy('s.client_gender')
-            ->selectRaw('s.client_gender as gender, COUNT(*) as sales, COALESCE(SUM(s.value), 0) as value')
-            ->get()
-            ->each(function ($r) use (&$rows) {
-                $key = match (strtolower(trim((string) $r->gender))) {
-                    'male', 'm' => 'Male',
-                    'female', 'f' => 'Female',
-                    default => 'Not specified',
-                };
-                $rows[$key]['sales'] += (int) $r->sales;
-                $rows[$key]['value'] += (float) $r->value;
-            });
-
-        return array_values($rows);
-    }
-
     private function headcountLabel(int $agents): string
     {
         return number_format($agents).($agents === 1 ? ' agent' : ' agents').' in this area';
@@ -527,7 +469,7 @@ class SalesReportService
             ->selectRaw($category === 'project' ? 'c.developer_id' : 'NULL as developer_id')
             ->selectRaw($category === 'brokerage' ? 'c.brokerage_area_id' : 'NULL as brokerage_area_id')
             ->leftJoin('agent_transaction_details as cd', 'cd.agent_transaction_id', '=', 't.id')
-            ->addSelect('cd.client_country', 'cd.client_gender');
+            ->addSelect('cd.client_country', 'cd.client_gender', 'cd.client_age');
     }
 
 

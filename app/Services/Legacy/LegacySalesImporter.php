@@ -28,7 +28,7 @@ class LegacySalesImporter
     private const MAX_DECIMAL = 99_999_999.99;
 
     private const SALE_COLUMNS = [
-        'id', 'name', 'clientfamilyname', 'clientAddress', 'clientGender', 'clientEmail', 'clientMobile',
+        'id', 'name', 'clientfamilyname', 'clientAddress', 'clientGender', 'clientAge', 'clientEmail', 'clientMobile',
         'clientCountry', 'unitnum', 'devid', 'projectname', 'projid', 'prop_type_id', 'tcprice',
         'reservationdate', 'termofpayment', 'dateadded', 'agentid', 'status', 'remarks', 'deleted',
         'dateupdated', 'files', 'rental_deposit_slip', 'validSale', 'prop_details', 'logs', 'created_at',
@@ -99,6 +99,14 @@ class LegacySalesImporter
         }
 
         return ['stats' => $this->stats];
+    }
+
+    // Kept as recorded (statistics skip unbelievable ages); negatives and absurd values are dropped.
+    public static function age(mixed $value): ?int
+    {
+        $age = is_numeric($value) ? (int) $value : null;
+
+        return $age !== null && $age > 0 && $age < 1000 ? $age : null;
     }
 
     private function loadLookups(): void
@@ -206,8 +214,10 @@ class LegacySalesImporter
 
             $details[] = [
                 'agent_transaction_id' => (int) $s->id,
-                'client_first_name' => $this->clean($s->name),
-                'client_last_name' => $this->clean($s->clientfamilyname),
+                // salesreport.name is the *agent's* name; clientfamilyname is the client's full name, kept whole (couples,
+                // "Dela Cruz", "Cruz, Juan" don't split reliably), so the last name stays empty.
+                'client_first_name' => self::clientName($s->clientfamilyname),
+                'client_last_name' => null,
                 'client_email' => ($email = $this->clean($s->clientEmail)) ? strtolower($email) : null,
                 'client_mobile' => $this->clean($s->clientMobile),
                 'client_gender' => match (strtolower(trim((string) $s->clientGender))) {
@@ -216,6 +226,7 @@ class LegacySalesImporter
                     default => null,
                 },
                 'client_country' => $this->clean($s->clientCountry),
+                'client_age' => self::age($s->clientAge),
                 'client_address' => $this->clean($s->clientAddress, 2000),
             ] + $stamps;
 
@@ -349,7 +360,17 @@ class LegacySalesImporter
         return round((float) $value, 2);
     }
 
+    public static function clientName(?string $fullName): ?string
+    {
+        return self::cleanText($fullName);
+    }
+
     private function clean(mixed $value, int $max = 255): ?string
+    {
+        return self::cleanText($value, $max);
+    }
+
+    public static function cleanText(mixed $value, int $max = 255): ?string
     {
         $value = trim(html_entity_decode(strip_tags((string) $value), ENT_QUOTES | ENT_HTML5));
 

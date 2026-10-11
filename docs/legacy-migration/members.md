@@ -189,3 +189,12 @@ area-headcount statistics count fully registered agents only (`Agent::fullyRegis
 not filtered. Backfill for agents imported earlier: `php artisan legacy:import-registration-status [--dry-run]`.
 
 As of 2026-10-11: step 1 = 18,171 · step 2 = 2,788 · step 3 = 378 · step 4 = 61,570.
+
+## Activation date and activity
+
+`members.dateactivated` (Unix timestamp; 0 / null = never activated) → `agents.activated_at` (moved off
+`agent_attributes.date_activated` by migration `2026_10_11_000023`). It drives `agents.activity`: dormant after
+6 months without a sale (see CLAUDE.md "Agent activity"). Activity never changes `users.status`.
+
+As of 2026-10-11: 19,275 agents have an activation date. After `agents:refresh-activity`: 15,442 active, 67,466
+dormant overall; of the 19,252 users who can sign in, 2,888 active and 16,364 dormant.

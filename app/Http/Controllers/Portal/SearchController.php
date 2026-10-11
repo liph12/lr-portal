@@ -7,9 +7,13 @@ use App\Models\Entities\AgentTransaction;
 use App\Models\Entities\Team;
 use App\Models\Role;
 use App\Models\User;
+use App\Policies\UserPolicy;
 use App\Services\GroupSearchService;
+use App\Services\ImpersonationService;
+use App\Services\TeamLeadershipService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 // Typeahead data for the navbar search. JSON rather than Inertia props because it is fetched on every
@@ -18,7 +22,7 @@ class SearchController extends Controller
 {
     private const LIMIT = 8;
 
-    public function users(Request $request): JsonResponse
+    public function users(Request $request, TeamLeadershipService $leadership): JsonResponse
     {
         Gate::authorize('search', User::class);
 
@@ -29,9 +33,15 @@ class SearchController extends Controller
         }
 
         $like = '%'.addcslashes($term, '%_\\').'%';
-        $canManage = $request->user()->can('manage', User::class);
+        $me = $request->user();
+        // A real superadmin, not already signed in as someone else (same rule as StartImpersonationRequest).
+        $canImpersonate = $me->reallyHasRole(Role::SUPERADMIN) && ! $request->session()->has(ImpersonationService::SESSION_KEY);
 
         $users = User::query()
+            // Leaders find only the current members of the teams / sub-teams they lead.
+            ->when(! $me->hasAnyRole(UserPolicy::SEARCH_ROLES), fn ($q) => $q->whereIn('id', DB::table('agents')
+                ->whereIn('id', $leadership->ledMemberIds($me))
+                ->select('user_id')))
             ->where(fn ($q) => $q->where('name', 'like', $like)->orWhere('email', 'like', $like))
             ->with(['roles:id,name,label', 'agent:id,user_id,avatar'])
             ->orderByRaw('CASE WHEN name LIKE ? THEN 0 ELSE 1 END', [addcslashes($term, '%_\\').'%'])
@@ -43,17 +53,17 @@ class SearchController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'avatar' => $user->agent?->avatar,
+                // Opens /agents/{agent_id}; accounts without an agent record have no profile page.
+                'agent_id' => $user->agent?->id,
                 'role_id' => $user->roles->first()?->id,
                 'role_label' => $user->roles->first()?->label,
                 'status' => $user->status,
+                'can_impersonate' => $canImpersonate && ! $user->is($me) && $user->status === 'active'
+                    && ! $user->roles->contains('name', Role::SUPERADMIN),
             ]);
 
-        return response()->json([
-            'users' => $users,
-            // Only superadmins get the option lists that drive the inline role/status controls.
-            'roles' => $canManage ? Role::orderBy('id')->get(['id', 'label']) : [],
-            'statuses' => $canManage ? User::STATUSES : [],
-        ]);
+        // Roles and statuses are changed in Management, not from the search results.
+        return response()->json(['users' => $users]);
     }
 
     // Teams, sub-teams and areas within the reader's report reach, each with the link to open.

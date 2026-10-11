@@ -27,6 +27,8 @@
     --lr-primary: #1a73e8;
     --lr-primary-hover: #1765cc;
     --lr-on-primary: #ffffff;
+    /* Brand logos are drawn for white: their tile stays white in both modes. */
+    --lr-logo-tile: #ffffff;
     --lr-primary-soft: #e8f0fe;
     --lr-primary-soft-strong: #d2e3fc;
     --lr-primary-soft-hover: #f8fbff;
@@ -62,6 +64,7 @@
     --lr-primary: #a8c7fa;
     --lr-primary-hover: #c2d7fb;
     --lr-on-primary: #062e6f;
+    --lr-logo-tile: #ffffff;
     --lr-primary-soft: #1f3760;
     --lr-primary-soft-strong: #004a77;
     --lr-primary-soft-hover: #253b5c;

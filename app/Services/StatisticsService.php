@@ -6,6 +6,7 @@ use App\Models\Entities\Agent;
 use App\Models\Entities\AgentTransaction;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\ClientStats;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
@@ -40,6 +41,7 @@ class StatisticsService
             'developers' => $this->topDevelopers($start, $end),
             'propertyTypes' => $this->byPropertyType($start, $end),
             'commission' => $this->byCommissionStatus($start, $end),
+            'clients' => $this->clients($start, $end),
             'team' => $this->team(),
         ];
     }
@@ -159,6 +161,24 @@ class StatisticsService
             ->get()
             ->map(fn ($r) => ['name' => $r->name ?? 'Unspecified', 'sales' => (int) $r->sales, 'value' => (float) $r->value])
             ->all();
+    }
+
+    /**
+     * The clients behind the period's project sales: by country, gender and age (believable ages only).
+     *
+     * @return array{countries: array<int, mixed>, genders: array<int, mixed>, ages: array<string, mixed>}
+     */
+    private function clients(?CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        $rows = fn () => $this->salesQuery($start, $end)
+            ->leftJoin('agent_transaction_details as cd', 'cd.agent_transaction_id', '=', 't.id')
+            ->select('cd.client_country', 'cd.client_gender', 'cd.client_age', 'p.total_contract_price as value');
+
+        return [
+            'countries' => ClientStats::countries($rows()),
+            'genders' => ClientStats::genders($rows()),
+            'ages' => ClientStats::ages($rows()),
+        ];
     }
 
     /**

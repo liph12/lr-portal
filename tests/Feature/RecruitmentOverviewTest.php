@@ -14,7 +14,8 @@ beforeEach(function () {
     Carbon::setTestNow('2026-10-11 09:00:00');
     $this->viewReports = Permission::firstOrCreate(['name' => 'view_reports'], ['label' => 'View Reports']);
     $roles = collect(['superadmin', 'team_leader', 'agent'])->mapWithKeys(fn ($n) => [$n => Role::create(['name' => $n, 'label' => ucfirst($n)])]);
-    $roles['agent']->permissions()->attach($this->viewReports);
+    grantReports($roles['agent']);
+    grantReports($roles['team_leader']);
     $this->superadmin = User::factory()->create();
     $this->superadmin->roles()->attach($roles['superadmin']);
 
@@ -114,7 +115,9 @@ test('team leaders see their team under Reports › Recruits and My Team; plain 
     $this->actingAs($this->leader)->get("/my-team/recruits?{$range}")
         ->assertInertia(fn ($page) => $page->component('Portal/MyTeam/Recruits')->where('summary.trainees', 2)->where('group.name', 'Alpha'));
 
-    $this->actingAs($this->agents['Ann']['user'])->get('/reports/recruits')->assertForbidden();
+    // A plain agent: only the recruits they sponsored (none here), whatever team the URL asks for.
+    $this->actingAs($this->agents['Ann']['user'])->get("/reports/recruits?{$range}&team_id=1")
+        ->assertInertia(fn ($page) => $page->where('summary.members.total', 0)->where('scope.name', 'Ann'));
 });
 
 test('the trainees table shows each recruit\'s upline, team and sub-team', function () {
@@ -157,7 +160,11 @@ test('recruits progress: recruits vs recruits who sold, their sales, NAO / FIRE,
     $this->actingAs($this->leader)->get("/reports/recruits-progress?{$range}&group=teams")
         ->assertInertia(fn ($page) => $page->where('groups', ['sub_teams', 'areas', 'sponsors'])->where('filters.group', 'sub_teams')->where('summary.kpis.recruits', 3)->where('scope.name', 'Alpha'));
 
-    $this->actingAs($this->agents['Ann']['user'])->get('/reports/recruits-progress')->assertForbidden();
+    // A plain agent: the recruits they sponsored (Ben and Cy), grouped by team / unit manager / location, never widened.
+    $this->actingAs($this->agents['Ann']['user'])->get("/reports/recruits-progress?{$range}&sponsor_id={$this->agents['Dee']['id']}")
+        ->assertInertia(fn ($page) => $page->where('groups', ['teams', 'sub_teams', 'areas'])->where('summary.kpis.recruits', 2)->where('scope.name', 'Ann'));
+    $this->actingAs($this->agents['Ann']['user'])->get("/reports/recruits?{$range}")
+        ->assertInertia(fn ($page) => $page->where('summary.recruits.total', 2));
 });
 
 test('the recruits panel counts NAO / FIRE / overall progress, and clicking a team or sponsor narrows everything', function () {
@@ -183,9 +190,9 @@ test('the recruits panel counts NAO / FIRE / overall progress, and clicking a te
             ->where('summary.kpis.trainees', 2)
             ->where('summary.kpis.overall_status', ['not_started' => 0, 'in_progress' => 1, 'finished' => 1]));
 
-    // Clicking a sponsor: just their recruits, no table below.
+    // Clicking a sponsor: just their recruits, grouped by anything but sponsor.
     $this->actingAs($this->superadmin)->get("/reports/recruits-progress?{$range}&sponsor_id={$ann}")
-        ->assertInertia(fn ($page) => $page->where('selection.type', 'sponsor')->where('selection.name', 'Ann')->where('groups', [])->where('summary.kpis.recruits', 2));
+        ->assertInertia(fn ($page) => $page->where('selection.type', 'sponsor')->where('selection.name', 'Ann')->where('groups', ['teams', 'sub_teams', 'areas'])->where('summary.kpis.recruits', 2));
 
     // "View" opens those same recruits.
     $this->actingAs($this->superadmin)->get("/reports/recruits?{$range}&sponsor_id={$ann}")

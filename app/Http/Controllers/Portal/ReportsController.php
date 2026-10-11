@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\RecruitProgressService;
 use App\Services\RecruitmentService;
 use App\Services\SalesReportService;
@@ -25,6 +26,12 @@ class ReportsController extends Controller
         'top-unit-managers' => 'unit_managers',
     ];
 
+    // Each report is its own permission (Settings › Roles & permissions › Reports): "report_" + slug.
+    public static function permission(string $slug): string
+    {
+        return 'report_'.str_replace('-', '_', $slug);
+    }
+
     public function __construct(
         private SalesReportService $reports,
         private TeamLeadershipService $leadership,
@@ -35,19 +42,21 @@ class ReportsController extends Controller
         $lock = $this->leadership->reportScope($request->user());
         abort_if($lock === false, 403);
 
-        return inertia('Portal/Reports/Index', ['available' => $this->available($lock)]);
+        return inertia('Portal/Reports/Index', ['available' => $this->available($lock, $request->user())]);
     }
 
     // Reports › Recruits: members, recruits and new sign-ups' NAO / FIRE progress (same reach as the sales reports;
-    // not for someone who would only see themselves).
+    // an agent sees the recruits they sponsored).
     public function recruits(Request $request, RecruitmentService $recruitment, RecruitProgressService $progress)
     {
         $lock = $this->leadership->reportScope($request->user());
-        abort_if($lock === false || isset($lock['agent_id']), 403);
+        abort_if($lock === false || ! $request->user()->can(self::permission('recruits')), 403);
         $selection = $this->selection($request);
 
         return inertia('Portal/Reports/Recruits', [
-            ...$recruitment->props($request, $this->narrow($selection, $lock)),
+            ...$recruitment->props($request, $this->narrow($selection, $this->recruitLock($lock))),
+            // An agent's page is about them: name them in the header.
+            ...(isset($lock['agent_id']) ? ['scope' => fn () => $this->reports->scope($this->reports->filters($lock))] : []),
             // Opened from Recruits Progress (a team / sub-team / sponsor): name it, and allow going back to everyone.
             'selection' => fn () => $progress->selectionHeader($selection),
         ]);
@@ -58,10 +67,10 @@ class ReportsController extends Controller
     public function recruitsProgress(Request $request, RecruitProgressService $progress)
     {
         $lock = $this->leadership->reportScope($request->user());
-        abort_if($lock === false || isset($lock['agent_id']), 403);
+        abort_if($lock === false || ! $request->user()->can(self::permission('recruits-progress')), 403);
 
         $selection = $this->selection($request);
-        $scope = $this->narrow($selection, $lock);
+        $scope = $this->narrow($selection, $this->recruitLock($lock));
         $groups = $progress->groupsFor($scope);
         $filters = $progress->filters($request->query(), $groups ?: ['sponsors']) + $selection;
 
@@ -87,8 +96,8 @@ class ReportsController extends Controller
         abort_unless(isset(self::REPORTS[$report]), 404);
 
         $lock = $this->leadership->reportScope($request->user());
-        abort_if($lock === false, 403);
-        abort_unless(in_array($report, $this->available($lock), true), 404);
+        abort_if($lock === false || ! $request->user()->can(self::permission($report)), 403);
+        abort_unless(in_array($report, $this->available($lock, $request->user()), true), 404);
         $filters = $this->reports->lockedFilters(['view' => self::REPORTS[$report]] + $request->query(), $lock);
 
         return inertia('Portal/Reports/Show', [
@@ -111,17 +120,18 @@ class ReportsController extends Controller
     }
 
     /**
-     * Report slugs offered for this reach (e.g. no Top Teams for someone locked to one team).
+     * Report slugs offered for this reach (e.g. no Top Teams for someone locked to one team) and the reader's role.
      *
      * @param  array<string, int>|null  $lock
      * @return array<int, string>
      */
-    private function available(?array $lock): array
+    private function available(?array $lock, User $user): array
     {
         $views = $this->reports->viewsFor($lock);
         $reports = array_keys(array_filter(self::REPORTS, fn (string $view) => in_array($view, $views, true)));
+        $reports = ['recruits', 'recruits-progress', ...$reports];
 
-        return isset($lock['agent_id']) ? $reports : ['recruits', 'recruits-progress', ...$reports];
+        return array_values(array_filter($reports, fn (string $slug) => $user->can(self::permission($slug))));
     }
 
     /**
@@ -149,6 +159,12 @@ class ReportsController extends Controller
      * @param  array<string, int>|null  $lock
      * @return array<string, int>|null
      */
+    // Recruits reach: the reader's team / sub-team, or for an agent the recruits they sponsored (referral_id).
+    private function recruitLock(?array $lock): ?array
+    {
+        return isset($lock['agent_id']) ? ['sponsor_id' => $lock['agent_id']] : $lock;
+    }
+
     private function narrow(array $selection, ?array $lock): ?array
     {
         $scope = array_merge($selection, $lock ?? []);

@@ -13,6 +13,8 @@ beforeEach(function () {
     Carbon::setTestNow('2026-10-11 09:00:00');
     $roles = collect(['team_leader' => 'Team Leader', 'unit_manager' => 'Unit Manager', 'agent' => 'Agent'])
         ->map(fn ($label, $name) => Role::create(['name' => $name, 'label' => $label]));
+    // As in production: leader roles may open every report (each report is its own permission).
+    $roles->only(['team_leader', 'unit_manager'])->each(fn ($r) => grantReports($r));
 
     $this->person = function (string $name, string $role) use ($roles) {
         $user = User::factory()->create(['name' => $name]);
@@ -141,7 +143,7 @@ test('view sales shows a team leader only their team, and can\'t be widened', fu
 
 test('report reach follows who you are, even when your role has view_reports', function () {
     $viewReports = \App\Models\Permission::firstOrCreate(['name' => 'view_reports'], ['label' => 'View Reports']);
-    Role::whereIn('name', ['team_leader', 'agent'])->get()->each(fn ($r) => $r->permissions()->attach($viewReports));
+    Role::whereIn('name', ['team_leader', 'agent'])->get()->each(fn ($r) => grantReports($r));
     $range = '?from=2026-09-01&to=2026-09-30';
 
     // Team leader: their team only, on View Sales and on every report.
@@ -160,7 +162,7 @@ test('report reach follows who you are, even when your role has view_reports', f
     // Back office still sees the whole system.
     $admin = User::factory()->create();
     $admin->roles()->attach(Role::create(['name' => 'admin', 'label' => 'Admin']));
-    Role::where('name', 'admin')->first()->permissions()->attach($viewReports);
+    grantReports(Role::where('name', 'admin')->first());
     $this->actingAs($admin->fresh())->get("/dashboard/view-sales{$range}")
         ->assertInertia(fn ($page) => $page->where('scopeLocked', false)->where('summary.kpis.value.value', 57_000_000));
 });
@@ -193,7 +195,7 @@ test('team-locked readers don\'t get Top Teams; unit managers don\'t get Top Sub
 
     $admin = User::factory()->create();
     $admin->roles()->attach($adminRole = Role::create(['name' => 'admin', 'label' => 'Admin']));
-    $adminRole->permissions()->attach($viewReports);
+    grantReports($adminRole);
     $this->actingAs($admin->fresh())->get('/reports')->assertInertia(fn ($page) => $page->where('available', fn ($a) => collect($a)->contains('top-teams')));
 });
 
@@ -202,7 +204,7 @@ test('the dashboard overview shows sales for the reader\'s reach', function () {
 
     $admin = User::factory()->create();
     $admin->roles()->attach($adminRole = Role::create(['name' => 'admin', 'label' => 'Admin']));
-    $adminRole->permissions()->attach(\App\Models\Permission::firstOrCreate(['name' => 'view_reports'], ['label' => 'View Reports']));
+    grantReports($adminRole);
 
     // Back office: the whole system, ranked by teams.
     $this->actingAs($admin->fresh())->get("/dashboard/overview{$range}")

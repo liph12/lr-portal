@@ -138,3 +138,12 @@ test('logs past the retention window are pruned', function () {
 
     expect(ActivityLog::count())->toBe(1);
 });
+
+test('a new sale stores the client\'s age on the reservation date, from the birthdate', function () {
+    $this->actingAs($this->superadmin)
+        ->post('/dashboard/record-sale/project', ['client_birthdate' => '1990-10-02'] + seedSaleCatalogue())
+        ->assertSessionHasNoErrors();
+
+    // Reserved 2026-10-01, the day before the client turns 36.
+    expect(AgentTransaction::sole()->detail->client_age)->toBe(35);
+});

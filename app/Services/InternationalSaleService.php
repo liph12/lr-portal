@@ -15,6 +15,7 @@ class InternationalSaleService
     public function __construct(
         private SaleFileStorage $files,
         private ActivityLogger $activity,
+        private AgentActivityService $agentActivity,
     ) {}
 
     /**
@@ -60,6 +61,11 @@ class InternationalSaleService
             $this->files->discardUploaded();
 
             throw $e;
+        }
+
+        // A new sale makes a dormant agent active again right away.
+        if ($sale->agent_id) {
+            $this->agentActivity->refresh([$sale->agent_id]);
         }
 
         $this->activity->describe(

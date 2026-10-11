@@ -94,7 +94,7 @@ test('a member becomes a user + agent with only the columns the new schema has',
         ->and(mb_strlen($agent->profile->about))->toBe(255)
         ->and($agent->profile->facebook)->toBe('https://facebook.com/juan')
         ->and(DB::table('agent_credentials')->where('agent_id', $agent->id)->value('tax_identification_no'))->toBe('123456789')
-        ->and($attributes->date_activated)->toStartWith('2025-01-01')
+        ->and((string) DB::table('agents')->where('id', $agent->id)->value('activated_at'))->toStartWith('2025-01-01')
         ->and((int) $attributes->nao_video_tracker)->toBe(3)
         ->and((int) $attributes->fire_certificates)->toBe(2)
         ->and((int) $attributes->registration_status)->toBe(4)
