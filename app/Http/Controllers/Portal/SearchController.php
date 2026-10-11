@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Models\Entities\AgentTransaction;
+use App\Models\Entities\Team;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -51,5 +53,30 @@ class SearchController extends Controller
             'roles' => $canManage ? Role::orderBy('id')->get(['id', 'label']) : [],
             'statuses' => $canManage ? User::STATUSES : [],
         ]);
+    }
+
+    // Agent picker (sale agents, team leaders, transfers): active agents only, id is agents.id.
+    public function agents(Request $request): JsonResponse
+    {
+        abort_unless($request->user()->can('create', AgentTransaction::class) || $request->user()->can('manage', Team::class), 403);
+
+        $term = trim((string) $request->query('q', ''));
+
+        if (mb_strlen($term) < 2) {
+            return response()->json(['agents' => []]);
+        }
+
+        $like = '%'.addcslashes($term, '%_\\').'%';
+
+        $agents = User::query()
+            ->join('agents', 'agents.user_id', '=', 'users.id')
+            ->where('users.status', 'active')
+            ->where(fn ($q) => $q->where('users.name', 'like', $like)->orWhere('users.email', 'like', $like))
+            ->orderByRaw('CASE WHEN users.name LIKE ? THEN 0 ELSE 1 END', [addcslashes($term, '%_\\').'%'])
+            ->orderBy('users.name')
+            ->limit(self::LIMIT)
+            ->get(['agents.id', 'users.name', 'users.email', 'agents.avatar']);
+
+        return response()->json(['agents' => $agents]);
     }
 }

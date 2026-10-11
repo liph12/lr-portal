@@ -38,14 +38,14 @@ php artisan migrate --seed   # MySQL db `lr_portal`; seeders: roles, permissions
 
 ## 2. Reference implementation — copy this flow
 
-`GET /superadmin/dashboard/record-sale/project`, end to end:
+`GET /dashboard/record-sale/project`, end to end:
 
-1. **Route** — `routes/superadmin/superadmin-dashboard.php:16`, named `superadmin.record-sale.project`,
-   inside `prefix('superadmin')->middleware('role:superadmin')` (`routes/web.php:27`).
-2. **Controller** — `app/Http/Controllers/Portal/SuperAdmin/Reports/SaleController.php:15-20`:
-   `recordProject()` → `inertia('SuperAdmin/Dashboard/RecordSale/Project', ['developers' => ...])`.
+1. **Route** — `routes/dashboard.php`, named `dashboard.record-sale.project`, inside the shared
+   `prefix('dashboard')` group (every signed-in role) behind `can:create,AgentTransaction` (`record_sales`).
+2. **Controller** — `app/Http/Controllers/Portal/Sales/SaleController.php`:
+   `recordProject()` → `inertia('Portal/Dashboard/RecordSale/Project', ['developers' => ...])`.
    Always the lowercase `inertia()` helper — `Inertia::render` is not used in this codebase.
-3. **Page** — `resources/js/Pages/SuperAdmin/Dashboard/RecordSale/Project.tsx`: typed destructured
+3. **Page** — `resources/js/Pages/Portal/Dashboard/RecordSale/Project.tsx`: typed destructured
    props (`{ developers }: { developers: SalesSource[] }`), persistent layout via
    `Project.layout = (page: ReactNode) => <DashboardLayout children={page} />` (line 20),
    `export default Project;` at the bottom.
@@ -85,7 +85,7 @@ at the matching path. Nothing else.
   `localStorage['lr-theme-mode']` and applied pre-paint by the script in `app.blade.php`.
   Logos: use `components/utils/AppLogo.tsx` (swaps to the white logo in dark mode).
 - **Validation**: a Form Request in `app/Http/Requests/{Role}/` for **every non-GET route**.
-  No inline `$request->validate()`. Example: `Requests/SuperAdmin/StoreProjectSaleRequest.php`.
+  No inline `$request->validate()`. Example: `Requests/Portal/Sales/StoreProjectSaleRequest.php` (shared routes use `Requests/Portal/`).
 - **Authorization**: Policies in `app/Policies/` (auto-discovered, e.g. `AgentTransactionPolicy`),
   checked from the Form Request's `authorize()` or `Gate::authorize()` — the base `Controller`
   has no `AuthorizesRequests` trait.
@@ -96,7 +96,10 @@ at the matching path. Nothing else.
   Never wrap a layout inside the page's render. `AppLayout` owns the viewport (`100vh`,
   `overflow: hidden`) and its `<main>` pane is the only page scroller — pages must not set
   `100vh` heights or their own `overflowY`. Below `lg` the sidebar becomes a `Drawer` opened from
-  the navbar menu button, and `DashboardLayout` collapses to one column (side panel below content).
+  the navbar menu button. `AppLayout` also renders the right rail (`layouts/SideRail.tsx`: online
+  users + leaderboards) on **every** signed-in route — a fixed column on `lg+`, leaderboards stacked
+  below the page on smaller screens. `DashboardLayout` is just the dashboard tab bar (plus the mobile
+  online strip); pages must not render their own copy of the rail.
   Pages outside `AppLayout` (`Pages/User/Auth/*`) scroll themselves: `100dvh` + `overflowY: "auto"`.
 - **Auth props**: shared from `app/Http/Middleware/HandleInertiaRequests.php` `share()` **only**
   (`auth` = `{ id, name, email, role }`, role is the first role's label). Read it in components
@@ -109,19 +112,37 @@ at the matching path. Nothing else.
 - **File uploads**: limit is 20MB per original file. Photos are compressed in the browser first
   (`helpers/compressImage.ts`, ≤2400px, q0.8) and again on the server (`FileCompressionService`:
   images resized + re-encoded; PDF/DOC gzipped with `Content-Encoding: gzip` when it saves ≥10%).
-  Go through a service, never straight from the controller. A project sale has exactly **one**
-  proof of transaction: `ProjectSaleService` uploads it to `config('filesystems.sale_files_disk')`
-  (`SALE_FILES_DISK`, default `s3`) and stores the **full object URL** in
-  `agent_project_transactions.proof_of_transaction`. Tests use `Storage::fake('s3')`.
+  Go through a service, never straight from the controller. Sale documents go through
+  `SaleFileStorage` (compress → `config('filesystems.sale_files_disk')`, `SALE_FILES_DISK`, default
+  `s3`; returns the **full object URL**; `discardUploaded()` on failure). A project sale has exactly
+  **one** `proof_of_transaction` (`ProjectSaleService`); a rental (`RentalSaleService`, no developer)
+  stores `remittance_slip` (required — its proof of transaction) and `deposit_slip` (optional), plus
+  `closing_agent` / `partner_agent` **by name** (picked by id via `GET /search/agents`, the second
+  sanctioned typeahead endpoint). A brokerage sale (`BrokerageSaleService`) belongs to an active
+  `brokerage_areas` row instead of a developer, with the same two slips and no agents. The
+  rental/brokerage upload step is `forms/SaleSlipsForm.tsx`; steppers use `hooks/useSaleSteps.ts`
+  (never blocks navigation — leaving a step only flags its missing fields; submit checks all). Shared sale rules live in `Requests/Portal/Sales/SaleRequest.php`;
+  the shared sale row + client details in `Services/SaleRecord.php`. **Measurements follow the
+  property type** (`ProjectPropertyType::WITH_*`, mirrored in `helpers/projectSaleFields.ts`): condo →
+  unit type + floor area, house & lot / townhouse → floor + lot area, lot only → lot area; required
+  when shown, nulled otherwise; UI via `forms/PropertyMeasurementFields.tsx`. Tests use `Storage::fake('s3')`.
 - **Profile / avatars**: `/profile` is shared by every role (`routes/profile.php`, required inside the
   `auth` group; `Portal\ProfileController`). A user's agent record is created on first use by
   `ProfileService::agentFor()`. Photos are cropped to 512px WebP by `ProfilePhotoService` and the full
   URL is stored in `agents.avatar` (shared as `auth.avatar`). Render people with
   `components/utils/user/UserAvatar.tsx` (photo, falling back to initials). Flash messages:
   `components/utils/FlashBanner.tsx`; titled panels: `components/cards/SectionCard.tsx`.
+- **Dashboard (shared)**: `/dashboard/{main,overview,view-sales,record-sale/...}` (`routes/dashboard.php`,
+  `Portal\DashboardController`, pages in `Pages/Portal/Dashboard/`) is the **same for every role** and is
+  everyone's home (`User::homeUrl()` → `dashboard.index`; old `/superadmin/dashboard/*`, `/admin/dashboard`,
+  `/staff/dashboard` redirect there). Menus reuse one `dashboardRoute` node in `app-data.tsx`; roles
+  without a portal (agent, team leader, unit manager…) get `memberRoutes`. **Record Your Sale** is the only
+  gated part: `record_sales` permission (`AgentTransactionPolicy::create`; granted to agent, team_leader,
+  unit_manager; superadmin always) — hide UI with `auth.permissions`. Field roles' sales are credited to
+  their own agent (`SaleRecord::creditedAgent`); back-office recorders stay `recorded_by` only.
 - **Portals & gates**: each role with a portal (`User::PORTALS` = superadmin, admin, staff) has its own
   prefix + `role:` group in `routes/web.php`; everyone else lives on `/profile`. Sign-in and `/home`
-  go to `User::homeUrl()` (`{portal}.index`); a remembered page is only honoured inside the user's own
+  go to `User::homeUrl()` (the shared dashboard); a remembered page is only honoured inside the shared pages or the user's own
   portal. **Every permission name is a gate** (`AppServiceProvider` `Gate::before`): guard routes with
   `->middleware('can:view_reports')`, and add the same `permission` key to the menu item in
   `app-data.tsx` (`adminRoutes`/`staffRoutes`) so it's hidden too. Superadmin passes every gate.
@@ -136,8 +157,8 @@ at the matching path. Nothing else.
   enforced** anywhere — only role middleware guards routes. `ConfirmDialog` is the shared
   destructive-action dialog. **One role per user**: assigning (`RolePermissionService::assignRole`,
   Members panel on the Roles page) replaces the user's role; you can't change your own role or move
-  the last superadmin. Sign-in sends a user to `{role}.index`, falling back to `/profile` when that
-  route doesn't exist (`AuthUserService::redirect`).
+  the last superadmin. Sign-in sends everyone to the shared dashboard, or to a remembered page under
+  `/dashboard`, `/profile` or their own portal (`AuthUserService::redirect`).
 - **User status**: `users.status` is one of `User::STATUSES` (active, inactive, resigned, terminated),
   changed only through `UserAccountService::changeStatus` (not mass-assignable). Only `active` users
   can sign in; the `active` middleware on the `auth` route group signs out anyone deactivated
@@ -147,12 +168,34 @@ at the matching path. Nothing else.
   name/size only). For a readable entry, inject `App\Services\ActivityLogger` into the service and
   call `describe('domain.verb', 'Human sentence', $subjectModel, [...extra])` once the action succeeds
   (see `ProjectSaleService::record`). Add new sensitive field names to `config/activity_log.php` `redact`.
-- **Tables**: no pattern exists yet. **Ask before building one.**
+- **Tables**: MUI X DataGrid (`@mui/x-data-grid`, free) via `components/utils/tables/DataTable.tsx`
+  (token-themed, `autoHeight` so `<main>` stays the only scroller) + `TableToolbar` / `FilterSelect` /
+  `PersonCell`. Small sets (< ~1k rows) are sent whole and filtered in the browser (Management Teams);
+  large ones are **server-paged** with `hooks/useServerTable.ts` (page/sort/search/filters in the URL
+  query, partial reload of one prop; the controller returns `{data,total,page,per_page}` and accepts
+  sort keys equal to the column `field`s — see `TeamDirectoryService`). Status cells: `StatusChip` /
+  `StatusMenu` (PATCH `{status}`, confirm for destructive ones); photo cells: `PhotoUploadButton`.
+- **Management** (`/superadmin/management` and `/admin/management`, same pages in
+  `Pages/Portal/Management/`, routes from `routes/management.php` called per portal, guarded by
+  `can:manage,Team` = `TeamPolicy` → superadmin + admin): Teams, Sub-teams, Agents, Team transfers.
+  Logic in `TeamManagementService` (writes) / `TeamDirectoryService` (reads). Team & sub-team statuses
+  are `Team::STATUSES` (active, inactive = paused, deactivated = closed: ends every active stint today
+  and deactivates its sub-teams). A **transfer** never edits history: it closes the current
+  `team_agents` / `sub_team_agents` row (`inactive`, `transferred_at` = date) and opens a new active one —
+  one active stint per agent per table. Team photos go through `ProfilePhotoService::uploadSquare`
+  (`team-logos/`). Agent status/photo: admins may change agents and staff but not admins/superadmins
+  (`UserPolicy::updateStatus/updatePhoto`).
+- **View as role** (superadmin testing): profile menu → "View the portal as …" (`POST/DELETE /view-as`,
+  `ViewAsService`, session key `view_as_role`). `ApplyViewAsRole` middleware (before
+  `HandleInertiaRequests`) calls `User::viewAs($role)`, after which `hasRole`, `hasAnyRole`, `portal`,
+  `permissions` and every gate/policy act as that role; `User::reallyHasRole()` ignores the preview (only
+  for starting/stopping it). Shared: `auth.viewing_as`, `auth.view_as_roles`, `auth.can.view_as`;
+  `ViewAsBanner` (in `AppLayout`) offers the way back. Never check roles another way than these methods.
 - **Never hardcode a person**: greet with `auth.first_name`, build personal links from the signed-in
   user (`helpers/userLinks.ts`). "Online now" is real presence from the database session store
   (`OnlineUsersService`, shared as `online_users` to back-office roles only), shown by
-  `DashboardLayout` via `OnlineUsersPanel` — pinned in the right rail on desktop, a face strip on
-  smaller screens. **Realtime**: Laravel Reverb (WebSockets, `php artisan reverb:start`, started by
+  `SideRail` via `OnlineUsersPanel` — pinned in the right rail on desktop, a face strip on
+  smaller dashboard screens. **Realtime**: Laravel Reverb (WebSockets, `php artisan reverb:start`, started by
   `composer dev`) + a presence channel `portal.online` (`routes/channels.php`; every active user joins,
   members see id/name/avatar/role). The client joins once per tab in `helpers/presence.ts` (outside
   React, so page visits don't rejoin) and authorizes with the fresh `XSRF-TOKEN` cookie. If the socket
@@ -162,13 +205,32 @@ at the matching path. Nothing else.
   `MonthlyColumnChart`, `BarList`, `ShareBar`) — no chart library. Series colours are the validated
   `--lr-series-1..3` tokens in fixed order (light/dark in `app.css`); text always uses text tokens;
   every chart carries a visually hidden data table (`srOnly`). Money: `helpers/formatNumber.ts`.
-- **Leaderboards** (`components/utils/SalesLeaderboards.tsx`, right rail under "Online now" on every
-  dashboard): gated by the `view_leaderboards` permission (grant it per role in Settings). Data is the
+- **Leaderboards** (`components/utils/SalesLeaderboards.tsx`, in `SideRail` under "Online now" on every
+  route): gated by the `view_leaderboards` permission (grant it per role in Settings). Data is the
   **optional** shared prop `leaderboards` (`LeaderboardService`), computed only when the panel asks via
   `router.reload({ only: ["leaderboards"] })` — use the same pattern for other heavy side panels.
+  Optional props are dropped on the next visit, so `hooks/useLeaderboards.ts` keeps the last result
+  in a module cache (refetched only when older than 5 min).
+  Boards: agents, brokerage (agents by brokerage sales), teams, projects, developers for this and last month. A month = valid sales
+  **reserved** in it and **encoded** (`agent_transactions.created_at`) by its cutoff in
+  `sales_cutoffs` (imported by `legacy:import-sales-cutoffs`; no row = month still open). Top Teams
+  credits a sale to the team its agent was on at the reservation date (`team_agents` history).
+- **Legacy data**: the old system is restored locally as database `lr_legacy` (connection `legacy`,
+  read-only use). Imports are artisan commands backed by services in `app/Services/Legacy/`
+  (`legacy:import-members`; legacy SUPERVISOR = `team_leader`, there is no supervisor role): idempotent by email, `--dry-run` rolls back, rejects go to
+  `storage/app/private/legacy-import/`. Mapping and decisions: `docs/legacy-migration/`.
+  **`agents.id` = legacy `members.id`** (and is the agent's referral number), so later imports
+  (teams, sales) join legacy member ids straight onto `agents.id` — never via a lookup table.
+  Sales (`legacy:import-sales`): `agent_transactions.id` = `salesreport.id`; category from legacy
+  `developers.isbroker` (0 project, 1 brokerage → `brokerage_areas`, 3 rental); `agent_id` from
+  `agentid → members.memberid → members.id`. Rental/brokerage property details live in their own
+  tables (see `docs/legacy-migration/sales.md`). Teams (`legacy:import-teams`): `teams.id` /
+  `sub_teams.id` = legacy ids; members via `memid`/`memID`/`LeadID` (= `members.id`), never the
+  legacy `agentid`; per agent only the newest membership can be `active` (see `teams.md`). Pages that
+  list users must page/search server-side — there are ~83k users now.
 - **Global search** (navbar, `components/utils/search/GlobalSearch.tsx`): pages come from `app-data`
   routes via `helpers/searchPages.ts` (client-side); people come from `GET /search/users`
-  (`Portal\SearchController`) — the **one sanctioned JSON endpoint**, because typeahead can't be an
+  (`Portal\SearchController`) — with `/search/agents`, the **only sanctioned JSON endpoints**, because typeahead can't be an
   Inertia visit. Don't add other JSON endpoints without the same reason. Who may do what is shared as
   `auth.can.{access_superadmin, search_users, manage_users}` — use these flags, not role names, in the UI.
 - **Navigation**: Inertia `<Link>` / `router` only (`components/AppSidebar.tsx:85`).

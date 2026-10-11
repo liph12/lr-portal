@@ -101,8 +101,8 @@ test('the roles page includes each user\'s status', function () {
     $this->juan->forceFill(['status' => 'resigned'])->save();
 
     $this->actingAs($this->superadmin)
-        ->get('/superadmin/settings/roles')
+        ->get("/superadmin/settings/roles?role={$this->staffRole->id}")
         ->assertInertia(fn ($page) => $page
             ->where('statuses', ['active', 'inactive', 'resigned', 'terminated'])
-            ->where('users', fn ($users) => collect($users)->firstWhere('name', 'Juan Dela Cruz')['status'] === 'resigned'));
+            ->where('members.data', fn ($members) => collect($members)->firstWhere('name', 'Juan Dela Cruz')['status'] === 'resigned'));
 });

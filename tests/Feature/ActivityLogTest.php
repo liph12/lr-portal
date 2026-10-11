@@ -38,6 +38,8 @@ function seedSaleCatalogue(): array
         'developer_project_id' => $projectId,
         'unit_no' => '12B',
         'project_property_type_id' => $typeId,
+        'unit_type' => 'Studio',
+        'floor_area' => '28.5',
         'total_contract_price' => '3500000',
         'reservation_date' => '2026-10-01',
         'payment_terms' => '12 Months',
@@ -48,7 +50,7 @@ function seedSaleCatalogue(): array
 
 test('recording a sale writes one log row describing it', function () {
     $this->actingAs($this->superadmin)
-        ->post('/superadmin/dashboard/record-sale/project', seedSaleCatalogue())
+        ->post('/dashboard/record-sale/project', seedSaleCatalogue())
         ->assertSessionHasNoErrors();
 
     $log = ActivityLog::sole();
@@ -59,7 +61,7 @@ test('recording a sale writes one log row describing it', function () {
         ->and($log->outcome)->toBe(ActivityLog::OUTCOME_SUCCESS)
         ->and($log->status_code)->toBe(302)
         ->and($log->method)->toBe('POST')
-        ->and($log->route_name)->toBe('superadmin.record-sale.project.store')
+        ->and($log->route_name)->toBe('dashboard.record-sale.project.store')
         ->and($log->user_id)->toBe($this->superadmin->id)
         ->and($log->user_email)->toBe('philip@example.com')
         ->and($log->subject->is($sale))->toBeTrue()
@@ -71,12 +73,12 @@ test('recording a sale writes one log row describing it', function () {
 
 test('failed validation is logged with what was submitted', function () {
     $this->actingAs($this->superadmin)
-        ->post('/superadmin/dashboard/record-sale/project', ['client_firstname' => 'Juan'])
+        ->post('/dashboard/record-sale/project', ['client_firstname' => 'Juan'])
         ->assertSessionHasErrors();
 
     $log = ActivityLog::sole();
     expect($log->outcome)->toBe(ActivityLog::OUTCOME_VALIDATION_FAILED)
-        ->and($log->action)->toBe('superadmin.record-sale.project.store')
+        ->and($log->action)->toBe('dashboard.record-sale.project.store')
         ->and($log->payload)->toBe(['client_firstname' => 'Juan'])
         ->and($log->subject_id)->toBeNull();
 });
@@ -112,7 +114,7 @@ test('blocked requests are logged as forbidden', function () {
     $staff = User::factory()->create();
     $staff->roles()->attach(Role::create(['name' => 'staff', 'label' => 'Staff']));
 
-    $this->actingAs($staff)->post('/superadmin/dashboard/record-sale/project', []);
+    $this->actingAs($staff)->post('/dashboard/record-sale/project', []);
 
     expect(ActivityLog::sole())
         ->outcome->toBe(ActivityLog::OUTCOME_FORBIDDEN)
@@ -121,7 +123,7 @@ test('blocked requests are logged as forbidden', function () {
 });
 
 test('page views are not logged by default', function () {
-    $this->actingAs($this->superadmin)->get('/superadmin/dashboard/main');
+    $this->actingAs($this->superadmin)->get('/dashboard/main');
 
     expect(ActivityLog::count())->toBe(0);
 });

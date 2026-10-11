@@ -167,13 +167,31 @@ test('assigning a role replaces the user\'s current role', function () {
         ->and($log->properties)->toBe(['from' => 'staff', 'to' => 'unit_manager']);
 });
 
-test('the roles page lists users with their current role', function () {
+test('the roles page lists the selected role\'s members, paged and searchable', function () {
+    $agent = Role::create(['name' => 'agent', 'label' => 'Agent']);
+    User::factory()->count(25)->create()->each(fn ($u) => $u->roles()->attach($agent));
+    $juan = User::factory()->create(['name' => 'Juan Dela Cruz', 'email' => 'juan@example.com']);
+    $juan->roles()->attach($agent);
+
     $this->actingAs($this->superadmin)
-        ->get('/superadmin/settings/roles')
+        ->get("/superadmin/settings/roles?role={$agent->id}")
         ->assertInertia(fn ($page) => $page
-            ->has('users', 1)
-            ->where('users.0.id', $this->superadmin->id)
-            ->where('users.0.role_id', $this->superadminRole->id));
+            ->where('selectedRoleId', $agent->id)
+            ->missing('users')
+            ->has('members.data', 20)
+            ->where('members.total', 26)
+            ->where('members.last_page', 2));
+
+    $this->actingAs($this->superadmin)
+        ->get("/superadmin/settings/roles?role={$agent->id}&members_page=2")
+        ->assertInertia(fn ($page) => $page->has('members.data', 6)->where('members.page', 2));
+
+    $this->actingAs($this->superadmin)
+        ->get("/superadmin/settings/roles?role={$agent->id}&members_q=juan@")
+        ->assertInertia(fn ($page) => $page
+            ->where('members.total', 1)
+            ->where('members.data.0', fn ($m) => $m['name'] === 'Juan Dela Cruz' && $m['status'] === 'active')
+            ->where('members.search', 'juan@'));
 });
 
 test('you cannot change your own role', function () {
@@ -220,11 +238,11 @@ test('only superadmins can assign roles', function () {
     expect($target->roles()->count())->toBe(0);
 });
 
-test('users with a role that has no dashboard yet land on their profile after sign-in', function () {
+test('users with a role that has no portal land on the shared dashboard after sign-in', function () {
     $agent = Role::create(['name' => 'agent', 'label' => 'Agent']);
     $user = User::factory()->create(['email' => 'agent@example.com', 'password' => 'Secret123']);
     $user->roles()->attach($agent);
 
     $this->post('/login-attempt', ['email' => 'agent@example.com', 'password' => 'Secret123'])
-        ->assertRedirect(route('profile.edit'));
+        ->assertRedirect(route('dashboard.index'));
 });

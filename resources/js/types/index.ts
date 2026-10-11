@@ -21,17 +21,23 @@ export interface AuthUser {
     id: number;
     name: string;
     first_name: string;
+    agent_id: number | null;
     email: string;
     role: string | null;
     avatar: string | null;
     portal: "superadmin" | "admin" | "staff" | null;
     home: string;
     permissions: string[];
+    // Label of the role a superadmin is previewing, else null; view_as_roles is filled only for real superadmins.
+    viewing_as: string | null;
+    view_as_roles: { name: string; label: string }[];
     can: {
         access_superadmin: boolean;
         search_users: boolean;
         manage_users: boolean;
         view_leaderboards: boolean;
+        view_as: boolean;
+        manage_teams: boolean;
     };
 }
 
@@ -54,7 +60,9 @@ export interface LeaderboardEntry {
 
 export interface LeaderboardMonth {
     month: string;
-    boards: { agents: LeaderboardEntry[]; projects: LeaderboardEntry[]; developers: LeaderboardEntry[] };
+    // "YYYY-MM-DD HH:MM:SS"; null while the month is still open.
+    cutoff_at: string | null;
+    boards: { agents: LeaderboardEntry[]; brokerage: LeaderboardEntry[]; teams: LeaderboardEntry[]; projects: LeaderboardEntry[]; developers: LeaderboardEntry[] };
 }
 
 export interface SharedProps {

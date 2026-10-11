@@ -1,6 +1,6 @@
 import { MouseEvent, useState } from "react";
-import { Box, ButtonBase, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from "@mui/material";
-import { AccountCircleOutlined, LogoutRounded, SettingsOutlined } from "@mui/icons-material";
+import { Box, ButtonBase, Divider, ListItemIcon, ListItemText, ListSubheader, Menu, MenuItem, Typography } from "@mui/material";
+import { AccountCircleOutlined, LogoutRounded, SettingsOutlined, UndoRounded, VisibilityOutlined } from "@mui/icons-material";
 import { router } from "@inertiajs/react";
 import useAuthUser from "../../../hooks/useAuthUser";
 import { leavePresence } from "../../../helpers/presence";
@@ -18,6 +18,11 @@ export default function ProfileMenu() {
     const go = (path: string) => {
         setAnchor(null);
         router.visit(path);
+    };
+
+    const viewAs = (role: string | null) => {
+        setAnchor(null);
+        role ? router.post("/view-as", { role }) : router.delete("/view-as");
     };
 
     const signOut = () => {
@@ -97,6 +102,30 @@ export default function ProfileMenu() {
                         <ListItemText primary="Settings" slotProps={itemTextSx} />
                     </MenuItem>
                 )}
+
+                {user.can.view_as && <Divider sx={{ borderColor: "var(--lr-border)" }} />}
+                {user.can.view_as && user.viewing_as && (
+                    <MenuItem onClick={() => viewAs(null)}>
+                        <ListItemIcon>
+                            <UndoRounded fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText primary="Return to Superadmin" slotProps={itemTextSx} />
+                    </MenuItem>
+                )}
+                {user.can.view_as && (
+                    <ListSubheader sx={{ lineHeight: "32px", fontSize: 12, backgroundColor: "transparent", color: "var(--lr-text-secondary)" }}>
+                        View the portal as
+                    </ListSubheader>
+                )}
+                {user.can.view_as &&
+                    user.view_as_roles.map((r) => (
+                        <MenuItem key={r.name} onClick={() => viewAs(r.name)} selected={user.viewing_as === r.label} dense>
+                            <ListItemIcon>
+                                <VisibilityOutlined fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText primary={r.label} slotProps={itemTextSx} />
+                        </MenuItem>
+                    ))}
 
                 <Divider sx={{ borderColor: "var(--lr-border)" }} />
                 <MenuItem onClick={signOut} disabled={signingOut} sx={{ color: "var(--lr-error)" }}>

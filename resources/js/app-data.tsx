@@ -13,60 +13,64 @@ import {
     BarChartRounded,
 } from "@mui/icons-material";
 
+// The dashboard is the same for every role (shared /dashboard routes); Record Your Sale needs `record_sales`.
+export const dashboardRoute = {
+    name: "Dashboard",
+    path: "/dashboard/main",
+    icon: DashboardRounded,
+    children: [
+        {
+            name: "Main",
+            path: "/dashboard/main",
+            children: [],
+            icon: Apps,
+        },
+        {
+            name: "Overview",
+            path: "/dashboard/overview",
+            children: [],
+            icon: StorageRounded,
+        },
+        {
+            name: "Record Your Sale",
+            path: "/dashboard/record-sale",
+            permission: "record_sales",
+            children: [
+                {
+                    name: "Project Sale",
+                    path: "/dashboard/record-sale/project",
+                    children: [],
+                },
+                {
+                    name: "Rental Sale",
+                    path: "/dashboard/record-sale/rental",
+                    children: [],
+                },
+                {
+                    name: "Brokerage Sale",
+                    path: "/dashboard/record-sale/brokerage",
+                    children: [],
+                },
+            ],
+            icon: NoteAdd,
+        },
+        {
+            name: "View Sales",
+            path: "/dashboard/view-sales",
+            icon: BarChart,
+            children: [
+                {
+                    name: "Developer",
+                    path: "/dashboard/view-sales/developer",
+                    children: [],
+                },
+            ],
+        },
+    ],
+};
+
 export const useAppRoutes = [
-    {
-        name: "Dashboard",
-        path: "/superadmin/dashboard/main",
-        icon: DashboardRounded,
-        children: [
-            {
-                name: "Main",
-                path: "/superadmin/dashboard/main",
-                children: [],
-                icon: Apps,
-            },
-            {
-                name: "Overview",
-                path: "/superadmin/dashboard/overview",
-                children: [],
-                icon: StorageRounded,
-            },
-            {
-                name: "Record Your Sale",
-                path: "/superadmin/dashboard/record-sale",
-                children: [
-                    {
-                        name: "Project Sale",
-                        path: "/superadmin/dashboard/record-sale/project",
-                        children: [],
-                    },
-                    {
-                        name: "Rental Sale",
-                        path: "/superadmin/dashboard/record-sale/rental",
-                        children: [],
-                    },
-                    {
-                        name: "Brokerage Sale",
-                        path: "/superadmin/dashboard/record-sale/brokerage",
-                        children: [],
-                    },
-                ],
-                icon: NoteAdd,
-            },
-            {
-                name: "View Sales",
-                path: "/superadmin/dashboard/view-sales",
-                icon: BarChart,
-                children: [
-                    {
-                        name: "Developer",
-                        path: "/superadmin/dashboard/view-sales/developer",
-                        children: [],
-                    },
-                ],
-            },
-        ],
-    },
+    dashboardRoute,
     {
         name: "Management",
         path: "/superadmin/management",
@@ -120,14 +124,18 @@ export const useAppRoutes = [
 // Admin and staff menus. `permission` hides an item (and the route enforces the same gate) unless the
 // user's role has it — manage this in Settings › Roles & permissions.
 export const adminRoutes = [
-    { name: "Dashboard", path: "/admin/dashboard", icon: DashboardRounded, children: [] },
+    dashboardRoute,
     { name: "Statistics", path: "/admin/statistics", icon: BarChartRounded, permission: "view_reports", children: [] },
+    { name: "Management", path: "/admin/management", icon: AdminPanelSettingsRounded, children: [] },
 ];
 
 export const staffRoutes = [
-    { name: "Dashboard", path: "/staff/dashboard", icon: DashboardRounded, children: [] },
+    dashboardRoute,
     { name: "Statistics", path: "/staff/statistics", icon: BarChartRounded, permission: "view_reports", children: [] },
 ];
+
+// Roles without a portal (agents, team leaders, unit managers, …): the dashboard is their whole menu.
+export const memberRoutes = [dashboardRoute];
 
 export const portalRoutes = {
     superadmin: useAppRoutes,
@@ -139,6 +147,13 @@ export const useRecordSaleSteps = [
     "Client Details",
     "Property/Unit",
     "Upload POT",
+];
+
+// Rental and brokerage sales upload a remittance slip (and optionally a deposit slip) instead of a POT.
+export const useSlipSaleSteps = [
+    "Client Details",
+    "Property/Unit",
+    "Upload Slips",
 ];
 
 export const condoTypes = [

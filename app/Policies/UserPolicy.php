@@ -20,8 +20,18 @@ class UserPolicy
         return $user->hasRole(Role::SUPERADMIN);
     }
 
+    // Superadmins manage anyone; admins manage agents and staff, but not other admins or superadmins.
     public function updateStatus(User $user, User $target): bool
     {
-        return $user->hasRole(Role::SUPERADMIN);
+        if ($user->hasRole(Role::SUPERADMIN)) {
+            return true;
+        }
+
+        return $user->hasRole('admin') && ! $target->hasAnyRole(TeamPolicy::MANAGER_ROLES);
+    }
+
+    public function updatePhoto(User $user, User $target): bool
+    {
+        return $this->updateStatus($user, $target);
     }
 }

@@ -1,4 +1,4 @@
-import { DragEvent, useEffect, useMemo, useRef, useState } from "react";
+import { DragEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography, IconButton, LinearProgress, Link as MuiLink } from "@mui/material";
 import { compressImage, isCompressibleImage } from "../../../helpers/compressImage";
 import {
@@ -17,6 +17,10 @@ interface UploadPOTFormProps {
     // Largest file PHP on this server will accept after compression.
     maxFileKb?: number;
     onCompressingChange?: (compressing: boolean) => void;
+    // Replaces the proof-of-transaction guidance, for other documents (e.g. rental slips).
+    instructions?: ReactNode;
+    // Short name of the document for the drop zone, e.g. "remittance slip".
+    fileNoun?: string;
 }
 
 // Browsers often report an empty MIME type for .doc/.docx, so the extension is checked too.
@@ -49,6 +53,8 @@ export default function UploadPOTForm({
     error,
     maxFileKb = MAX_ORIGINAL_MB * 1024,
     onCompressingChange,
+    instructions,
+    fileNoun = "POT",
 }: UploadPOTFormProps) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [dragOver, setDragOver] = useState(false);
@@ -110,38 +116,40 @@ export default function UploadPOTForm({
     return (
         <Box>
             {/* Instruction block */}
-            <Box
-                sx={{
-                    backgroundColor: "var(--lr-primary-soft)",
-                    borderRadius: 2,
-                    p: 2,
-                    mb: 2.5,
-                }}
-            >
-                <Typography
-                    variant="body2"
-                    sx={{ color: "var(--lr-text-body)", lineHeight: 1.6 }}
+            {instructions ?? (
+                <Box
+                    sx={{
+                        backgroundColor: "var(--lr-primary-soft)",
+                        borderRadius: 2,
+                        p: 2,
+                        mb: 2.5,
+                    }}
                 >
-                    <strong>Proof of Transaction</strong> (such as a photo
-                    capture of a transaction document): Valid POT includes a
-                    readable &amp; duly signed copy of a Term Sheet, Reservation
-                    Agreement, Acknowledgement / Official Receipt, or Brokerage
-                    / Rental remittance slip.{" "}
-                    <MuiLink
-                        href={POT_SAMPLE_URL}
-                        target="_blank"
-                        rel="noopener"
-                        sx={{
-                            color: "var(--lr-primary)",
-                            fontWeight: 500,
-                            textDecoration: "none",
-                            ":hover": { textDecoration: "underline" },
-                        }}
+                    <Typography
+                        variant="body2"
+                        sx={{ color: "var(--lr-text-body)", lineHeight: 1.6 }}
                     >
-                        (VIEW POT SAMPLE)
-                    </MuiLink>
-                </Typography>
-            </Box>
+                        <strong>Proof of Transaction</strong> (such as a photo
+                        capture of a transaction document): Valid POT includes a
+                        readable &amp; duly signed copy of a Term Sheet, Reservation
+                        Agreement, Acknowledgement / Official Receipt, or Brokerage
+                        / Rental remittance slip.{" "}
+                        <MuiLink
+                            href={POT_SAMPLE_URL}
+                            target="_blank"
+                            rel="noopener"
+                            sx={{
+                                color: "var(--lr-primary)",
+                                fontWeight: 500,
+                                textDecoration: "none",
+                                ":hover": { textDecoration: "underline" },
+                            }}
+                        >
+                            (VIEW POT SAMPLE)
+                        </MuiLink>
+                    </Typography>
+                </Box>
+            )}
 
             {/* Drop zone */}
             <Box
@@ -174,7 +182,7 @@ export default function UploadPOTForm({
                     variant="body2"
                     sx={{ color: "var(--lr-text-body)", fontWeight: 500 }}
                 >
-                    {value ? "Drop a different file to replace it, or click to browse" : "Drag & drop your POT here, or click to browse"}
+                    {value ? "Drop a different file to replace it, or click to browse" : `Drag & drop your ${fileNoun} here, or click to browse`}
                 </Typography>
                 <Typography
                     variant="caption"

@@ -13,13 +13,15 @@ const slugify = (name: string) =>
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "");
 
-// Personal share links. The portal's user id stands in for the referral/contact number until agents
-// get their own referral ids (agent_attributes.referral_id).
+// Personal share links. The referral number is the agent id (an imported agent's legacy member id);
+// accounts without an agent profile fall back to their user id.
 export function buildUserLinks(user: AuthUser): UserLink[] {
+    const ref = user.agent_id ?? user.id;
+
     return [
-        { label: "Local Referral", url: `LR | registration/v2?ref=${user.id}` },
-        { label: "Global Referral", url: `LR | registration/v2?ref=${user.id}&type=international` },
+        { label: "Local Referral", url: `LR | registration/v2?ref=${ref}` },
+        { label: "Global Referral", url: `LR | registration/v2?ref=${ref}&type=international` },
         { label: "Business Profile", url: `LR | business-card?email=${user.email}` },
-        { label: "Contact", url: `LR | contact/${user.id}/${slugify(user.name)}` },
+        { label: "Contact", url: `LR | contact/${ref}/${slugify(user.name)}` },
     ];
 }

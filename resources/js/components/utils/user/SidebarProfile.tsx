@@ -84,13 +84,13 @@ export default function SidebarProfile() {
                 >
                     Edit profile
                 </MuiLink>
-                {user.can.access_superadmin && (
+                {user.permissions.indexOf("record_sales") !== -1 && (
                     <StyledButton
                         variant="contained"
                         fullWidth
                         startIcon={<NoteAddRounded />}
                         LinkComponent={Link}
-                        href="/superadmin/dashboard/record-sale"
+                        href="/dashboard/record-sale"
                         sx={{
                             mt: 2,
                             py: 1,

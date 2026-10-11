@@ -28,7 +28,8 @@ class AuthUserService
         // opened a superadmin link would land on a "Forbidden" page right after signing in.
         $prefix = $user->portal() ? '/'.$user->portal() : null;
         $path = $intended ? (string) parse_url($intended, PHP_URL_PATH) : null;
-        $allowed = $path && ($path === '/profile' || ($prefix && str_starts_with($path, $prefix.'/')));
+        $shared = $path === '/profile' || str_starts_with((string) $path, '/dashboard/');
+        $allowed = $path && ($shared || ($prefix && str_starts_with($path, $prefix.'/')));
 
         return redirect($allowed ? $intended : $home);
     }

@@ -69,18 +69,44 @@ class User extends Authenticatable
     // Roles that have their own portal (/superadmin, /admin, /staff); everyone else lives on /profile.
     public const PORTALS = [Role::SUPERADMIN, 'admin', 'staff'];
 
+    // Set by ApplyViewAsRole when a superadmin previews the portal as another role; never saved.
+    private ?Role $viewingAs = null;
+
+    public function viewAs(?Role $role): void
+    {
+        $this->viewingAs = $role;
+        // permissions() reads the loaded relation, so it follows the previewed role too.
+        $role ? $this->setRelation('roles', collect([$role->loadMissing('permissions')])) : $this->unsetRelation('roles');
+    }
+
+    public function viewingAs(): ?Role
+    {
+        return $this->viewingAs;
+    }
+
+    // The role the app should act on: the previewed one, else the user's own.
+    public function actingRole(): ?Role
+    {
+        return $this->viewingAs ?? $this->roles()->first();
+    }
+
+    // The account's real role, ignoring any preview — for who may start or stop one.
+    public function reallyHasRole(string $role): bool
+    {
+        return $this->roles()->where('name', $role)->exists();
+    }
+
     public function portal(): ?string
     {
-        $role = $this->roles()->value('name');
+        $role = $this->actingRole()?->name;
 
         return in_array($role, self::PORTALS, true) ? $role : null;
     }
 
+    // Every role starts on the shared dashboard; portals (/superadmin, /admin, /staff) hold the rest.
     public function homeUrl(): string
     {
-        $portal = $this->portal();
-
-        return $portal ? route("{$portal}.index") : route('profile.edit');
+        return route('dashboard.index');
     }
 
     public function isActive(): bool
@@ -110,7 +136,11 @@ class User extends Authenticatable
 
     public function hasRole($role)
     {
-        return $this->roles()->where('name', $role)->exists();
+        if ($this->viewingAs) {
+            return $this->viewingAs->name === $role;
+        }
+
+        return $this->reallyHasRole($role);
     }
 
     /**
@@ -118,6 +148,10 @@ class User extends Authenticatable
      */
     public function hasAnyRole(array $roles): bool
     {
+        if ($this->viewingAs) {
+            return in_array($this->viewingAs->name, $roles, true);
+        }
+
         return $this->roles()->whereIn('name', $roles)->exists();
     }
 

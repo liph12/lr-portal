@@ -3,6 +3,8 @@ import { Box, Drawer, useMediaQuery, useTheme } from "@mui/material";
 import { usePage } from "@inertiajs/react";
 import AppSidebar from "../AppSidebar";
 import AppNavbar from "../AppNavbar";
+import SideRail from "./SideRail";
+import ViewAsBanner from "../utils/user/ViewAsBanner";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
     const theme = useTheme();
@@ -25,6 +27,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             }}
         >
             <AppNavbar onMenuClick={() => setDrawerOpen((o) => !o)} />
+            <ViewAsBanner />
             <Box sx={{ display: "flex", flex: 1, minHeight: 0 }}>
                 {desktop ? (
                     <AppSidebar />
@@ -49,7 +52,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     }}
                 >
                     {children}
+                    {!desktop && <SideRail variant="stacked" />}
                 </Box>
+                {desktop && <SideRail variant="rail" />}
             </Box>
         </Box>
     );

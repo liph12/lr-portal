@@ -9,6 +9,8 @@ import { LeaderboardMonth } from "../../types";
 
 const BOARDS: { key: keyof LeaderboardMonth["boards"]; label: string }[] = [
     { key: "agents", label: "Top Agents" },
+    { key: "teams", label: "Top Teams" },
+    { key: "brokerage", label: "Top Brokerage" },
     { key: "projects", label: "Top Projects" },
     { key: "developers", label: "Top Developers" },
 ];

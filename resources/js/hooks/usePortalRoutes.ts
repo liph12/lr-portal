@@ -1,6 +1,6 @@
 import { ElementType, useMemo } from "react";
 import useAuthUser from "./useAuthUser";
-import { portalRoutes } from "../app-data";
+import { memberRoutes, portalRoutes } from "../app-data";
 
 export interface PortalRoute {
     name: string;
@@ -18,12 +18,12 @@ export default function usePortalRoutes(): PortalRoute[] {
     const permissions = user?.permissions.join(",") ?? "";
 
     return useMemo(() => {
-        if (!portal) return [];
         const granted = permissions.split(",");
         const allowed = (route: PortalRoute) => !route.permission || granted.indexOf(route.permission) !== -1;
         const filter = (routes: PortalRoute[]): PortalRoute[] =>
             routes.filter(allowed).map((r) => ({ ...r, children: filter(r.children ?? []) }));
 
-        return filter(portalRoutes[portal] as PortalRoute[]);
+        // No portal (agents, team leaders, …) still get the shared dashboard.
+        return filter((portal ? portalRoutes[portal] : memberRoutes) as PortalRoute[]);
     }, [portal, permissions]);
 }

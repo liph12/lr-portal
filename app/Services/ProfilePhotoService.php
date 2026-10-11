@@ -20,31 +20,46 @@ class ProfilePhotoService
         private ActivityLogger $activity,
     ) {}
 
-    public function replace(User $user, UploadedFile $photo): string
+    // Folders this service owns on the photos disk; only objects under them are ever deleted.
+    private const FOLDERS = ['avatars/', 'team-logos/'];
+
+    public function replace(User $user, UploadedFile $photo, string $description = 'Updated profile photo'): string
+    {
+        [$url, $bytesStored] = $this->uploadSquare($photo, "avatars/{$user->id}");
+
+        $agent = $this->profiles->agentFor($user);
+        $previous = $agent->avatar;
+        $agent->update(['avatar' => $url]);
+
+        $this->deleteStored($previous);
+
+        $this->activity->describe('profile.photo_updated', $description, $agent, [
+            'avatar' => $agent->avatar,
+            'bytes_uploaded' => $photo->getSize(),
+            'bytes_stored' => $bytesStored,
+        ]);
+
+        return $agent->avatar;
+    }
+
+    /**
+     * Square-crops the photo to a 512px WebP and uploads it under the folder.
+     *
+     * @return array{0: string, 1: int} [full URL, bytes stored]
+     */
+    public function uploadSquare(UploadedFile $photo, string $folder): array
     {
         $diskName = config('filesystems.profile_photos_disk');
         $disk = Storage::disk($diskName);
 
         $contents = $this->squareWebp($photo);
-        $path = sprintf('avatars/%d/%s.webp', $user->id, Str::uuid());
+        $path = sprintf('%s/%s.webp', trim($folder, '/'), Str::uuid());
 
         if (! $disk->put($path, $contents, ['ContentType' => 'image/webp', 'CacheControl' => 'public, max-age=31536000, immutable'])) {
-            throw new RuntimeException("Could not upload the profile photo to the [{$diskName}] disk.");
+            throw new RuntimeException("Could not upload the photo to the [{$diskName}] disk.");
         }
 
-        $agent = $this->profiles->agentFor($user);
-        $previous = $agent->avatar;
-        $agent->update(['avatar' => $disk->url($path)]);
-
-        $this->deleteStored($previous);
-
-        $this->activity->describe('profile.photo_updated', 'Updated profile photo', $agent, [
-            'avatar' => $agent->avatar,
-            'bytes_uploaded' => $photo->getSize(),
-            'bytes_stored' => strlen($contents),
-        ]);
-
-        return $agent->avatar;
+        return [$disk->url($path), strlen($contents)];
     }
 
     public function remove(User $user): void
@@ -126,8 +141,9 @@ class ProfilePhotoService
         return $rotated;
     }
 
-    // Only deletes objects this app put under avatars/ on the configured disk; foreign URLs are left alone.
-    private function deleteStored(?string $url): void
+    // Only deletes objects this app put under its own folders on the configured disk; foreign URLs
+    // (e.g. legacy photos on the old site) are left alone.
+    public function deleteStored(?string $url): void
     {
         if (! $url) {
             return;
@@ -136,8 +152,19 @@ class ProfilePhotoService
         $disk = Storage::disk(config('filesystems.profile_photos_disk'));
         $base = rtrim($disk->url(''), '/').'/';
 
-        if (str_starts_with($url, $base) && str_starts_with($path = substr($url, strlen($base)), 'avatars/')) {
+        if (str_starts_with($url, $base) && $this->ownsPath($path = substr($url, strlen($base)))) {
             $disk->delete($path);
         }
+    }
+
+    private function ownsPath(string $path): bool
+    {
+        foreach (self::FOLDERS as $folder) {
+            if (str_starts_with($path, $folder)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

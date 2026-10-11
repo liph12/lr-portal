@@ -4,13 +4,9 @@ import StyledTextField from "../StyledTextField";
 import StyledAutocomplete from "../StyledAutocomplete";
 import { DeveloperProjectOption, ProjectFields } from "../../../types/app-data-types";
 import { AutoCompleteValue, SaleStepProps } from "../../../types";
-import { condoTypes, commissionStatus } from "../../../app-data";
-import {
-    makePaymentTerms,
-    showsFloorArea,
-    showsLotArea,
-    showsUnitType,
-} from "../../../helpers/projectSaleFields";
+import { commissionStatus } from "../../../app-data";
+import { makePaymentTerms } from "../../../helpers/projectSaleFields";
+import PropertyMeasurementFields from "./PropertyMeasurementFields";
 
 interface ProjectSaleFormProps extends SaleStepProps<ProjectFields> {
     developers: AutoCompleteValue[];
@@ -179,50 +175,7 @@ export default function ProjectSaleForm({
                 />
             </Grid>
 
-            {showsUnitType(data.property_type) && (
-                <Grid size={{ lg: 3, md: 6, xs: 12 }}>
-                    <Label text="Unit Type" />
-                    <StyledAutocomplete
-                        options={condoTypes}
-                        value={data.unit_type}
-                        renderInput={(params) => (
-                            <StyledTextField
-                                params={params}
-                                name="unit_type"
-                                error={errors.unit_type ?? null}
-                            />
-                        )}
-                        onChange={(_, v) => setData("unit_type", v)}
-                        isOptionEqualToValue={(option, value) => option.id === value.id}
-                    />
-                </Grid>
-            )}
-            {showsFloorArea(data.property_type) && (
-                <Grid size={{ lg: 3, md: 6, xs: 12 }}>
-                    <Label text="Floor Area (sqm)" />
-                    <StyledTextField
-                        name="floor_area"
-                        placeholder="0.00"
-                        value={data.floor_area}
-                        error={errors.floor_area ?? null}
-                        handleChange={handleChangeTextField}
-                        {...decimalProps}
-                    />
-                </Grid>
-            )}
-            {showsLotArea(data.property_type) && (
-                <Grid size={{ lg: 3, md: 6, xs: 12 }}>
-                    <Label text="Lot Area (sqm)" />
-                    <StyledTextField
-                        name="lot_area"
-                        placeholder="0.00"
-                        value={data.lot_area}
-                        error={errors.lot_area ?? null}
-                        handleChange={handleChangeTextField}
-                        {...decimalProps}
-                    />
-                </Grid>
-            )}
+            <PropertyMeasurementFields data={data} setData={setData} errors={errors} />
 
             <Grid size={{ lg: 3, md: 6, xs: 12 }}>
                 <Label text="Total Contract Price" required />

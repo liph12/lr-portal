@@ -2,6 +2,7 @@
 
 use App\Models\Entities\AgentProjectTransaction;
 use App\Models\Entities\AgentTransaction;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -73,8 +74,8 @@ function storedPath(string $url): string
 
 test('a superadmin records a project sale with its proof of transaction url', function () {
     $this->actingAs($this->superadmin)
-        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId))
-        ->assertRedirect(route('superadmin.record-sale'))
+        ->post('/dashboard/record-sale/project', projectSalePayload($this->developerId))
+        ->assertRedirect(route('dashboard.record-sale'))
         ->assertSessionHas('success')
         ->assertSessionHasNoErrors();
 
@@ -109,7 +110,7 @@ test('a superadmin records a project sale with its proof of transaction url', fu
 
 test('pdf proofs are gzipped before upload', function () {
     $this->actingAs($this->superadmin)
-        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId, [
+        ->post('/dashboard/record-sale/project', projectSalePayload($this->developerId, [
             'proof_of_transaction' => fakePdf('term-sheet.pdf', 200_000),
         ]))
         ->assertSessionHasNoErrors();
@@ -129,7 +130,7 @@ test('word documents are accepted', function () {
     $zip->close();
 
     $this->actingAs($this->superadmin)
-        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId, [
+        ->post('/dashboard/record-sale/project', projectSalePayload($this->developerId, [
             'proof_of_transaction' => new UploadedFile($path, 'term-sheet.docx', null, null, true),
         ]))
         ->assertSessionHasNoErrors();
@@ -139,7 +140,7 @@ test('word documents are accepted', function () {
 
 test('missing fields and a missing proof are rejected with nothing stored', function () {
     $this->actingAs($this->superadmin)
-        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId, [
+        ->post('/dashboard/record-sale/project', projectSalePayload($this->developerId, [
             'client_firstname' => '',
             'developer_id' => 999999,
             'proof_of_transaction' => null,
@@ -152,7 +153,7 @@ test('missing fields and a missing proof are rejected with nothing stored', func
 
 test('disallowed file types are rejected', function () {
     $this->actingAs($this->superadmin)
-        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId, [
+        ->post('/dashboard/record-sale/project', projectSalePayload($this->developerId, [
             'proof_of_transaction' => UploadedFile::fake()->createWithContent('payload.html', '<html><script>alert(1)</script></html>'),
         ]))
         ->assertSessionHasErrors('proof_of_transaction');
@@ -162,13 +163,13 @@ test('disallowed file types are rejected', function () {
 
 test('files up to 20MB are accepted and larger ones are rejected', function () {
     $this->actingAs($this->superadmin)
-        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId, [
+        ->post('/dashboard/record-sale/project', projectSalePayload($this->developerId, [
             'proof_of_transaction' => fakePdf('big.pdf', 19 * 1024 * 1024),
         ]))
         ->assertSessionHasNoErrors();
 
     $this->actingAs($this->superadmin)
-        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId, [
+        ->post('/dashboard/record-sale/project', projectSalePayload($this->developerId, [
             'proof_of_transaction' => fakePdf('too-big.pdf', 21 * 1024 * 1024),
         ]))
         ->assertSessionHasErrors(['proof_of_transaction' => 'The file must be 20MB or smaller.']);
@@ -183,7 +184,7 @@ test('a failed upload saves nothing', function () {
     Storage::set('s3', $failingDisk);
 
     $this->actingAs($this->superadmin)
-        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId))
+        ->post('/dashboard/record-sale/project', projectSalePayload($this->developerId))
         ->assertServerError();
 
     expect(AgentTransaction::count())->toBe(0)
@@ -194,7 +195,7 @@ test('a database failure after upload removes the uploaded file', function () {
     AgentProjectTransaction::creating(fn () => throw new RuntimeException('database went away'));
 
     $this->actingAs($this->superadmin)
-        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId))
+        ->post('/dashboard/record-sale/project', projectSalePayload($this->developerId))
         ->assertServerError();
 
     expect(AgentTransaction::count())->toBe(0)
@@ -206,7 +207,7 @@ test('users without the superadmin role cannot record sales', function () {
     $staff->roles()->attach(Role::create(['name' => 'staff', 'label' => 'Staff']));
 
     $this->actingAs($staff)
-        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId))
+        ->post('/dashboard/record-sale/project', projectSalePayload($this->developerId))
         ->assertForbidden();
 
     expect(AgentTransaction::count())->toBe(0);
@@ -214,7 +215,7 @@ test('users without the superadmin role cannot record sales', function () {
 
 test('a project that is not listed can be recorded by name', function () {
     $this->actingAs($this->superadmin)
-        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId, [
+        ->post('/dashboard/record-sale/project', projectSalePayload($this->developerId, [
             'developer_project_id' => '',
             'project_name' => 'Brand New Tower',
         ]))
@@ -233,13 +234,13 @@ test('a project from another developer, or no project at all, is rejected', func
     ]);
 
     $this->actingAs($this->superadmin)
-        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId, [
+        ->post('/dashboard/record-sale/project', projectSalePayload($this->developerId, [
             'developer_project_id' => $otherProject,
         ]))
         ->assertSessionHasErrors(['developer_project_id' => 'That project does not belong to the selected developer.']);
 
     $this->actingAs($this->superadmin)
-        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId, [
+        ->post('/dashboard/record-sale/project', projectSalePayload($this->developerId, [
             'developer_project_id' => '',
             'project_name' => '',
             'project_property_type_id' => 999,
@@ -251,7 +252,7 @@ test('a project from another developer, or no project at all, is rejected', func
 
 test('deleting a catalogue project keeps the recorded sale', function () {
     $this->actingAs($this->superadmin)
-        ->post('/superadmin/dashboard/record-sale/project', projectSalePayload($this->developerId))
+        ->post('/dashboard/record-sale/project', projectSalePayload($this->developerId))
         ->assertSessionHasNoErrors();
 
     DB::table('developer_projects')->where('id', $this->projectId)->delete();
@@ -259,4 +260,19 @@ test('deleting a catalogue project keeps the recorded sale', function () {
     $project = AgentTransaction::sole()->projectTransaction;
     expect($project->developer_project_id)->toBeNull()
         ->and($project->project_name)->toBe('Mivela Garden Residences');
+});
+
+test('an agent with record_sales records their own sale and it is credited to them', function () {
+    $agentRole = Role::create(['name' => 'agent', 'label' => 'Agent']);
+    $agentRole->permissions()->attach(Permission::where('name', 'record_sales')->value('id'));
+    $user = User::factory()->create();
+    $user->roles()->attach($agentRole);
+    $agentId = DB::table('agents')->insertGetId(['user_id' => $user->id, 'email' => $user->email]);
+
+    $this->actingAs($user)
+        ->post('/dashboard/record-sale/project', projectSalePayload($this->developerId))
+        ->assertRedirect(route('dashboard.record-sale'))
+        ->assertSessionHasNoErrors();
+
+    expect(AgentTransaction::sole()->only(['agent_id', 'recorded_by']))->toBe(['agent_id' => $agentId, 'recorded_by' => $user->id]);
 });

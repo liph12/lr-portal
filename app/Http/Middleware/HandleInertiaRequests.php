@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Entities\Team;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\LeaderboardService;
@@ -49,17 +50,26 @@ class HandleInertiaRequests extends Middleware
                 // For greetings: the agent profile's first name, else the account name's first word.
                 'first_name' => $request->user()->agent()->value('first_name') ?: Str::before(trim($request->user()->name), ' '),
                 'email' => $request->user()->email,
-                'role' => $request->user()->roles()->value('label'),
+                'role' => $request->user()->actingRole()?->label,
+                // Set while a superadmin previews another role; the banner offers the way back.
+                'viewing_as' => $request->user()->viewingAs()?->label,
+                'view_as_roles' => $request->user()->reallyHasRole(Role::SUPERADMIN)
+                    ? Role::where('name', '!=', Role::SUPERADMIN)->orderBy('label')->get(['name', 'label'])
+                    : [],
                 'portal' => $request->user()->portal(),
                 'home' => $request->user()->homeUrl(),
                 // Drives which menu items and quick links appear; the routes enforce the same gates.
                 'permissions' => $request->user()->permissions()->pluck('name')->values(),
                 'avatar' => $request->user()->agent()->value('avatar'),
+                // Imported agents keep their legacy member id, which is also their referral number.
+                'agent_id' => $request->user()->agent()->value('id'),
                 'can' => [
                     'access_superadmin' => $request->user()->hasRole(Role::SUPERADMIN),
                     'search_users' => $request->user()->can('search', User::class),
                     'manage_users' => $request->user()->can('manage', User::class),
                     'view_leaderboards' => $request->user()->can(LeaderboardService::PERMISSION),
+                    'view_as' => $request->user()->reallyHasRole(Role::SUPERADMIN),
+                    'manage_teams' => $request->user()->can('manage', Team::class),
                 ],
             ] : null,
             // Everyone sees who's online (same as the realtime presence channel); this adds "last seen".

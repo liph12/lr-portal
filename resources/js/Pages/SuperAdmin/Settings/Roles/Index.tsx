@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Box, Container, Grid, Typography } from "@mui/material";
 import { AddRounded, ErrorOutlineRounded } from "@mui/icons-material";
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import AppLayout from "../../../../components/layouts/AppLayout";
 import SectionTitle from "../../../../components/utils/SectionTitle";
 import FlashBanner from "../../../../components/utils/FlashBanner";
@@ -12,19 +12,19 @@ import PermissionsCard from "../../../../components/cards/PermissionsCard";
 import RoleMembersCard from "../../../../components/cards/RoleMembersCard";
 import RoleEditorForm from "../../../../components/utils/forms/RoleEditorForm";
 import NewRoleDialog from "../../../../components/utils/forms/NewRoleDialog";
-import { PermissionItem, RoleItem, RoleUserItem, UserStatus } from "../../../../types/app-data-types";
+import { PermissionItem, RoleItem, RoleMembersPage, UserStatus } from "../../../../types/app-data-types";
 import useAuthUser from "../../../../hooks/useAuthUser";
 import { FormErrors } from "../../../../types";
 
 interface RolesIndexProps {
     roles: RoleItem[];
     permissions: PermissionItem[];
-    users: RoleUserItem[];
+    members: RoleMembersPage;
     statuses: UserStatus[];
     selectedRoleId: number | null;
 }
 
-function RolesIndex({ roles, permissions, users, statuses, selectedRoleId }: RolesIndexProps) {
+function RolesIndex({ roles, permissions, members, statuses, selectedRoleId }: RolesIndexProps) {
     const authUser = useAuthUser();
     const [selectedId, setSelectedId] = useState<number | null>(selectedRoleId ?? roles[0]?.id ?? null);
     const [creating, setCreating] = useState(false);
@@ -35,6 +35,17 @@ function RolesIndex({ roles, permissions, users, statuses, selectedRoleId }: Rol
     useEffect(() => {
         if (selectedRoleId) setSelectedId(selectedRoleId);
     }, [selectedRoleId]);
+
+    // Switch instantly, then fetch that role's first page of members (the server pages them).
+    const selectRole = (id: number) => {
+        setSelectedId(id);
+        router.get("/superadmin/settings/roles", { role: id }, {
+            only: ["members", "selectedRoleId"],
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
 
     const selected = roles.find((r) => r.id === selectedId) ?? roles[0] ?? null;
 
@@ -94,7 +105,7 @@ function RolesIndex({ roles, permissions, users, statuses, selectedRoleId }: Rol
                                 role={role}
                                 totalPermissions={permissions.length}
                                 selected={role.id === selected?.id}
-                                onSelect={() => setSelectedId(role.id)}
+                                onSelect={() => selectRole(role.id)}
                             />
                         ))}
                     </Box>
@@ -123,7 +134,7 @@ function RolesIndex({ roles, permissions, users, statuses, selectedRoleId }: Rol
                             title={`Members (${selected.users_count})`}
                             subtitle={`People who have the ${selected.label} role.`}
                         >
-                            <RoleMembersCard role={selected} roles={roles} users={users} statuses={statuses} currentUserId={authUser?.id ?? null} />
+                            <RoleMembersCard role={selected} members={members} statuses={statuses} currentUserId={authUser?.id ?? null} />
                         </SectionCard>
                     )}
                     <SectionCard title="Permissions" subtitle="The actions you can grant to roles.">

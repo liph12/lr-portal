@@ -16,6 +16,8 @@ interface RecordSaleStepperLayoutProps {
     // Holds the primary button while something on the step (e.g. photo compression) is still running.
     busy?: boolean;
     uploadPercentage?: number;
+    onStepClick?: (step: number) => void;
+    errorSteps?: number[];
     children: ReactNode;
 }
 
@@ -28,13 +30,21 @@ export default function RecordSaleStepperLayout({
     processing,
     busy = false,
     uploadPercentage,
+    onStepClick,
+    errorSteps,
     children,
 }: RecordSaleStepperLayoutProps) {
     const isLastStep = activeStep === steps.length - 1;
 
     return (
         <Box>
-            <RecordSaleStepper activeStep={activeStep} steps={steps} />
+            <RecordSaleStepper
+                activeStep={activeStep}
+                steps={steps}
+                onStepClick={onStepClick}
+                errorSteps={errorSteps}
+                disabled={processing || busy}
+            />
             <Box sx={{ minHeight: "45vh", py: 3 }}>{children}</Box>
 
             {processing && (
