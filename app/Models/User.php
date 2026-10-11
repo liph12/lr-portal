@@ -66,6 +66,23 @@ class User extends Authenticatable
         ];
     }
 
+    // Roles that have their own portal (/superadmin, /admin, /staff); everyone else lives on /profile.
+    public const PORTALS = [Role::SUPERADMIN, 'admin', 'staff'];
+
+    public function portal(): ?string
+    {
+        $role = $this->roles()->value('name');
+
+        return in_array($role, self::PORTALS, true) ? $role : null;
+    }
+
+    public function homeUrl(): string
+    {
+        $portal = $this->portal();
+
+        return $portal ? route("{$portal}.index") : route('profile.edit');
+    }
+
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;

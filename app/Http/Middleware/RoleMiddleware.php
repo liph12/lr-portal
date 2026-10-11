@@ -18,7 +18,8 @@ class RoleMiddleware
         $user = $request->user();
 
         if (! $user || ! $user->hasRole($role)) {
-            return response()->json(['message' => 'Forbidden'], 403);
+            // Rendered as the Error page for browser visits and as JSON for API-style requests.
+            abort(403, 'This area is for another role.');
         }
 
         return $next($request);

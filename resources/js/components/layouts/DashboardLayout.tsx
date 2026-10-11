@@ -1,23 +1,29 @@
 import { ReactNode } from "react";
-import { Box, Grid } from "@mui/material";
+import { Box, Divider, Grid, useMediaQuery, useTheme } from "@mui/material";
+import OnlineUsersPanel from "../utils/user/OnlineUsersPanel";
+import useAuthUser from "../../hooks/useAuthUser";
+import useOnlineUsers from "../../hooks/useOnlineUsers";
 import { useAppRoutes } from "../../app-data";
 import { isRouteActive } from "../../helpers/routeMatch";
 import { usePage, Link } from "@inertiajs/react";
 import StyledButton from "../utils/StyledButton";
 import AppLayout from "./AppLayout";
 import DashboardFilters from "../utils/DashboardFilters";
-import DashboardLeaderboards from "../utils/DashboardLeaderboards";
+import SalesLeaderboards from "../utils/SalesLeaderboards";
 
 const DASHBOARD_ROUTES = useAppRoutes[0];
 
 function DashboardLayout({ children }: { children: ReactNode }) {
+    const theme = useTheme();
+    const desktop = useMediaQuery(theme.breakpoints.up("lg"), { noSsr: true });
+    const authUser = useAuthUser();
+    const showOnline = !!authUser;
+    const showLeaderboards = !!authUser?.can.view_leaderboards;
+    const { users: onlineUsers, live } = useOnlineUsers(showOnline);
     const { url } = usePage();
     const routeNodes = DASHBOARD_ROUTES.children;
     const nodePath = routeNodes.find((r) => url.includes(r.path))?.path;
     const showFilters = nodePath === "/superadmin/dashboard/overview";
-    const showLeaderboards =
-        nodePath === "/superadmin/dashboard/main" ||
-        nodePath === "/superadmin/dashboard/record-sale";
 
     return (
         <AppLayout>
@@ -92,6 +98,8 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                         })}
                     </Box>
 
+                    {showOnline && !desktop && <OnlineUsersPanel users={onlineUsers} live={live} variant="strip" />}
+
                     {/* Scrollable content area */}
                     <Box
                         sx={{
@@ -111,16 +119,32 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                     size={{ xs: 12, lg: 2.5 }}
                     sx={{
                         height: { lg: "100%" },
-                        overflowY: { lg: "auto" },
-                        overflowX: "hidden",
-                        scrollBehavior: "smooth",
+                        display: "flex",
+                        flexDirection: "column",
                         borderLeft: { lg: "1px solid var(--lr-border)" },
                         borderTop: { xs: "1px solid var(--lr-border)", lg: "none" },
                         backgroundColor: "var(--lr-surface)",
                     }}
                 >
-                    {showFilters && <DashboardFilters />}
-                    {showLeaderboards && <DashboardLeaderboards />}
+                    {/* Pinned above the panel's own scroll so who's online is always in view, like a chat sidebar. */}
+                    {showOnline && desktop && (
+                        <Box sx={{ flexShrink: 0 }}>
+                            <OnlineUsersPanel users={onlineUsers} live={live} variant="list" />
+                            <Divider sx={{ borderColor: "var(--lr-border)" }} />
+                        </Box>
+                    )}
+                    <Box
+                        sx={{
+                            flex: 1,
+                            minHeight: 0,
+                            overflowY: { lg: "auto" },
+                            overflowX: "hidden",
+                            scrollBehavior: "smooth",
+                        }}
+                    >
+                        {showLeaderboards && <SalesLeaderboards />}
+                        {showFilters && <DashboardFilters />}
+                    </Box>
                 </Grid>
             </Grid>
         </AppLayout>

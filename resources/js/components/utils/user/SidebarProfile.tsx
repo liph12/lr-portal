@@ -84,22 +84,24 @@ export default function SidebarProfile() {
                 >
                     Edit profile
                 </MuiLink>
-                <StyledButton
-                    variant="contained"
-                    fullWidth
-                    startIcon={<NoteAddRounded />}
-                    LinkComponent={Link}
-                    href="/superadmin/dashboard/record-sale"
-                    sx={{
-                        mt: 2,
-                        py: 1,
-                        backgroundColor: "var(--lr-primary)",
-                        boxShadow: "0 1px 3px rgba(26,115,232,.35)",
-                        ":hover": { backgroundColor: "var(--lr-primary-hover)" },
-                    }}
-                >
-                    Record Your Sale
-                </StyledButton>
+                {user.can.access_superadmin && (
+                    <StyledButton
+                        variant="contained"
+                        fullWidth
+                        startIcon={<NoteAddRounded />}
+                        LinkComponent={Link}
+                        href="/superadmin/dashboard/record-sale"
+                        sx={{
+                            mt: 2,
+                            py: 1,
+                            backgroundColor: "var(--lr-primary)",
+                            boxShadow: "0 1px 3px rgba(26,115,232,.35)",
+                            ":hover": { backgroundColor: "var(--lr-primary-hover)" },
+                        }}
+                    >
+                        Record Your Sale
+                    </StyledButton>
+                )}
             </Box>
             <Divider sx={{ borderColor: "var(--lr-border)", mx: 3 }} />
         </Box>

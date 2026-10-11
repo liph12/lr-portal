@@ -117,6 +117,24 @@ export const useAppRoutes = [
     },
 ];
 
+// Admin and staff menus. `permission` hides an item (and the route enforces the same gate) unless the
+// user's role has it — manage this in Settings › Roles & permissions.
+export const adminRoutes = [
+    { name: "Dashboard", path: "/admin/dashboard", icon: DashboardRounded, children: [] },
+    { name: "Statistics", path: "/admin/statistics", icon: BarChartRounded, permission: "view_reports", children: [] },
+];
+
+export const staffRoutes = [
+    { name: "Dashboard", path: "/staff/dashboard", icon: DashboardRounded, children: [] },
+    { name: "Statistics", path: "/staff/statistics", icon: BarChartRounded, permission: "view_reports", children: [] },
+];
+
+export const portalRoutes = {
+    superadmin: useAppRoutes,
+    admin: adminRoutes,
+    staff: staffRoutes,
+};
+
 export const useRecordSaleSteps = [
     "Client Details",
     "Property/Unit",

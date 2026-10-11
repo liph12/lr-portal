@@ -31,7 +31,8 @@ test('the roles page lists roles with their permissions and user counts', functi
             ->where('roles.0.is_superadmin', true)
             ->where('roles.0.users_count', 1)
             ->where('roles.0.permission_ids', [$this->viewDashboard->id, $this->viewReports->id])
-            ->has('permissions', 2));
+            // Migrations also seed permissions (e.g. view_leaderboards), so count what's really there.
+            ->has('permissions', Permission::count()));
 });
 
 test('a superadmin creates agent, unit manager and team leader roles', function () {
@@ -88,7 +89,7 @@ test('superadmin always keeps every permission', function () {
             'permission_ids' => [],
         ]);
 
-    expect($this->superadminRole->permissions()->count())->toBe(2);
+    expect($this->superadminRole->permissions()->count())->toBe(Permission::count());
 });
 
 test('built-in roles and roles that still have users cannot be deleted', function () {

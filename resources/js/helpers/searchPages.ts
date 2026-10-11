@@ -1,6 +1,5 @@
 import { ElementType } from "react";
 import { AccountCircleOutlined } from "@mui/icons-material";
-import { useAppRoutes } from "../app-data";
 
 export interface PageResult {
     name: string;
@@ -31,10 +30,10 @@ function flatten(nodes: RouteNode[], parents: string[] = [], parentIcon?: Elemen
     }, []);
 }
 
-// The sidebar routes all live under /superadmin, so they're only offered to superadmins.
-export function buildPageIndex(canAccessSuperadmin: boolean): PageResult[] {
-    const portal = canAccessSuperadmin ? flatten(useAppRoutes as RouteNode[]) : [];
-    return [...portal, ...SHARED_PAGES];
+// `routes` is the user's own portal menu (already permission-filtered), so search never offers a
+// page they'd be refused.
+export function buildPageIndex(routes: RouteNode[]): PageResult[] {
+    return [...flatten(routes), ...SHARED_PAGES];
 }
 
 export function searchPages(index: PageResult[], query: string, limit = 6): PageResult[] {

@@ -19,7 +19,7 @@ app/
   Services/          business logic (AuthUserService.php)
 routes/
   web.php            guest/auth groups; requires the per-section files below
-  superadmin/superadmin-{section}.php,  admin/admin-{section}.php
+  superadmin/superadmin-{section}.php,  admin/admin-{section}.php,  staff/staff-{section}.php
 resources/js/
   Pages/             one component per inertia('...') string, path mirrors the string
   components/        AppNavbar, AppSidebar;  layouts/  cards/  utils/{forms,tables,user}/
@@ -89,8 +89,8 @@ at the matching path. Nothing else.
 - **Authorization**: Policies in `app/Policies/` (auto-discovered, e.g. `AgentTransactionPolicy`),
   checked from the Form Request's `authorize()` or `Gate::authorize()` — the base `Controller`
   has no `AuthorizesRequests` trait.
-  `app/Http/Middleware/RoleMiddleware.php` must return an Inertia-compatible redirect —
-  never JSON (its current `response()->json(..., 403)` at line 21 is a defect, see §5).
+  `RoleMiddleware` aborts 403, which `bootstrap/app.php` renders as the Inertia `Error` page
+  (403/404/500/503; JSON callers still get JSON).
 - **Layouts**: persistent `.layout` static pattern only
   (`Project.layout = (page) => <DashboardLayout children={page} />`, `RecordSale/Project.tsx:20`).
   Never wrap a layout inside the page's render. `AppLayout` owns the viewport (`100vh`,
@@ -119,6 +119,15 @@ at the matching path. Nothing else.
   URL is stored in `agents.avatar` (shared as `auth.avatar`). Render people with
   `components/utils/user/UserAvatar.tsx` (photo, falling back to initials). Flash messages:
   `components/utils/FlashBanner.tsx`; titled panels: `components/cards/SectionCard.tsx`.
+- **Portals & gates**: each role with a portal (`User::PORTALS` = superadmin, admin, staff) has its own
+  prefix + `role:` group in `routes/web.php`; everyone else lives on `/profile`. Sign-in and `/home`
+  go to `User::homeUrl()` (`{portal}.index`); a remembered page is only honoured inside the user's own
+  portal. **Every permission name is a gate** (`AppServiceProvider` `Gate::before`): guard routes with
+  `->middleware('can:view_reports')`, and add the same `permission` key to the menu item in
+  `app-data.tsx` (`adminRoutes`/`staffRoutes`) so it's hidden too. Superadmin passes every gate.
+  Menus, breadcrumbs and search all come from `hooks/usePortalRoutes.ts`; shared pages for several
+  portals live in `Pages/Portal/` with controllers in `Portal\` (e.g. `DashboardController`,
+  `StatisticsController`). `auth.portal`, `auth.home`, `auth.permissions` are shared to the UI.
 - **Roles & permissions**: managed at Settings → Roles & permissions
   (`Portal\SuperAdmin\Settings\{Role,Permission}Controller`, logic in `RolePermissionService`).
   A role's `name` is a slug derived once from its label and never changes (routes check it, e.g.
@@ -138,11 +147,25 @@ at the matching path. Nothing else.
   name/size only). For a readable entry, inject `App\Services\ActivityLogger` into the service and
   call `describe('domain.verb', 'Human sentence', $subjectModel, [...extra])` once the action succeeds
   (see `ProjectSaleService::record`). Add new sensitive field names to `config/activity_log.php` `redact`.
-- **Tables**: no pattern exists yet (`components/utils/tables/TopAgentsTable.tsx` is a hardcoded
-  demo). **Ask before building one.**
+- **Tables**: no pattern exists yet. **Ask before building one.**
 - **Never hardcode a person**: greet with `auth.first_name`, build personal links from the signed-in
-  user (`helpers/userLinks.ts`). "Online users" in the sidebar is real presence from the database
-  session store (`OnlineUsersService`, shared as `online_users` to back-office roles only).
+  user (`helpers/userLinks.ts`). "Online now" is real presence from the database session store
+  (`OnlineUsersService`, shared as `online_users` to back-office roles only), shown by
+  `DashboardLayout` via `OnlineUsersPanel` — pinned in the right rail on desktop, a face strip on
+  smaller screens. **Realtime**: Laravel Reverb (WebSockets, `php artisan reverb:start`, started by
+  `composer dev`) + a presence channel `portal.online` (`routes/channels.php`; every active user joins,
+  members see id/name/avatar/role). The client joins once per tab in `helpers/presence.ts` (outside
+  React, so page visits don't rejoin) and authorizes with the fresh `XSRF-TOKEN` cookie. If the socket
+  is down, `hooks/useOnlineUsers.ts` falls back to the 60s partial-reload poll.
+- **Charts / statistics**: `/superadmin/statistics` (`StatisticsController` → `StatisticsService`,
+  sales dated by `reservation_date`). Charts are plain MUI in `components/charts/` (`StatTile`,
+  `MonthlyColumnChart`, `BarList`, `ShareBar`) — no chart library. Series colours are the validated
+  `--lr-series-1..3` tokens in fixed order (light/dark in `app.css`); text always uses text tokens;
+  every chart carries a visually hidden data table (`srOnly`). Money: `helpers/formatNumber.ts`.
+- **Leaderboards** (`components/utils/SalesLeaderboards.tsx`, right rail under "Online now" on every
+  dashboard): gated by the `view_leaderboards` permission (grant it per role in Settings). Data is the
+  **optional** shared prop `leaderboards` (`LeaderboardService`), computed only when the panel asks via
+  `router.reload({ only: ["leaderboards"] })` — use the same pattern for other heavy side panels.
 - **Global search** (navbar, `components/utils/search/GlobalSearch.tsx`): pages come from `app-data`
   routes via `helpers/searchPages.ts` (client-side); people come from `GET /search/users`
   (`Portal\SearchController`) — the **one sanctioned JSON endpoint**, because typeahead can't be an
@@ -155,10 +178,6 @@ at the matching path. Nothing else.
 
 ## 5. Do not imitate
 
-- `app/Http/Controllers/Portal/SuperAdmin/Statistics/*.php` — four empty stub classes with no
-  `Controller` suffix, no methods, no routes.
-- `RoleMiddleware.php:21` — the JSON 403 inside the Inertia stack (unrenderable by the client).
-- `resources/js/components/utils/tables/TopAgentsTable.tsx` — hardcoded rows, zero props.
 - The form pattern that never submits: `useState` + `window.location.href` (`Pages/User/Auth/Stepper/CreateAccount.tsx:180`,
   `Pages/User/Auth/CreatePassword.tsx:32`, `Pages/User/Auth/Register.tsx:239`).
 - Also: per-page

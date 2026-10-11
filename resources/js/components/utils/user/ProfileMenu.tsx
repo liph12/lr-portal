@@ -3,6 +3,7 @@ import { Box, ButtonBase, Divider, ListItemIcon, ListItemText, Menu, MenuItem, T
 import { AccountCircleOutlined, LogoutRounded, SettingsOutlined } from "@mui/icons-material";
 import { router } from "@inertiajs/react";
 import useAuthUser from "../../../hooks/useAuthUser";
+import { leavePresence } from "../../../helpers/presence";
 import UserAvatar from "./UserAvatar";
 
 const itemTextSx = { primary: { sx: { fontSize: 14 } } };
@@ -21,6 +22,8 @@ export default function ProfileMenu() {
 
     const signOut = () => {
         setAnchor(null);
+        // Leave first so others see you go offline immediately, not when the socket times out.
+        leavePresence();
         router.post("/logout", {}, { onStart: () => setSigningOut(true), onFinish: () => setSigningOut(false) });
     };
 

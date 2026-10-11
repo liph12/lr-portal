@@ -38,6 +38,11 @@
     --lr-success-soft: #e6f4ea;
     --lr-warning: #b06000;
     --lr-warning-soft: #fef7e0;
+    /* Chart series (validated categorical order; aqua is <3:1 on white, so segments always carry labels). */
+    --lr-series-1: #2a78d6;
+    --lr-series-2: #eb6834;
+    --lr-series-3: #1baf7a;
+    --lr-chart-grid: #ecebe8;
     --lr-glass: rgba(255, 255, 255, 0.85);
     --lr-glass-border: rgba(255, 255, 255, 0.7);
     --lr-auth-bg: url(/assets/background.png);
@@ -68,6 +73,10 @@
     --lr-success-soft: #1e3a2a;
     --lr-warning: #fdd663;
     --lr-warning-soft: #3d3420;
+    --lr-series-1: #3987e5;
+    --lr-series-2: #d95926;
+    --lr-series-3: #199e70;
+    --lr-chart-grid: #2e2e2c;
     --lr-glass: rgba(31, 31, 31, 0.88);
     --lr-glass-border: rgba(255, 255, 255, 0.08);
     --lr-auth-bg: linear-gradient(rgba(19, 19, 20, 0.82), rgba(19, 19, 20, 0.82)), url(/assets/background.png);

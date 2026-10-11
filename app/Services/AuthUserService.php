@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Route;
 
 class AuthUserService
 {
@@ -22,9 +21,15 @@ class AuthUserService
     public function redirect()
     {
         $user = Auth::user();
-        $dashboard = $user->roles()->value('name').'.index';
+        $home = $user->homeUrl();
+        $intended = session()->pull('url.intended');
 
-        // Roles created in Settings (agent, unit_manager, …) have no portal yet; land them on their profile.
-        return redirect()->intended(Route::has($dashboard) ? route($dashboard) : route('profile.edit'));
+        // Only honour a remembered page inside the user's own area; otherwise a staff member who once
+        // opened a superadmin link would land on a "Forbidden" page right after signing in.
+        $prefix = $user->portal() ? '/'.$user->portal() : null;
+        $path = $intended ? (string) parse_url($intended, PHP_URL_PATH) : null;
+        $allowed = $path && ($path === '/profile' || ($prefix && str_starts_with($path, $prefix.'/')));
+
+        return redirect($allowed ? $intended : $home);
     }
 }

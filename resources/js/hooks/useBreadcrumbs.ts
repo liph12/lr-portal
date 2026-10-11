@@ -1,6 +1,6 @@
 import { usePage } from "@inertiajs/react";
 import type { ReactNode } from "react";
-import { useAppRoutes } from "../app-data";
+import usePortalRoutes from "./usePortalRoutes";
 
 interface RouteItem {
     name: string;
@@ -16,6 +16,7 @@ interface Breadcrumb {
 
 export default function useBreadcrumbs(): Breadcrumb[] {
     const { url } = usePage();
+    const routes = usePortalRoutes();
 
     function findRoute(
         routes: RouteItem[],
@@ -38,5 +39,6 @@ export default function useBreadcrumbs(): Breadcrumb[] {
         return null;
     }
 
-    return findRoute(useAppRoutes, url) ?? [];
+    // Filters add a query string (e.g. ?period=year); breadcrumbs match on the path alone.
+    return findRoute(routes as RouteItem[], url.split("?")[0]) ?? [];
 }

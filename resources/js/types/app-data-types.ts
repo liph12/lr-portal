@@ -97,3 +97,24 @@ export interface RoleUserItem {
 }
 
 export type UserStatus = "active" | "inactive" | "resigned" | "terminated";
+
+export type StatsPeriod = "12m" | "year" | "all";
+
+export interface StatsSummary {
+    period: StatsPeriod;
+    range: { start: string | null; end: string };
+    kpis: {
+        sales: { value: number; previous: number | null };
+        contract_value: { value: number; previous: number | null };
+        average_deal: { value: number; previous: number | null };
+        active_users: { value: number; total: number };
+    };
+    monthly: { month: string; sales: number; value: number }[];
+    developers: { name: string; sales: number; value: number }[];
+    propertyTypes: { name: string; sales: number; value: number }[];
+    commission: { status: string; sales: number }[];
+    team: {
+        byRole: { name: string; users: number }[];
+        byStatus: { status: UserStatus; users: number }[];
+    };
+}

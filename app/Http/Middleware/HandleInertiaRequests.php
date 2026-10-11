@@ -4,7 +4,9 @@ namespace App\Http\Middleware;
 
 use App\Models\Role;
 use App\Models\User;
+use App\Services\LeaderboardService;
 use App\Services\OnlineUsersService;
+use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Middleware;
@@ -48,17 +50,27 @@ class HandleInertiaRequests extends Middleware
                 'first_name' => $request->user()->agent()->value('first_name') ?: Str::before(trim($request->user()->name), ' '),
                 'email' => $request->user()->email,
                 'role' => $request->user()->roles()->value('label'),
+                'portal' => $request->user()->portal(),
+                'home' => $request->user()->homeUrl(),
+                // Drives which menu items and quick links appear; the routes enforce the same gates.
+                'permissions' => $request->user()->permissions()->pluck('name')->values(),
                 'avatar' => $request->user()->agent()->value('avatar'),
                 'can' => [
                     'access_superadmin' => $request->user()->hasRole(Role::SUPERADMIN),
                     'search_users' => $request->user()->can('search', User::class),
                     'manage_users' => $request->user()->can('manage', User::class),
+                    'view_leaderboards' => $request->user()->can(LeaderboardService::PERMISSION),
                 ],
             ] : null,
-            // Back-office roles only: who else is signed in is staff information, not for every agent.
-            'online_users' => fn () => $request->user()?->can('search', User::class)
+            // Everyone sees who's online (same as the realtime presence channel); this adds "last seen".
+            'online_users' => fn () => $request->user()
                 ? app(OnlineUsersService::class)->recentlyActive($request->user()->id)
                 : [],
+            // Optional: never computed on normal visits, only when the leaderboard panel asks for it with a
+            // partial reload — and only for roles granted the permission.
+            'leaderboards' => Inertia::optional(fn () => $request->user()?->can(LeaderboardService::PERMISSION)
+                ? app(LeaderboardService::class)->recentMonths()
+                : null),
             'flash' => fn () => [
                 'success' => $request->session()->get('success'),
             ],

@@ -63,16 +63,42 @@ test('online users come from recent sessions, newest first, excluding the viewer
         ->and($online[1])->toMatchArray(['online' => false, 'last_seen' => '30m', 'role' => null]);
 });
 
-test('only back-office roles receive the online users list', function () {
+test('every signed-in user receives the online users list', function () {
     $agent = User::factory()->create();
     $agent->roles()->attach($this->agentRole);
 
     $this->actingAs($agent)->get('/profile')
-        ->assertInertia(fn ($page) => $page->where('online_users', []));
-
-    $boss = User::factory()->create();
-    $boss->roles()->attach($this->superadminRole);
-
-    $this->actingAs($boss)->get('/profile')
         ->assertInertia(fn ($page) => $page->has('online_users'));
+});
+
+test('active users join the presence channel with display fields only', function () {
+    config([
+        'broadcasting.default' => 'reverb',
+        'broadcasting.connections.reverb.key' => 'test-key',
+        'broadcasting.connections.reverb.secret' => 'test-secret',
+        'broadcasting.connections.reverb.app_id' => 'test-app',
+    ]);
+    // phpunit boots with the null broadcaster, so register the channel rules on the reverb driver too.
+    require base_path('routes/channels.php');
+
+    $juan = User::factory()->create(['name' => 'Juan Dela Cruz', 'email' => 'juan@example.com']);
+    $juan->roles()->attach($this->agentRole);
+
+    $response = $this->actingAs($juan)
+        ->postJson('/broadcasting/auth', ['socket_id' => '1234.5678', 'channel_name' => 'presence-portal.online'])
+        ->assertOk()
+        ->assertJsonStructure(['auth', 'channel_data']);
+
+    $member = json_decode($response->json('channel_data'), true);
+    expect((int) $member['user_id'])->toBe($juan->id)
+        ->and($member['user_info'])->toBe(['id' => $juan->id, 'name' => 'Juan Dela Cruz', 'avatar' => null, 'role' => 'Agent']);
+
+    $juan->forceFill(['status' => 'terminated'])->save();
+    $this->actingAs($juan->fresh())
+        ->postJson('/broadcasting/auth', ['socket_id' => '1234.5678', 'channel_name' => 'presence-portal.online'])
+        ->assertForbidden();
+
+    auth()->logout();
+    $this->postJson('/broadcasting/auth', ['socket_id' => '1234.5678', 'channel_name' => 'presence-portal.online'])
+        ->assertForbidden();
 });

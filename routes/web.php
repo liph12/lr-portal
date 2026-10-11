@@ -3,9 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 
-Route::get('/', function () {
-    return redirect('/login');
-});
+// Signed-in visitors go to their own portal; everyone else to sign-in.
+Route::get('/', fn () => auth()->check() ? redirect()->route('home') : redirect()->route('login'));
 
 Route::middleware('guest')->group(function(){
 
@@ -23,6 +22,8 @@ Route::middleware('guest')->group(function(){
 Route::middleware(['auth', 'active'])->group(function(){
 
     Route::post('/logout', [UserController::class, 'logout']);
+    // Laravel's `guest` middleware sends signed-in users here; it resolves to their portal home.
+    Route::get('/home', fn () => redirect(auth()->user()->homeUrl()))->name('home');
 
     require base_path('routes/profile.php');
     require base_path('routes/search.php');
@@ -31,6 +32,7 @@ Route::middleware(['auth', 'active'])->group(function(){
 
         require base_path('routes/superadmin/superadmin-dashboard.php');
         require base_path('routes/superadmin/superadmin-management.php');
+        require base_path('routes/superadmin/superadmin-statistics.php');
         require base_path('routes/superadmin/superadmin-accounting.php');
         require base_path('routes/superadmin/superadmin-documentation.php');
         require base_path('routes/superadmin/superadmin-humanresource.php');
@@ -41,6 +43,11 @@ Route::middleware(['auth', 'active'])->group(function(){
     Route::prefix('admin')->middleware('role:admin')->group(function(){
 
         require base_path('routes/admin/admin-dashboard.php');
+    });
+
+    Route::prefix('staff')->middleware('role:staff')->group(function(){
+
+        require base_path('routes/staff/staff-dashboard.php');
 
     });
 

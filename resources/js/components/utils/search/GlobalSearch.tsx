@@ -3,6 +3,7 @@ import { Box, CircularProgress, ClickAwayListener, InputBase, Paper, Popper, Typ
 import { NorthEastRounded, SearchRounded } from "@mui/icons-material";
 import { router } from "@inertiajs/react";
 import useAuthUser from "../../../hooks/useAuthUser";
+import usePortalRoutes from "../../../hooks/usePortalRoutes";
 import { buildPageIndex, PageResult, searchPages } from "../../../helpers/searchPages";
 import ConfirmDialog from "../ConfirmDialog";
 import UserSearchResult, { UserChange, UserSearchItem } from "./UserSearchResult";
@@ -57,7 +58,8 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
     const [saving, setSaving] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
 
-    const pageIndex = useMemo(() => buildPageIndex(!!user?.can.access_superadmin), [user?.can.access_superadmin]);
+    const portalRoutes = usePortalRoutes();
+    const pageIndex = useMemo(() => buildPageIndex(portalRoutes), [portalRoutes]);
     const pages = useMemo(() => searchPages(pageIndex, query), [pageIndex, query]);
     const term = query.trim();
     const items: ({ type: "page"; page: PageResult } | { type: "user"; user: UserSearchItem })[] = [

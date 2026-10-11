@@ -24,10 +24,14 @@ export interface AuthUser {
     email: string;
     role: string | null;
     avatar: string | null;
+    portal: "superadmin" | "admin" | "staff" | null;
+    home: string;
+    permissions: string[];
     can: {
         access_superadmin: boolean;
         search_users: boolean;
         manage_users: boolean;
+        view_leaderboards: boolean;
     };
 }
 
@@ -40,8 +44,23 @@ export interface OnlineUser {
     last_seen: string;
 }
 
+export interface LeaderboardEntry {
+    id?: number;
+    name: string;
+    avatar?: string | null;
+    sales: number;
+    value: number;
+}
+
+export interface LeaderboardMonth {
+    month: string;
+    boards: { agents: LeaderboardEntry[]; projects: LeaderboardEntry[]; developers: LeaderboardEntry[] };
+}
+
 export interface SharedProps {
     auth: AuthUser | null;
+    // Only present after the leaderboard panel requests it (optional prop), and null without permission.
+    leaderboards?: LeaderboardMonth[] | null;
     online_users: OnlineUser[];
     flash: { success: string | null };
     [key: string]: unknown;
