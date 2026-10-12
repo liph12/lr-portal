@@ -1,5 +1,5 @@
 import { Box, ButtonBase, Typography } from "@mui/material";
-import { AccountTreeRounded, ExpandMoreRounded } from "@mui/icons-material";
+import { AccountTreeRounded, ExpandMoreRounded, GroupsRounded } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
 import UserAvatar from "../utils/user/UserAvatar";
 import UserStatusChip from "../utils/user/UserStatusChip";
@@ -34,11 +34,12 @@ interface GenealogyCardProps {
     openProfiles: boolean;
 }
 
-const linkSx = { fontSize: 12, fontWeight: 500, color: "var(--lr-primary)", textDecoration: "none" };
+const linkSx = { fontSize: 12, fontWeight: 500, color: "var(--lr-primary)", textDecoration: "none", whiteSpace: "nowrap" as const };
 
 // One agent in the tree: who they are, where they sit, and a button that unfolds their direct recruits.
 export default function GenealogyCard({ node, isRoot = false, expanded, onToggle, openProfiles }: GenealogyCardProps) {
     const group = [node.team, node.sub_team].filter(Boolean).join(" / ");
+    const recruitsLabel = node.recruits ? `${formatCount(node.recruits)} ${node.recruits === 1 ? "recruit" : "recruits"} — ${expanded ? "hide" : "show"} them` : "No recruits";
 
     return (
         <Box
@@ -80,24 +81,32 @@ export default function GenealogyCard({ node, isRoot = false, expanded, onToggle
                 </Box>
             </Box>
 
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: "auto" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mt: "auto", minWidth: 0 }}>
+                {/* Compact (icon + count) and never wrapping: the row also holds Tree, Profile and Sales. */}
                 <ButtonBase
                     onClick={onToggle}
                     disabled={node.recruits === 0}
                     aria-expanded={node.recruits ? expanded : undefined}
+                    aria-label={recruitsLabel}
+                    title={recruitsLabel}
                     sx={{
+                        flexShrink: 0,
+                        whiteSpace: "nowrap",
                         gap: 0.5,
-                        px: 1.25,
-                        py: 0.5,
+                        pl: 1,
+                        pr: node.recruits ? 0.5 : 1,
+                        py: 0.375,
                         borderRadius: 99,
-                        fontSize: 12,
-                        fontWeight: 500,
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        lineHeight: 1,
                         color: node.recruits ? "var(--lr-primary)" : "var(--lr-text-secondary)",
                         border: "1px solid var(--lr-border)",
-                        backgroundColor: "var(--lr-surface)",
+                        backgroundColor: node.recruits ? "var(--lr-primary-soft)" : "var(--lr-surface)",
                     }}
                 >
-                    {node.recruits ? `${formatCount(node.recruits)} ${node.recruits === 1 ? "recruit" : "recruits"}` : "No recruits"}
+                    <GroupsRounded sx={{ fontSize: 16 }} aria-hidden />
+                    {formatCount(node.recruits)}
                     {node.recruits > 0 && <ExpandMoreRounded sx={{ fontSize: 18, transition: "transform 0.15s", transform: expanded ? "rotate(180deg)" : "none" }} />}
                 </ButtonBase>
                 <Box sx={{ flex: 1 }} />
