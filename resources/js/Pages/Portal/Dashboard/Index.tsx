@@ -29,9 +29,11 @@ import StyledButton from "../../../components/utils/StyledButton";
 import { toast } from "../../../helpers/toast";
 
 function LinkCard({ label, url }: { label: string; url: string }) {
+    // The card shows the route only; what's copied or shared must open, so a path gets this site's origin.
+    const shareable = url.startsWith("/") ? `${window.location.origin}${url}` : url;
     const copy = async () => {
         try {
-            await navigator.clipboard.writeText(url);
+            await navigator.clipboard.writeText(shareable);
             toast.success("Link copied.");
         } catch {
             toast.error("Couldn't copy the link.");
@@ -40,7 +42,7 @@ function LinkCard({ label, url }: { label: string; url: string }) {
     const share = async () => {
         if (!navigator.share) return copy();
         try {
-            await navigator.share({ title: label, url });
+            await navigator.share({ title: label, url: shareable });
         } catch {
             // Closing the share sheet rejects too; nothing to report.
         }

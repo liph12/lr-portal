@@ -175,8 +175,9 @@ at the matching path. Nothing else.
   `Pages/Contact/Show.tsx` — outside `AppLayout`, scrolls itself like the auth pages): the agent card (name, title — "Licensed Real
   Estate Broker" when `is_broker` —, avatar, mobile, email, city + province, "Save contact" = `GET …/vcard`) and the inquiry form
   (`POST …`, throttled, `StoreContactInquiryRequest`, consent box `accepted`) → `contact_inquiries` (`ContactInquiry`, `ROLES` /
-  `TYPES` constants are the two dropdowns; `ContactInquiryService::submit`, logged `contact.inquiry`). Nobody reads inquiries in
-  the app yet (Inbox is under construction) and no email is sent. **Slug** = `agents.contact_slug` (unique), made by
+  `TYPES` constants are the two dropdowns; `ContactInquiryService::submit`, logged `contact.inquiry`) and **emailed to the agent**
+  (`Mail\ContactInquiryReceived`, queued, markdown `views/mail/contact-inquiry`, reply-to = the sender; needs `MAIL_MAILER` — the
+  legacy `MAIL_DRIVER` key is ignored). Nobody reads inquiries in the app yet (Inbox is under construction). **Slug** = `agents.contact_slug` (unique), made by
   `ContactLinkService::slugFor` from first + last name the first time it's needed, `-2`, `-3`… on duplicates, and **never changed
   afterwards** (shared links keep working after a rename). Shared as `auth.contact_url` (null until the account has an agent record —
   `DashboardController::index` creates one like `/profile`), shown in Dashboard › Your links (`helpers/userLinks.ts`; the card's

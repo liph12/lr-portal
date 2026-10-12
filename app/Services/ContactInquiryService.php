@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Mail\ContactInquiryReceived;
 use App\Models\Entities\Agent;
 use App\Models\Entities\ContactInquiry;
+use Illuminate\Support\Facades\Mail;
 
 class ContactInquiryService
 {
@@ -25,6 +27,11 @@ class ContactInquiryService
             'message' => $data['message'],
             'consented_at' => now(),
         ]);
+
+        // The agent hears about it by email (their profile address, else the account's); the sender is the reply-to.
+        if ($to = $agent->email ?: $agent->user?->email) {
+            Mail::to($to)->send(new ContactInquiryReceived($inquiry));
+        }
 
         $this->activity->describe('contact.inquiry', "{$inquiry->fullName()} sent an inquiry to {$agent->first_name} {$agent->last_name}", $inquiry, [
             'agent_id' => $agent->id,

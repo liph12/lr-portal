@@ -131,7 +131,7 @@ function ContactHeader() {
 function ContactRow({ icon, children }: { icon: ReactNode; children: ReactNode }) {
     return (
         <Stack direction="row" spacing={1.25} alignItems="flex-start" sx={{ textAlign: "left" }}>
-            <Box sx={{ display: "flex", mt: "2px", opacity: 0.9, "& svg": { fontSize: 18 } }}>{icon}</Box>
+            <Box sx={{ display: "flex", mt: "2px", color: "var(--lr-primary)", "& svg": { fontSize: 18 } }}>{icon}</Box>
             <Typography variant="body2" sx={{ wordBreak: "break-word", lineHeight: 1.5 }}>
                 {children}
             </Typography>
@@ -142,6 +142,7 @@ function ContactRow({ icon, children }: { icon: ReactNode; children: ReactNode }
 export default function Show({ slug, agent, options }: ShowProps) {
     const [sent, setSent] = useState(false);
     const [emailError, setEmailError] = useState<string | null>(null);
+    const [consentHint, setConsentHint] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm<InquiryForm>({
         inquirer_role: options.roles[0] ?? "",
         inquiry_type: options.types[0] ?? "",
@@ -157,6 +158,7 @@ export default function Show({ slug, agent, options }: ShowProps) {
     const choices = (values: string[]) => values.map((v) => ({ id: v, label: v }));
     const validEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
     const checkEmail = (v: string) => setEmailError(v && !validEmail(v) ? "Enter a valid email address." : null);
+    const consentError = errors.consent ?? (consentHint ? "Please tick the box to accept the privacy policy before sending." : null);
     const firstName = agent.name.split(" ")[0];
 
     const handleSubmit = (e: FormEvent) => {
@@ -206,8 +208,10 @@ export default function Show({ slug, agent, options }: ShowProps) {
                     {/* Agent card */}
                     <Box
                         sx={{
-                            background: "linear-gradient(165deg, var(--lr-primary) 0%, var(--lr-primary-hover) 100%)",
-                            color: "var(--lr-on-primary)",
+                            backgroundColor: "var(--lr-surface)",
+                            borderRight: { md: "1px solid var(--lr-border)" },
+                            borderBottom: { xs: "1px solid var(--lr-border)", md: "none" },
+                            color: "var(--lr-text-primary)",
                             px: 3,
                             py: { xs: 4, md: 6 },
                             display: "flex",
@@ -220,17 +224,17 @@ export default function Show({ slug, agent, options }: ShowProps) {
                         <UserAvatar
                             name={agent.name}
                             src={agent.avatar}
-                            size={110}
-                            sx={{ border: "4px solid var(--lr-on-primary)", boxShadow: "0 6px 20px rgba(0,0,0,.2)" }}
+                            size={140}
+                            sx={{ border: "4px solid var(--lr-primary-soft)", boxShadow: "0 1px 3px rgba(60,64,67,.15)" }}
                         />
-                        <Typography sx={{ mt: 2.5, fontSize: 22, fontWeight: 700, lineHeight: 1.2 }}>
+                        <Typography sx={{ mt: 2.5, fontSize: 22, fontWeight: 700, lineHeight: 1.2, color: "var(--lr-text-primary)" }}>
                             {agent.name}
                         </Typography>
-                        <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
+                        <Typography variant="body2" sx={{ mt: 1, fontWeight: 500, color: "var(--lr-primary)" }}>
                             {agent.title}
                         </Typography>
 
-                        <Stack spacing={1.25} sx={{ mt: 3, width: "100%", maxWidth: 240 }}>
+                        <Stack spacing={1.25} sx={{ mt: 3, width: "100%", maxWidth: 240, color: "var(--lr-text-body)" }}>
                             {agent.mobile && (
                                 <ContactRow icon={<PhoneRounded />}>
                                     <Box component="a" href={`tel:${agent.mobile}`} sx={{ color: "inherit", textDecoration: "none" }}>
@@ -248,19 +252,23 @@ export default function Show({ slug, agent, options }: ShowProps) {
                             {agent.address && <ContactRow icon={<PlaceRounded />}>{agent.address}</ContactRow>}
                         </Stack>
 
-                        <Divider sx={{ my: 3, width: 120, borderColor: "var(--lr-on-primary)", opacity: 0.4 }} />
+                        <Divider sx={{ my: 3, width: 120, borderColor: "var(--lr-border)" }} />
 
                         <StyledButton
                             component="a"
                             href={`/contact/${slug}/vcard`}
-                            variant="outlined"
-                            size="small"
+                            variant="contained"
+                            fullWidth
                             startIcon={<DownloadRounded />}
                             sx={{
-                                px: 2.5,
+                                maxWidth: 240,
+                                borderRadius: 2,
+                                py: 1.25,
+                                fontWeight: 700,
+                                letterSpacing: "0.04em",
+                                backgroundColor: "var(--lr-primary)",
                                 color: "var(--lr-on-primary)",
-                                borderColor: "var(--lr-on-primary)",
-                                ":hover": { borderColor: "var(--lr-on-primary)", backgroundColor: "rgba(255,255,255,.12)" },
+                                ":hover": { backgroundColor: "var(--lr-primary-hover)" },
                             }}
                         >
                             Save contact
@@ -397,7 +405,7 @@ export default function Show({ slug, agent, options }: ShowProps) {
                                                 gap: 1,
                                                 p: 2,
                                                 borderRadius: 2,
-                                                border: `1px solid ${errors.consent ? "var(--lr-error)" : "var(--lr-border)"}`,
+                                                border: `1px solid ${consentError ? "var(--lr-error)" : "var(--lr-border)"}`,
                                                 backgroundColor: "var(--lr-surface-dim)",
                                                 cursor: "pointer",
                                             }}
@@ -405,31 +413,31 @@ export default function Show({ slug, agent, options }: ShowProps) {
                                             <Checkbox
                                                 size="small"
                                                 checked={data.consent}
-                                                onChange={(e) => setData("consent", e.target.checked)}
+                                                onChange={(e) => {
+                                                    setData("consent", e.target.checked);
+                                                    if (e.target.checked) setConsentHint(false);
+                                                }}
                                                 sx={{ p: 0, mt: "2px", color: "var(--lr-outline)", "&.Mui-checked": { color: "var(--lr-primary)" } }}
                                             />
-                                            <Typography variant="caption" sx={{ color: "var(--lr-text-body)", fontWeight: 500, lineHeight: 1.6 }}>
-                                                By submitting this form, I certify that I have read and accept the Privacy Policy and
-                                                authorize Leuterio Realty, its employees, authorized representatives and third party
-                                                service providers, and consent to the use and processing of my personal information to
-                                                contact me with marketing or promotional information through phone call, mail, email,
-                                                SMS or any type of electronic message.
+                                            <Typography variant="caption" sx={{ color: "var(--lr-text-body)", fontWeight: 500, lineHeight: 1.6 , textAlign: "justify"}}>
+                                                By submitting this form, I certify that I have read and accept the Privacy Policy and authorize Filipinohomes, its employees, authorized representatives and third party service providers, and consent to the use and processing of my personal information to contact me with marketing or promotional information through phone call, mail, email, SMS or any type of electronic message.
                                             </Typography>
                                         </Box>
-                                        {errors.consent && (
+                                        {consentError && (
                                             <Typography variant="caption" component="div" sx={{ color: "var(--lr-error)", mt: 0.5, ml: 0.5 }}>
-                                                {errors.consent}
+                                                {consentError}
                                             </Typography>
                                         )}
                                     </Grid>
 
-                                    <Grid size={{ xs: 12 }}>
+                                    {/* A disabled button swallows clicks; the wrapper explains why it's off. */}
+                                    <Grid size={{ xs: 12 }} onClick={() => !data.consent && setConsentHint(true)}>
                                         <StyledButton
                                             type="submit"
                                             variant="contained"
                                             fullWidth
                                             size="large"
-                                            disabled={processing}
+                                            disabled={processing || !data.consent}
                                             startIcon={<SendRounded />}
                                             sx={{
                                                 borderRadius: 2,

@@ -43,7 +43,7 @@ export interface AuthUser {
     name: string;
     first_name: string;
     agent_id: number | null;
-    // Public contact page (/contact/{slug}); null until the account has an agent record.
+    // Public contact page path (/contact/{slug}, no domain); null until the account has an agent record.
     contact_url: string | null;
     // Null without the use_preferences permission: everything stays at its default.
     preferences: UserPreferences | null;

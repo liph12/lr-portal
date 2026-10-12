@@ -40,12 +40,12 @@ class ContactLinkService
         return $agent->contact_slug;
     }
 
-    // The absolute link shown in "Your links"; null until the account has an agent record (created on first profile use).
+    // The path shown in "Your links" (no domain); null until the account has an agent record (created on first profile use).
     public function urlFor(User $user): ?string
     {
         $agent = $user->agent;
 
-        return $agent ? url('/contact/'.$this->slugFor($agent)) : null;
+        return $agent ? '/contact/'.$this->slugFor($agent) : null;
     }
 
     // Only agents whose account can still sign in have a public page.
