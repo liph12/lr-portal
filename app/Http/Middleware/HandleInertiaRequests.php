@@ -115,11 +115,16 @@ class HandleInertiaRequests extends Middleware
                 ? app(LeaderboardService::class)->recentMonths($request->user()->hasAnyRole(LeaderboardService::AMOUNT_ROLES))
                 : null),
             // Shown as a toast (AppFeedback): ->with('success' | 'warning' | 'error', '…') on a redirect.
-            'flash' => fn () => [
-                'success' => $request->session()->get('success'),
-                'warning' => $request->session()->get('warning'),
-                'error' => $request->session()->get('error'),
-            ],
+            'flash' => function () use ($request) {
+                $flash = [
+                    'success' => $request->session()->get('success'),
+                    'warning' => $request->session()->get('warning'),
+                    'error' => $request->session()->get('error'),
+                ];
+
+                // Partial reloads keep the last page's props, flash included; the id lets the UI toast each message once.
+                return [...$flash, 'id' => array_filter($flash) ? (string) Str::ulid() : null];
+            },
         ];
     }
 }

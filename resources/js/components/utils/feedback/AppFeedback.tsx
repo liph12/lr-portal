@@ -28,6 +28,7 @@ export default function AppFeedback() {
     const timer = useRef<number | null>(null);
     const writing = useRef(false);
     const seq = useRef(0);
+    const lastFlash = useRef<string | null>(null);
 
     const push = (severity: ToastSeverity, message: string | null | undefined) => {
         if (message) setQueue((q) => [...q, { severity, message, key: ++seq.current }]);
@@ -65,7 +66,9 @@ export default function AppFeedback() {
                 // Pages prefetched before this write show old data: drop them (the server's cache moves on by itself).
                 if (writing.current) router.flushAll();
                 const { flash, status } = event.detail.page.props as { flash?: Record<string, string | null>; status?: number };
-                if (flash) {
+                // A partial reload (online users, leaderboards, tables) carries the previous page's flash along: once only.
+                if (flash?.id && flash.id !== lastFlash.current) {
+                    lastFlash.current = flash.id;
                     push("success", flash.success);
                     push("warning", flash.warning);
                     push("error", flash.error);

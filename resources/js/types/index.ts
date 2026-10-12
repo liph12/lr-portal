@@ -109,6 +109,7 @@ export interface SharedProps {
     // Only present after the leaderboard panel requests it (optional prop), and null without permission.
     leaderboards?: LeaderboardMonth[] | null;
     online_users: OnlineUser[];
-    flash: { success: string | null; warning: string | null; error: string | null };
+    // `id` is set when there is a message: partial reloads keep it, so each id is toasted once.
+    flash: { success: string | null; warning: string | null; error: string | null; id: string | null };
     [key: string]: unknown;
 }
