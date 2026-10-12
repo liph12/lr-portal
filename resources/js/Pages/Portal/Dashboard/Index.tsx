@@ -26,8 +26,26 @@ import SectionTitle from "../../../components/utils/SectionTitle";
 import useAuthUser from "../../../hooks/useAuthUser";
 import { buildUserLinks } from "../../../helpers/userLinks";
 import StyledButton from "../../../components/utils/StyledButton";
+import { toast } from "../../../helpers/toast";
 
 function LinkCard({ label, url }: { label: string; url: string }) {
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(url);
+            toast.success("Link copied.");
+        } catch {
+            toast.error("Couldn't copy the link.");
+        }
+    };
+    const share = async () => {
+        if (!navigator.share) return copy();
+        try {
+            await navigator.share({ title: label, url });
+        } catch {
+            // Closing the share sheet rejects too; nothing to report.
+        }
+    };
+
     return (
         <Box
             sx={{
@@ -87,6 +105,7 @@ function LinkCard({ label, url }: { label: string; url: string }) {
                 <Tooltip title="Copy">
                     <IconButton
                         size="small"
+                        onClick={copy}
                         sx={{ color: "var(--lr-text-secondary)" }}
                     >
                         <ContentCopyRounded fontSize="small" />
@@ -95,6 +114,7 @@ function LinkCard({ label, url }: { label: string; url: string }) {
                 <Tooltip title="Share">
                     <IconButton
                         size="small"
+                        onClick={share}
                         sx={{ color: "var(--lr-text-secondary)" }}
                     >
                         <ShareRounded fontSize="small" />

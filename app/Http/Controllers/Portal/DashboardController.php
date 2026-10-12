@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Entities\AgentTransaction;
 use App\Models\Entities\InternationalSale;
 use App\Services\SaleValidationService;
+use App\Services\ProfileService;
 use App\Services\SalesReportService;
 use App\Services\SalesEncodingService;
 use App\Services\TeamLeadershipService;
@@ -15,8 +16,11 @@ use Illuminate\Http\Request;
 class DashboardController extends Controller
 {
 
-    public function index()
+    // "Your links" needs an agent record (the contact slug lives on it), so one is created here on first use like /profile.
+    public function index(Request $request, ProfileService $profiles)
     {
+        $profiles->agentFor($request->user());
+
         return inertia('Portal/Dashboard/Index');
     }
 

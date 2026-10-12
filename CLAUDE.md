@@ -171,6 +171,16 @@ at the matching path. Nothing else.
   — `->with('success' | 'warning' | 'error', '…')`, shared as `flash` — validation errors ("Please check the form: …"), a write
   landing on the Error page, network / server failures. Client-side ones: `toast.success / error / warning / info` from
   `helpers/toast.ts`. There's no inline flash banner any more — don't add one.
+- **Contact page** (public `/contact/{slug}`, `routes/contact.php` required **outside** the `auth` group; `Portal\ContactController`,
+  `Pages/Contact/Show.tsx` — outside `AppLayout`, scrolls itself like the auth pages): the agent card (name, title — "Licensed Real
+  Estate Broker" when `is_broker` —, avatar, mobile, email, city + province, "Save contact" = `GET …/vcard`) and the inquiry form
+  (`POST …`, throttled, `StoreContactInquiryRequest`, consent box `accepted`) → `contact_inquiries` (`ContactInquiry`, `ROLES` /
+  `TYPES` constants are the two dropdowns; `ContactInquiryService::submit`, logged `contact.inquiry`). Nobody reads inquiries in
+  the app yet (Inbox is under construction) and no email is sent. **Slug** = `agents.contact_slug` (unique), made by
+  `ContactLinkService::slugFor` from first + last name the first time it's needed, `-2`, `-3`… on duplicates, and **never changed
+  afterwards** (shared links keep working after a rename). Shared as `auth.contact_url` (null until the account has an agent record —
+  `DashboardController::index` creates one like `/profile`), shown in Dashboard › Your links (`helpers/userLinks.ts`; the card's
+  Copy / Share buttons work). Only agents whose account is `active` resolve; others 404.
 - **Settings › Preferences** (`/settings/preferences`, `routes/settings.php`, `Portal\PreferencesController`,
   `UserPreferenceService`; every user, gated by permission `use_preferences` — migration `000036` gave it to every role, a
   role made later has it only if ticked): `users.preferences` = `{theme, font_size, links: {default, sections}}`

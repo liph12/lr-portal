@@ -6,6 +6,7 @@ use App\Models\Entities\Team;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\CommissionReceivingService;
+use App\Services\ContactLinkService;
 use App\Services\GlobalPartnerService;
 use App\Services\GroupSearchService;
 use App\Services\ImpersonationService;
@@ -91,6 +92,8 @@ class HandleInertiaRequests extends Middleware
                 'avatar' => $request->user()->agent()->value('avatar'),
                 // Imported agents keep their legacy member id, which is also their referral number.
                 'agent_id' => $request->user()->agent()->value('id'),
+                // The public contact page (Your links); null until the account has an agent record.
+                'contact_url' => app(ContactLinkService::class)->urlFor($request->user()),
                 // Settings › Preferences (links, theme, text size); null without use_preferences = defaults.
                 'preferences' => app(UserPreferenceService::class)->sharedFor($request->user()),
                 'can' => [
