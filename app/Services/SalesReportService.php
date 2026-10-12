@@ -304,6 +304,10 @@ class SalesReportService
         if ($f['q'] !== null) {
             $query->where('g.name', 'like', '%'.addcslashes($f['q'], '%_\\').'%');
         }
+        // A floor on the total (NATCON qualifiers); "+ 0" because SQLite would compare the bound number as text.
+        if ($f['min_value'] ?? null) {
+            $query->whereRaw('g.value >= (? + 0)', [$f['min_value']]);
+        }
 
         // Areas are stored as keys; show their names and how many agents each has.
         $headcount = $f['view'] === 'areas'
@@ -530,6 +534,8 @@ class SalesReportService
         return Agent::withoutGlobalPartners($sales, 'COALESCE(t.agent_id, ra.id)')
             ->whereBetween('c.reservation_date', [$f['from'], $f['to']])
             ->when($f['status'] !== 'all', fn ($q) => $q->where('t.sale_status', $f['status']))
+            // Only sales keyed in by a cutoff (NATCON: the period's last month's cutoff).
+            ->when($f['encoded_by'] ?? null, fn ($q, $at) => $q->where('t.created_at', '<=', $at))
             ->selectRaw('? as category', [$category])
             ->selectRaw('COALESCE(t.agent_id, ra.id) as agent_id')
             ->addSelect('t.id as sale_id', 'c.reservation_date', 'c.total_contract_price as value', 'c.project_property_type_id as property_type_id')

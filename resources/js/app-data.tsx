@@ -17,10 +17,12 @@ import {
     PublicRounded,
     ReceiptLongRounded,
     AccountTreeRounded,
+    EmojiEventsRounded,
     MoveToInboxRounded,
     KeyRounded,
 } from "@mui/icons-material";
 import { REPORTS } from "./components/reports/reportCatalog";
+import { NATCON_BOARDS } from "./components/natcon/natconCatalog";
 import { AGENT, BACKOFFICE, LEADER, PARTNERS, SECRETARY, TEAM_LEADER } from "./helpers/permissions";
 
 // The dashboard is the same for every role (shared /dashboard routes); Record Your Sale needs a recording permission.
@@ -108,6 +110,17 @@ export const genealogyRoute = {
     children: [],
 };
 
+// The NATCON rankings for the convention period set in Settings › NATCON: the back office every board, leaders who
+// qualified on the group they lead (NatconService::reach).
+export const natconRoute = {
+    name: "NATCON",
+    path: "/natcon",
+    icon: EmojiEventsRounded,
+    permission: [BACKOFFICE, LEADER],
+    requires: ["view_natcon"],
+    children: NATCON_BOARDS.map((b) => ({ name: b.title, path: `/natcon/${b.slug}`, ...(b.slug === "qualifiers" ? {} : { permission: BACKOFFICE }), children: [] })),
+};
+
 // Commission slips waiting to be received and signed for — brokerage and rental separately, each its own permission
 // (shared pages; secretaries see their areas).
 export const brokerageReceivingRoute = {
@@ -182,6 +195,7 @@ export const useAppRoutes = [
     dashboardRoute,
     managementRoute("/superadmin/management"),
     reportsRoute,
+    natconRoute,
     globalPartnersRoute,
     genealogyRoute,
     {
@@ -235,6 +249,11 @@ export const useAppRoutes = [
                 children: [],
             },
             {
+                name: "NATCON",
+                path: "/superadmin/settings/natcon",
+                children: [],
+            },
+            {
                 name: "Preferences",
                 path: "/settings/preferences",
                 permission: "use_preferences",
@@ -259,6 +278,7 @@ export const adminRoutes = [
     dashboardRoute,
     managementRoute("/admin/management"),
     reportsRoute,
+    natconRoute,
     globalPartnersRoute,
     genealogyRoute,
     { name: "Statistics", path: "/admin/statistics", icon: BarChartRounded, permission: "view_statistics", children: [] },
@@ -273,6 +293,7 @@ export const staffRoutes = [
     dashboardRoute,
     managementRoute("/staff/management"),
     reportsRoute,
+    natconRoute,
     globalPartnersRoute,
     genealogyRoute,
     { name: "Statistics", path: "/staff/statistics", icon: BarChartRounded, permission: "view_statistics", children: [] },
@@ -309,6 +330,7 @@ export const pagesOutsideMenu = [
 export const memberRoutes = [
     dashboardRoute,
     reportsRoute,
+    natconRoute,
     globalPartnersRoute,
     genealogyRoute,
     { name: "Sales validation", path: "/sales-validation", icon: FactCheckRounded, permission: SECRETARY, requires: ["sales_validation"], children: [] },

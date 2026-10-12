@@ -31,6 +31,7 @@ Route::middleware(['auth', 'active'])->group(function(){
     require base_path('routes/settings.php');
     require base_path('routes/genealogy.php');
     require base_path('routes/commission-receiving.php');
+    require base_path('routes/natcon.php');
     require base_path('routes/dashboard.php');
     require base_path('routes/reports.php');
     require base_path('routes/my-team.php');

@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Portal\SuperAdmin\SettingsController;
+use App\Http\Controllers\Portal\SuperAdmin\Settings\NatconController;
 use App\Http\Controllers\Portal\SuperAdmin\Settings\PermissionController;
 use App\Http\Controllers\Portal\SuperAdmin\Settings\RoleController;
 use App\Http\Controllers\Portal\SuperAdmin\Settings\SalesCutoffController;
@@ -24,6 +25,9 @@ Route::prefix('settings')->group(function(){
     Route::put('/sales-cutoffs/{salesCutoff}', [SalesCutoffController::class, 'update'])->name('superadmin.settings.sales-cutoffs.update');
     Route::delete('/sales-cutoffs/{salesCutoff}', [SalesCutoffController::class, 'destroy'])->name('superadmin.settings.sales-cutoffs.destroy');
     Route::put('/sales-encoding', [SalesCutoffController::class, 'encoding'])->name('superadmin.settings.sales-encoding.update');
+
+    Route::get('/natcon', [NatconController::class, 'index'])->name('superadmin.settings.natcon.index');
+    Route::put('/natcon', [NatconController::class, 'update'])->name('superadmin.settings.natcon.update');
 
     Route::post('/permissions', [PermissionController::class, 'store'])->name('superadmin.settings.permissions.store');
     Route::delete('/permissions/{permission}', [PermissionController::class, 'destroy'])->name('superadmin.settings.permissions.destroy');

@@ -20,7 +20,7 @@ class Permission extends Model
 
     public const SECTIONS = [
         'Dashboard & sales' => ['view_dashboard', 'record_sales', 'record_international_sales', 'sales_validation', 'receive_brokerage_sales', 'receive_rental_sales', 'view_leaderboards'],
-        'Reports' => ['view_reports', 'create_report', 'view_genealogy'],
+        'Reports' => ['view_reports', 'create_report', 'view_genealogy', 'view_natcon'],
         'Statistics' => ['view_statistics', 'view_global_partner_statistics'],
         'Documentation' => ['manage_documents'],
         'Management' => ['edit_designation', 'transfer_agents', 'change_agent_status', 'edit_teams', 'change_team_status'],

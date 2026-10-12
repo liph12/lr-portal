@@ -1,6 +1,6 @@
 import { ElementType, ReactNode } from "react";
 import { Box, Container, Grid, Typography } from "@mui/material";
-import { AdminPanelSettingsOutlined, ChevronRightRounded, EventBusyOutlined, TuneRounded } from "@mui/icons-material";
+import { AdminPanelSettingsOutlined, ChevronRightRounded, EmojiEventsOutlined, EventBusyOutlined, TuneRounded } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
 import AppLayout from "../../../components/layouts/AppLayout";
 import SectionTitle from "../../../components/utils/SectionTitle";
@@ -86,6 +86,9 @@ function Settings({ counts, salesEncoding }: SettingsProps) {
                         title="Sales cutoff"
                         detail={`${counts.sales_cutoffs} monthly cutoffs · recording ${salesEncoding.enabled ? "on" : "off"}`}
                     />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
+                    <SettingsCard href="/superadmin/settings/natcon" icon={EmojiEventsOutlined} title="NATCON" detail="Period, cutoff and qualifier amount" />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
                     <SettingsCard href="/settings/preferences" icon={TuneRounded} title="Preferences" detail="Theme, text size and links" />
