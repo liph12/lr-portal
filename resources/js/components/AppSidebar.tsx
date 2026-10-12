@@ -67,8 +67,11 @@ export default function AppSidebar() {
                                 </Typography>
                             )}
 
+                            {/* Loaded on hover and kept a minute, so opening (or coming back to) a section is instant; any save clears it (AppFeedback). */}
                             <Link
                                 href={r.path}
+                                prefetch
+                                cacheFor="1m"
                                 style={{ textDecoration: "none" }}
                             >
                                 <Typography

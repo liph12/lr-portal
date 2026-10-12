@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\DataCache;
 use App\Models\Entities\Agent;
 use App\Support\Areas;
 use App\Support\ClientStats;
@@ -192,7 +193,13 @@ class SalesReportService
     }
 
     // Count and value per category for the same filters but every category, so all three totals stay visible while one is picked.
+    // Cached until the data changes (DataCache).
     public function categoryTotals(array $f): array
+    {
+        return DataCache::remember('SalesReportService.categoryTotals', [$f], fn () => $this->computeCategoryTotals($f));
+    }
+
+    private function computeCategoryTotals(array $f): array
     {
         $rows = DB::query()->fromSub($this->sales(['category' => null] + $f), 's')
             ->selectRaw('category, COUNT(*) as sales, COALESCE(SUM(value), 0) as value')
@@ -214,6 +221,11 @@ class SalesReportService
      * @return array<string, mixed>
      */
     public function summary(array $f): array
+    {
+        return DataCache::remember('SalesReportService.summary', [$f], fn () => $this->computeSummary($f));
+    }
+
+    private function computeSummary(array $f): array
     {
         $from = CarbonImmutable::parse($f['from']);
         $to = CarbonImmutable::parse($f['to']);
@@ -282,6 +294,11 @@ class SalesReportService
      */
     public function breakdown(array $f): LengthAwarePaginator
     {
+        return DataCache::page('SalesReportService.breakdown', [$f], fn () => $this->computeBreakdown($f));
+    }
+
+    private function computeBreakdown(array $f): LengthAwarePaginator
+    {
         $query = $this->grouped($f);
 
         if ($f['q'] !== null) {
@@ -324,6 +341,11 @@ class SalesReportService
      */
     public function saleList(array $f): LengthAwarePaginator
     {
+        return DataCache::page('SalesReportService.saleList', [$f], fn () => $this->computeSaleList($f));
+    }
+
+    private function computeSaleList(array $f): LengthAwarePaginator
+    {
         return DB::query()->fromSub($this->sales($f), 's')
             ->join('agent_transactions as t', 't.id', '=', 's.sale_id')
             ->leftJoin('agent_transaction_details as cd', 'cd.agent_transaction_id', '=', 't.id')
@@ -351,6 +373,11 @@ class SalesReportService
      * @return array<string|int, float> group key => total sales
      */
     public function totals(array $f): array
+    {
+        return DataCache::remember('SalesReportService.totals', [$f], fn () => $this->computeTotals($f));
+    }
+
+    private function computeTotals(array $f): array
     {
         return $this->grouped($f)->select('g.key', 'g.value')->pluck('value', 'key')->map(fn ($v) => (float) $v)->all();
     }

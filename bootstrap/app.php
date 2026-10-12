@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\ApplyViewAsRole;
+use App\Http\Middleware\BumpDataVersion;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogActivity;
@@ -25,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ApplyViewAsRole::class,
             HandleInertiaRequests::class,
             LogActivity::class,
+            BumpDataVersion::class,
         ]);
 
         $middleware->alias([

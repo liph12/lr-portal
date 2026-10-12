@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\DataCache;
 use App\Models\Entities\Agent;
 use App\Models\User;
 use App\Policies\UserPolicy;
@@ -102,13 +103,24 @@ class GlobalPartnerService
      */
     public function counts(array|null $reach, array $f): array
     {
+        return DataCache::remember('GlobalPartnerService.counts', [$reach, $f], fn () => $this->computeCounts($reach, $f));
+    }
+
+    private function computeCounts(array|null $reach, array $f): array
+    {
         $row = $this->search($this->partners($reach), $f)
             ->selectRaw('COUNT(*) as total, SUM(CASE WHEN a.sponsor_confirmed_at IS NULL THEN 1 ELSE 0 END) as pending')->first();
 
         return ['all' => (int) $row->total, 'pending' => (int) $row->pending, 'confirmed' => (int) $row->total - (int) $row->pending];
     }
 
+    // Cached until the data changes (DataCache).
     public function table(array|null $reach, array $f): LengthAwarePaginator
+    {
+        return DataCache::page('GlobalPartnerService.table', [$reach, $f], fn () => $this->computeTable($reach, $f));
+    }
+
+    private function computeTable(array|null $reach, array $f): LengthAwarePaginator
     {
         $sales = DB::table('international_sales')->whereIn('sale_status', self::COUNTED_STATUSES)
             ->groupBy('agent_id')->selectRaw('agent_id, COUNT(*) as n, SUM(total_contract_price) as v');
@@ -160,6 +172,11 @@ class GlobalPartnerService
      * @return array<string, mixed>
      */
     public function statistics(array|null $reach, array $f): array
+    {
+        return DataCache::remember('GlobalPartnerService.statistics', [$reach, $f], fn () => $this->computeStatistics($reach, $f));
+    }
+
+    private function computeStatistics(array|null $reach, array $f): array
     {
         $byCountry = $this->narrowed($reach, $f)
             ->selectRaw("a.country_code as code, MAX(a.country) as name, COUNT(*) as partners, SUM(CASE WHEN a.sponsor_confirmed_at IS NULL THEN 0 ELSE 1 END) as confirmed")

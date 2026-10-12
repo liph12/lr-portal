@@ -464,6 +464,17 @@ at the matching path. Nothing else.
   Profile cards sit in even rows (three-up `lg: 4`, About full width, history pairs), every `SectionCard` with `fill`.
   Date ranges use `components/utils/DateRangeField.tsx` (free `@mui/x-date-pickers` DateCalendar + dayjs, quick
   ranges + click first/last day) — MUI's DateRangePicker is Pro-only, don't add it.
+- **Data cache** (`App\Support\DataCache`, `config/data_cache.php`): expensive report / statistics reads are cached by what was
+  asked (filters incl. reach, page, today's date) and a **data version** — `StatisticsService::summary`, `SalesReportService`
+  (`summary`, `breakdown`, `saleList`, `totals`, `categoryTotals`), `RecruitmentService` / `RecruitProgressService` (`summary`,
+  `table`), `GlobalPartnerService` (`counts`, `table`, `statistics`), `LeaderboardService::recentMonths`: each public method wraps a
+  private `compute…` (`DataCache::remember`, paginators via `DataCache::page`). **Every write bumps the version**:
+  `BumpDataVersion` middleware after any successful non-GET (except `ignore_paths`: sign-in, presence auth, preferences,
+  view-as, impersonation, slip previews) and `CommandFinished` for data commands (`legacy:*`, `agents:*`, `rentals:*`,
+  migrations). A TTL (10 min) covers changes made outside the app. Wrap any new heavy read the same way; anything that writes
+  outside a request or those commands must call `DataCache::bump()`. Off in tests (`APP_ENV=testing`) unless a test sets
+  `data_cache.enabled`. The database cache keeps expired rows, so `cache:prune-expired` runs hourly. In the browser, sidebar
+  links and dashboard tabs prefetch on hover (`cacheFor="1m"`); `AppFeedback` calls `router.flushAll()` after every write.
 - **Charts / statistics**: `/{superadmin,admin,staff}/statistics`, guarded by its own `view_statistics` permission (Settings ›
   Roles & permissions › Statistics; migration `000028` gave it to every role that had view_reports) (`StatisticsController` → `StatisticsService`,
   sales dated by `reservation_date`). Client splits (country, gender, age) for both pages come from `App\Support\ClientStats`; ages

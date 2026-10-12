@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\DataCache;
 use App\Models\Entities\Agent;
 use App\Support\Areas;
 use Carbon\CarbonImmutable;
@@ -96,6 +97,11 @@ class RecruitProgressService
      */
     public function summary(array $f, ?array $scope): array
     {
+        return DataCache::remember('RecruitProgressService.summary', [$f, $scope], fn () => $this->computeSummary($f, $scope));
+    }
+
+    private function computeSummary(array $f, ?array $scope): array
+    {
         // One pass over the recruits, grouped by area × month; totals, areas and the trend are added up from it.
         $cells = DB::query()->fromSub($this->recruits($f, $scope), 'r')
             ->groupBy('r.area')
@@ -134,6 +140,11 @@ class RecruitProgressService
      * @param  array<string, int>|null  $scope
      */
     public function table(array $f, ?array $scope): LengthAwarePaginator
+    {
+        return DataCache::page('RecruitProgressService.table', [$f, $scope], fn () => $this->computeTable($f, $scope));
+    }
+
+    private function computeTable(array $f, ?array $scope): LengthAwarePaginator
     {
         $grouped = match ($f['group']) {
             'teams' => DB::query()->fromSub($this->recruits($f, $scope), 'r')

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\DataCache;
 use App\Models\Entities\Agent;
 use App\Models\Entities\AgentTransaction;
 use App\Policies\UserPolicy;
@@ -33,6 +34,11 @@ class LeaderboardService
      * @return array<int, array{month: string, boards: array<string, array<int, array<string, mixed>>>}>
      */
     public function recentMonths(bool $withAmounts = true): array
+    {
+        return DataCache::remember('LeaderboardService.recentMonths', [$withAmounts], fn () => $this->computeRecentMonths($withAmounts));
+    }
+
+    private function computeRecentMonths(bool $withAmounts = true): array
     {
         $thisMonth = CarbonImmutable::today()->startOfMonth();
 

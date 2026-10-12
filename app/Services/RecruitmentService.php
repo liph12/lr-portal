@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\DataCache;
 use App\Models\Entities\Agent;
 use App\Models\User;
 use App\Support\Areas;
@@ -83,6 +84,11 @@ class RecruitmentService
      */
     public function summary(array $f, ?array $scope): array
     {
+        return DataCache::remember('RecruitmentService.summary', [$f, $scope], fn () => $this->computeSummary($f, $scope));
+    }
+
+    private function computeSummary(array $f, ?array $scope): array
+    {
         $byStatus = fn (Builder $q) => (clone $q)->join('users as su', 'su.id', '=', 'a.user_id')
             ->selectRaw(Agent::statusSql('su.status').' as status, COUNT(*) as n')->groupByRaw(Agent::statusSql('su.status'))->pluck('n', 'status')->map(fn ($n) => (int) $n);
 
@@ -135,6 +141,11 @@ class RecruitmentService
      * @param  array<string, int>|null  $scope
      */
     public function table(array $f, ?array $scope): LengthAwarePaginator
+    {
+        return DataCache::page('RecruitmentService.table', [$f, $scope], fn () => $this->computeTable($f, $scope));
+    }
+
+    private function computeTable(array $f, ?array $scope): LengthAwarePaginator
     {
         $query = $this->trainees($f, $scope)
             ->join('users as u', 'u.id', '=', 'a.user_id')

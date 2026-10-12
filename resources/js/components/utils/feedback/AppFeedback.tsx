@@ -62,6 +62,8 @@ export default function AppFeedback() {
             }),
             router.on("finish", stopModal),
             router.on("success", (event) => {
+                // Pages prefetched before this write show old data: drop them (the server's cache moves on by itself).
+                if (writing.current) router.flushAll();
                 const { flash, status } = event.detail.page.props as { flash?: Record<string, string | null>; status?: number };
                 if (flash) {
                     push("success", flash.success);

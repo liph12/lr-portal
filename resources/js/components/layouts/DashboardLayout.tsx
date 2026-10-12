@@ -44,7 +44,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                 {tabs.map((r) => {
                     const active = isRouteActive(url, r.path);
                     return (
-                        <Link key={r.path} href={r.path} style={{ textDecoration: "none" }}>
+                        <Link key={r.path} href={r.path} prefetch cacheFor="1m" style={{ textDecoration: "none" }}>
                             <StyledButton
                                 startIcon={<r.icon />}
                                 size="small"

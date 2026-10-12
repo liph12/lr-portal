@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\DataCache;
 use App\Models\Entities\Agent;
 use App\Models\Entities\AgentTransaction;
 use App\Models\Role;
@@ -24,6 +25,11 @@ class StatisticsService
      * @return array<string, mixed>
      */
     public function summary(string $period): array
+    {
+        return DataCache::remember('StatisticsService.summary', [$period], fn () => $this->computeSummary($period));
+    }
+
+    private function computeSummary(string $period): array
     {
         [$start, $end] = $this->range($period);
         // The window of equal length that ends the day before this one starts.
