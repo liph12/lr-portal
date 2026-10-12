@@ -257,3 +257,61 @@ test('global partners are international, joined since 2024-02-01 and based abroa
         ->and(Agent::find($global)->country_code)->toBe('AE')
         ->and($stats)->toMatchArray(['global_partner' => 2, 'local' => 4]);
 });
+
+test('broker is not a role: legacy brokers import with their real role and the broker flag', function () {
+    DB::connection('legacy')->table('roles')->insert([['id' => 9, 'role' => 'SUPERVISOR'], ['id' => 12, 'role' => 'BROKER']]);
+    ($this->member)(['email' => 'um-broker@example.com', 'fn' => 'Uma', 'membertype' => 'broker']);
+    ($this->account)('um-broker@example.com', 7);
+    ($this->member)(['email' => 'tl-broker@example.com', 'fn' => 'Tess', 'membertype' => 'broker']);
+    ($this->account)('tl-broker@example.com', 9);
+    ($this->member)(['email' => 'lone-broker@example.com', 'fn' => 'Lone', 'membertype' => 'broker']);
+    ($this->member)(['email' => 'role-broker@example.com', 'fn' => 'Rolf']);
+    ($this->account)('role-broker@example.com', 12);
+    ($this->member)(['email' => 'plain@example.com', 'fn' => 'Plain', 'membertype' => 'agent']);
+
+    ($this->import)();
+
+    $person = fn (string $email) => User::where('email', $email)->sole();
+    expect($person('um-broker@example.com')->roles()->pluck('name')->all())->toBe(['unit_manager'])
+        ->and($person('tl-broker@example.com')->roles()->pluck('name')->all())->toBe(['team_leader'])
+        ->and($person('lone-broker@example.com')->roles()->pluck('name')->all())->toBe(['agent'])
+        ->and($person('role-broker@example.com')->roles()->pluck('name')->all())->toBe(['agent'])
+        ->and(DB::table('agents')->where('is_broker', true)->count())->toBe(4)
+        ->and((bool) $person('plain@example.com')->agent->is_broker)->toBeFalse()
+        ->and(Role::where('name', 'broker')->exists())->toBeFalse();
+});
+
+test('legacy:import-brokers flags legacy brokers and moves the old Broker role to each person\'s real role', function () {
+    foreach (['agent' => 'Agent', 'team_leader' => 'Team Leader', 'unit_manager' => 'Unit Manager', 'broker' => 'Broker'] as $name => $label) {
+        Role::firstOrCreate(['name' => $name], ['label' => $label]);
+    }
+    $person = function (string $name, string $role) {
+        $user = User::factory()->create(['name' => $name]);
+        $user->roles()->attach(Role::where('name', $role)->value('id'));
+
+        return [$user, DB::table('agents')->insertGetId(['user_id' => $user->id, 'email' => $user->email])];
+    };
+    [$leadUser, $lead] = $person('Lead Broker', 'broker');
+    [$unitUser, $unit] = $person('Unit Broker', 'broker');
+    [$plainUser] = $person('Plain Broker', 'broker');
+    [, $legacyUm] = $person('Legacy UM', 'unit_manager');
+    $team = DB::table('teams')->insertGetId(['name' => 'Alpha', 'agent_id' => $lead, 'status' => 'active']);
+    DB::table('sub_teams')->insert(['team_id' => $team, 'name' => 'Alpha 1', 'agent_id' => $unit, 'status' => 'active']);
+    // members.id = agents.id; the unit manager is a broker only in legacy membertype.
+    DB::connection('legacy')->table('members')->insert(['id' => $legacyUm, 'email' => 'x@example.com', 'membertype' => 'Broker ']);
+
+    $this->artisan('legacy:import-brokers', ['--dry-run' => true])->assertSuccessful();
+    expect(Role::where('name', 'broker')->exists())->toBeTrue();
+
+    $this->artisan('legacy:import-brokers')->assertSuccessful();
+
+    expect($leadUser->roles()->pluck('name')->all())->toBe(['team_leader'])
+        ->and($unitUser->roles()->pluck('name')->all())->toBe(['unit_manager'])
+        ->and($plainUser->roles()->pluck('name')->all())->toBe(['agent'])
+        ->and(DB::table('agents')->where('is_broker', true)->pluck('id')->sort()->values()->all())->toBe(collect([$lead, $unit, $plainUser->agent->id, $legacyUm])->sort()->values()->all())
+        ->and(Role::where('name', 'broker')->exists())->toBeFalse();
+
+    // Re-running changes nothing.
+    $this->artisan('legacy:import-brokers')->assertSuccessful();
+    expect(DB::table('agents')->where('is_broker', true)->count())->toBe(4);
+});

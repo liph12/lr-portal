@@ -7,6 +7,11 @@ use Illuminate\Validation\Rule;
 
 class SaveTeamRequest extends ManagementRequest
 {
+    public function authorize(): bool
+    {
+        return $this->allows('edit_teams');
+    }
+
     /**
      * @return array<string, array<mixed>>
      */

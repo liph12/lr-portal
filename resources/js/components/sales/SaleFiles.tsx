@@ -2,20 +2,29 @@ import { Box, Typography } from "@mui/material";
 import FileLink from "./FileLink";
 import { SaleDetail } from "./SaleDetailsForm";
 import { isImageFile } from "../documentation/documentLabels";
+import { isSlipSale } from "../../helpers/commissionSlip";
 
 const str = (v: string | number | null | undefined) => (v === null || v === undefined || v === "" ? null : String(v));
 
-// A sale's uploaded files: the proof of transaction (project), or the remittance and deposit slips (rental, brokerage).
+// A sale's files: the proof of transaction (project); the remittance and deposit slips (legacy rental and brokerage); or for
+// sales encoded from a commission slip (brokerage, rental), the generated slip, proof of transaction, contract, deposit slip.
 // Photos show inline (click for full size); PDFs and Word files open in a new tab.
 export default function SaleFiles({ detail }: { detail: SaleDetail }) {
     const p = detail.property;
     const files =
         detail.category === "project"
             ? [{ label: "Proof of transaction", url: str(p.proof_of_transaction) }]
-            : [
-                  { label: "Remittance slip", url: str(p.remittance_slip) },
-                  { label: "Deposit slip", url: str(p.deposit_slip) },
-              ];
+            : isSlipSale(detail)
+              ? [
+                    { label: detail.category === "rental" ? "Rent commission slip (generated)" : "Commission slip (generated)", url: str(p.remittance_slip) },
+                    { label: "Proof of transaction", url: str(p.proof_of_transaction) },
+                    { label: "Contract", url: str(p.contract) },
+                    { label: "Deposit slip", url: str(p.deposit_slip) },
+                ]
+              : [
+                    { label: "Remittance slip", url: str(p.remittance_slip) },
+                    { label: "Deposit slip", url: str(p.deposit_slip) },
+                ];
 
     return (
         <Box>

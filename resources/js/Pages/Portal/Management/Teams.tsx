@@ -12,6 +12,7 @@ import StyledButton from "../../../components/utils/StyledButton";
 import PhotoUploadButton from "../../../components/utils/PhotoUploadButton";
 import UserAvatar from "../../../components/utils/user/UserAvatar";
 import TeamDialog from "../../../components/utils/forms/TeamDialog";
+import useCan from "../../../hooks/useCan";
 import useAuthUser from "../../../hooks/useAuthUser";
 import { TeamRow } from "../../../types/app-data-types";
 
@@ -24,6 +25,7 @@ const DEACTIVATE_WARNING = "Every member's stint on this team ends today and its
 
 function Teams({ teams, statuses }: TeamsProps) {
     const baseUrl = `/${useAuthUser()?.portal ?? "superadmin"}/management`;
+    const can = useCan();
     const [search, setSearch] = useState("");
     const [status, setStatus] = useState("");
     const [editing, setEditing] = useState<TeamRow | null>(null);
@@ -51,10 +53,13 @@ function Teams({ teams, statuses }: TeamsProps) {
                 <PersonCell
                     name={row.name}
                     secondary={`#${row.id}`}
+                    avatar={row.logo}
                     picture={
-                        <PhotoUploadButton url={`${baseUrl}/teams/${row.id}/photo`} label={`Change photo of ${row.name}`}>
-                            <UserAvatar name={row.name} src={row.logo} size={34} />
-                        </PhotoUploadButton>
+                        can("edit_teams") ? (
+                            <PhotoUploadButton url={`${baseUrl}/teams/${row.id}/photo`} label={`Change photo of ${row.name}`}>
+                                <UserAvatar name={row.name} src={row.logo} size={34} />
+                            </PhotoUploadButton>
+                        ) : undefined
                     }
                 />
             ),
@@ -73,7 +78,7 @@ function Teams({ teams, statuses }: TeamsProps) {
             headerName: "Status",
             width: 150,
             renderCell: ({ row }) => (
-                <StatusMenu status={row.status} statuses={statuses} url={`${baseUrl}/teams/${row.id}/status`} subject={row.name} confirm={{ deactivated: DEACTIVATE_WARNING }} />
+                <StatusMenu status={row.status} statuses={statuses} url={`${baseUrl}/teams/${row.id}/status`} subject={row.name} confirm={{ deactivated: DEACTIVATE_WARNING }} disabled={!can("change_team_status")} />
             ),
         },
         {
@@ -81,13 +86,14 @@ function Teams({ teams, statuses }: TeamsProps) {
             headerName: "",
             width: 64,
             sortable: false,
-            renderCell: ({ row }) => (
-                <Tooltip title="Edit team">
-                    <IconButton size="small" aria-label={`Edit ${row.name}`} onClick={() => open(row)}>
-                        <EditOutlined fontSize="small" />
-                    </IconButton>
-                </Tooltip>
-            ),
+            renderCell: ({ row }) =>
+                can("edit_teams") && (
+                    <Tooltip title="Edit team">
+                        <IconButton size="small" aria-label={`Edit ${row.name}`} onClick={() => open(row)}>
+                            <EditOutlined fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                ),
         },
     ];
 
@@ -99,14 +105,16 @@ function Teams({ teams, statuses }: TeamsProps) {
                 placeholder="Search teams or leaders"
                 filters={<FilterSelect label="Statuses" value={status} options={statuses.map((s) => ({ value: s, label: s }))} onChange={setStatus} />}
                 action={
-                    <StyledButton
-                        startIcon={<AddRounded />}
-                        variant="contained"
-                        onClick={() => open(null)}
-                        sx={{ backgroundColor: "var(--lr-primary)", color: "var(--lr-on-primary)", ":hover": { backgroundColor: "var(--lr-primary-hover)" } }}
-                    >
-                        New team
-                    </StyledButton>
+                    can("edit_teams") && (
+                        <StyledButton
+                            startIcon={<AddRounded />}
+                            variant="contained"
+                            onClick={() => open(null)}
+                            sx={{ backgroundColor: "var(--lr-primary)", color: "var(--lr-on-primary)", ":hover": { backgroundColor: "var(--lr-primary-hover)" } }}
+                        >
+                            New team
+                        </StyledButton>
+                    )
                 }
             />
             <DataTable

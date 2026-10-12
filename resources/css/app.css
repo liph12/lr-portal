@@ -85,6 +85,14 @@
     --lr-auth-bg: linear-gradient(rgba(19, 19, 20, 0.82), rgba(19, 19, 20, 0.82)), url(/assets/background.png);
 }
 
+:root {
+    /* Paper surfaces (signature pad) stay light in both modes, matching the generated slip they end up on. */
+    --lr-paper: #ffffff;
+    --lr-paper-ink: #1a3a8a;
+    --lr-paper-muted: #9aa1ad;
+    --lr-paper-rule: #e5e8ef;
+}
+
 body {
     background-color: var(--lr-surface);
     color: var(--lr-text-primary);

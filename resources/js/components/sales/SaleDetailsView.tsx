@@ -5,6 +5,8 @@ import StatusChip from "../utils/StatusChip";
 import UserAvatar from "../utils/user/UserAvatar";
 import CountryFlag from "../utils/CountryFlag";
 import SaleFiles from "./SaleFiles";
+import CommissionReceipt from "./CommissionReceipt";
+import { isSlipSale } from "../../helpers/commissionSlip";
 import { SaleDetail } from "./SaleDetailsForm";
 import { formatDate } from "../../helpers/formatDate";
 import { formatPeso } from "../../helpers/formatNumber";
@@ -74,6 +76,7 @@ export default function SaleDetailsView({ detail }: { detail: SaleDetail }) {
             )}
 
             <SaleFiles detail={detail} />
+            {isSlipSale(detail) && <CommissionReceipt detail={detail} />}
 
             <Divider />
 
@@ -95,10 +98,25 @@ export default function SaleDetailsView({ detail }: { detail: SaleDetail }) {
                     </>
                 )}
                 {category === "brokerage" && <Fact label="Brokerage area">{names.brokerage_area}</Fact>}
+                {category === "brokerage" && isSlipSale(detail) && (
+                    <>
+                        <Fact label="Closing agent">{str(p.closing_agent)}</Fact>
+                        <Fact label="Partner agent">{str(p.partner_agent)}</Fact>
+                        <Fact label="Signing broker">{names.signing_broker ?? null}</Fact>
+                    </>
+                )}
                 {category === "rental" && (
                     <>
                         <Fact label="Closing agent">{str(p.closing_agent)}</Fact>
                         <Fact label="Partner agent">{str(p.partner_agent)}</Fact>
+                    </>
+                )}
+                {category === "rental" && isSlipSale(detail) && (
+                    <>
+                        <Fact label="Team">{names.team ?? null}</Fact>
+                        <Fact label="Unit manager">{names.unit_manager ?? null}</Fact>
+                        <Fact label="Size of property">{p.property_size ? `${Number(p.property_size)} sqm` : null}</Fact>
+                        <Fact label="Duration">{p.duration_value ? `${p.duration_value} ${p.duration_unit}` : null}</Fact>
                     </>
                 )}
                 <Fact label="Property type">{names.property_type}</Fact>
@@ -118,6 +136,12 @@ export default function SaleDetailsView({ detail }: { detail: SaleDetail }) {
                     <>
                         <Fact label="Remittance date">{date(p.remittance_date)}</Fact>
                         <Fact label="Commission received">{p.commission_received ? formatPeso(Number(p.commission_received)) : null}</Fact>
+                    </>
+                )}
+                {isSlipSale(detail) && category === "brokerage" && (
+                    <>
+                        <Fact label="Commission percentage">{`${Number(p.commission_rate)}%`}</Fact>
+                        <Fact label={`${Number(p.company_share_rate)}% share of company`}>{p.company_share ? formatPeso(Number(p.company_share)) : null}</Fact>
                     </>
                 )}
                 <Fact label="Remarks" size={12}>{detail.remarks}</Fact>

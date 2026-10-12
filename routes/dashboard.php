@@ -31,7 +31,10 @@ Route::prefix('dashboard')->name('dashboard.')->group(function () {
         Route::post('/project', [SaleController::class, 'storeProject'])->name('.project.store');
         Route::get('/rental', [SaleController::class, 'recordRental'])->name('.rental');
         Route::post('/rental', [SaleController::class, 'storeRental'])->name('.rental.store');
+        Route::post('/rental/slip-preview', [SaleController::class, 'previewRentalSlip'])->name('.rental.slip-preview');
         Route::get('/brokerage', [SaleController::class, 'recordBrokerage'])->name('.brokerage');
         Route::post('/brokerage', [SaleController::class, 'storeBrokerage'])->name('.brokerage.store');
+        // The commission slip as it would be generated, from the form so far (nothing saved).
+        Route::post('/brokerage/slip-preview', [SaleController::class, 'previewBrokerageSlip'])->name('.brokerage.slip-preview');
     });
 });

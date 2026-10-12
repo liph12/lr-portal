@@ -5,10 +5,12 @@ interface FilterSelectProps {
     value: string | number | null | undefined;
     options: { value: string | number; label: string }[];
     onChange: (value: string) => void;
+    // Filters with a default of their own (e.g. "With a team") list every choice instead of an "All …" entry.
+    hideAll?: boolean;
 }
 
 // A compact "All …" dropdown for table toolbars.
-export default function FilterSelect({ label, value, options, onChange }: FilterSelectProps) {
+export default function FilterSelect({ label, value, options, onChange, hideAll = false }: FilterSelectProps) {
     return (
         <TextField
             select
@@ -22,7 +24,7 @@ export default function FilterSelect({ label, value, options, onChange }: Filter
                 "& fieldset": { border: "none" },
             }}
         >
-            <MenuItem value="">All {label.toLowerCase()}</MenuItem>
+            {!hideAll && <MenuItem value="">All {label.toLowerCase()}</MenuItem>}
             {options.map((o) => (
                 <MenuItem key={o.value} value={o.value} sx={{ textTransform: "capitalize" }}>
                     {o.label}

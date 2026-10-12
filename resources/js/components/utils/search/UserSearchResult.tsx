@@ -4,6 +4,7 @@ import { ExpandLessRounded, ExpandMoreRounded, LoginRounded, NorthEastRounded } 
 import PersonDetails, { PersonDetailsData } from "./PersonDetails";
 import { formatDateTime } from "../../../helpers/formatDate";
 import UserAvatar from "../user/UserAvatar";
+import DesignationBadges from "../user/DesignationBadges";
 import UserStatusChip from "../user/UserStatusChip";
 import StyledButton from "../StyledButton";
 import { UserStatus } from "../../../types/app-data-types";
@@ -16,6 +17,10 @@ export interface UserSearchItem {
     agent_id: number | null;
     role_id: number | null;
     role_label: string | null;
+    is_broker: boolean;
+    broker_since: string | null;
+    unit_manager_by: "rate" | "dashboard" | null;
+    unit_manager_since: string | null;
     status: UserStatus;
     can_impersonate: boolean;
     last_active_at: string | null;
@@ -100,6 +105,7 @@ export default function UserSearchResult({ user, active, isSelf, onHover, onOpen
                     >
                         {user.role_label ?? "No role"}
                     </Typography>
+                    <DesignationBadges person={user} />
                     <UserStatusChip status={user.status} />
                     {user.can_impersonate && (
                         <StyledButton

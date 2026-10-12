@@ -70,6 +70,12 @@ class User extends Authenticatable
 
     public const PREFERENCES_PERMISSION = 'use_preferences';
 
+    // Genealogy: how many recruits an opened card shows at a time (best downlines first).
+    public const GENEALOGY_SIZES = [5, 10, 20, 30, 50];
+
+    // Genealogy: top-down (each level a row) or left-to-right (each level a column).
+    public const GENEALOGY_LAYOUTS = ['vertical', 'horizontal'];
+
     protected $fillable = [
         'name',
         'email',
@@ -89,7 +95,7 @@ class User extends Authenticatable
     /**
      * Settings › Preferences with defaults filled in. `links.sections` maps a top-level menu path to a link mode.
      *
-     * @return array{theme: ?string, font_size: string, links: array{default: string, sections: array<string, string>}}
+     * @return array{theme: ?string, font_size: string, genealogy_per_branch: int, genealogy_layout: string, links: array{default: string, sections: array<string, string>}}
      */
     public function preferences(): array
     {
@@ -100,6 +106,8 @@ class User extends Authenticatable
             // Null = not chosen yet: the device's own light/dark choice stays.
             'theme' => in_array($saved['theme'] ?? null, self::THEMES, true) ? $saved['theme'] : null,
             'font_size' => in_array($saved['font_size'] ?? null, self::FONT_SIZES, true) ? $saved['font_size'] : 'default',
+            'genealogy_per_branch' => in_array($saved['genealogy_per_branch'] ?? null, self::GENEALOGY_SIZES, true) ? $saved['genealogy_per_branch'] : self::GENEALOGY_SIZES[0],
+            'genealogy_layout' => in_array($saved['genealogy_layout'] ?? null, self::GENEALOGY_LAYOUTS, true) ? $saved['genealogy_layout'] : self::GENEALOGY_LAYOUTS[0],
             'links' => [
                 'default' => in_array($links['default'] ?? null, self::LINK_MODES, true) ? $links['default'] : 'spa',
                 'sections' => array_filter((array) ($links['sections'] ?? []), fn ($mode) => in_array($mode, self::LINK_MODES, true)),

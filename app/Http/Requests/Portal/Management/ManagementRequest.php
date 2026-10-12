@@ -12,4 +12,10 @@ abstract class ManagementRequest extends FormRequest
     {
         return $this->user()->can('manage', Team::class);
     }
+
+    // Management access plus the permission for this kind of change (Permission::MANAGEMENT).
+    protected function allows(string $permission): bool
+    {
+        return $this->user()->can('manage', Team::class) && $this->user()->can($permission);
+    }
 }

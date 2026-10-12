@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Portal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\Management\ChangeAgentStatusRequest;
 use App\Http\Requests\Portal\Management\ChangeAgentTypeRequest;
+use App\Http\Requests\Portal\Management\UpdateDesignationRequest;
 use App\Http\Requests\Portal\Management\ChangeTeamStatusRequest;
 use App\Http\Requests\Portal\Management\SaveSubTeamRequest;
 use App\Http\Requests\Portal\Management\SaveTeamRequest;
@@ -14,12 +15,15 @@ use App\Models\Entities\Agent;
 use App\Models\Entities\SubTeam;
 use App\Models\Entities\Team;
 use App\Models\User;
+use App\Services\AgentDesignationService;
+use App\Services\PersonDetailsService;
 use App\Services\ProfilePhotoService;
 use App\Services\TeamDirectoryService;
 use App\Services\TeamManagementService;
 use App\Services\UserAccountService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Illuminate\Support\Carbon;
 
 // Management for the superadmin and admin portals (same pages, each under its own prefix).
@@ -47,9 +51,9 @@ class ManagementController extends Controller
         ]);
     }
 
-    public function agents(Request $request)
+    public function agents(Request $request, PersonDetailsService $people)
     {
-        $filters = $request->only(['q', 'status', 'team_id', 'agent_type', 'sort', 'dir', 'per_page']);
+        $filters = $request->only(['q', 'status', 'team_id', 'agent_type', 'designation', 'membership', 'registration', 'sort', 'dir', 'per_page']);
 
         return inertia('Portal/Management/Agents', [
             'agents' => $this->page($this->directory->agents($filters)),
@@ -58,6 +62,17 @@ class ManagementController extends Controller
             'statuses' => User::STATUSES,
             'agentTypes' => Agent::TYPES,
             'areas' => collect(config('areas'))->map(fn ($a) => $a['name']),
+            // A clicked agent's details for the side panel (same as the search results show), loaded on demand.
+            'agentDetail' => Inertia::optional(function () use ($request, $people) {
+                $agent = Agent::with('user:id,last_active_at')->find((int) $request->query('agent'));
+                abort_unless($agent, 404);
+
+                return [
+                    'agent_id' => $agent->id,
+                    'details' => $people->for([$agent->id])[$agent->id] ?? null,
+                    'last_active_at' => $agent->user?->last_active_at ? (string) $agent->user->last_active_at : null,
+                ];
+            }),
         ]);
     }
 
@@ -140,6 +155,13 @@ class ManagementController extends Controller
         $this->teams->changeAgentType($agent, $request->validated('agent_type'));
 
         return back()->with('success', "{$agent->user?->name} is now a ".str_replace('_', ' ', $agent->agent_type).'.');
+    }
+
+    public function agentDesignation(UpdateDesignationRequest $request, Agent $agent, AgentDesignationService $designations)
+    {
+        $designations->update($request->user(), $agent, $request->validated());
+
+        return back()->with('success', "Designation of {$agent->user?->name} saved.");
     }
 
     public function agentPhoto(UploadPhotoRequest $request, Agent $agent, ProfilePhotoService $photos)

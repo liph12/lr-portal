@@ -33,6 +33,10 @@ return [
         'api_key',
         'otp',
         'pin',
+        // A brokerage property owner's name goes on the generated commission slip only, never into the database.
+        'property_owner',
+        // A drawn signature (a large image as text); the stored file is logged by the service instead.
+        'signature',
     ],
 
     // Longer string values are cut so one request can't bloat the table.

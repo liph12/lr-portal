@@ -12,6 +12,7 @@ import StyledButton from "../../../components/utils/StyledButton";
 import PhotoUploadButton from "../../../components/utils/PhotoUploadButton";
 import UserAvatar from "../../../components/utils/user/UserAvatar";
 import SubTeamDialog from "../../../components/utils/forms/SubTeamDialog";
+import useCan from "../../../hooks/useCan";
 import useAuthUser from "../../../hooks/useAuthUser";
 import { SubTeamRow, TeamOption } from "../../../types/app-data-types";
 
@@ -23,6 +24,7 @@ interface SubTeamsProps {
 
 function SubTeams({ subTeams, teams, statuses }: SubTeamsProps) {
     const baseUrl = `/${useAuthUser()?.portal ?? "superadmin"}/management`;
+    const can = useCan();
     const [search, setSearch] = useState("");
     const [teamId, setTeamId] = useState("");
     const [status, setStatus] = useState("");
@@ -54,10 +56,13 @@ function SubTeams({ subTeams, teams, statuses }: SubTeamsProps) {
                 <PersonCell
                     name={row.name}
                     secondary={`#${row.id}`}
+                    avatar={row.logo}
                     picture={
-                        <PhotoUploadButton url={`${baseUrl}/sub-teams/${row.id}/photo`} label={`Change photo of ${row.name}`}>
-                            <UserAvatar name={row.name} src={row.logo} size={34} />
-                        </PhotoUploadButton>
+                        can("edit_teams") ? (
+                            <PhotoUploadButton url={`${baseUrl}/sub-teams/${row.id}/photo`} label={`Change photo of ${row.name}`}>
+                                <UserAvatar name={row.name} src={row.logo} size={34} />
+                            </PhotoUploadButton>
+                        ) : undefined
                     }
                 />
             ),
@@ -82,6 +87,7 @@ function SubTeams({ subTeams, teams, statuses }: SubTeamsProps) {
                     url={`${baseUrl}/sub-teams/${row.id}/status`}
                     subject={row.name}
                     confirm={{ deactivated: "Every member's stint on this sub-team ends today. History is kept." }}
+                    disabled={!can("change_team_status")}
                 />
             ),
         },
@@ -90,13 +96,14 @@ function SubTeams({ subTeams, teams, statuses }: SubTeamsProps) {
             headerName: "",
             width: 64,
             sortable: false,
-            renderCell: ({ row }) => (
-                <Tooltip title="Edit sub-team">
-                    <IconButton size="small" aria-label={`Edit ${row.name}`} onClick={() => open(row)}>
-                        <EditOutlined fontSize="small" />
-                    </IconButton>
-                </Tooltip>
-            ),
+            renderCell: ({ row }) =>
+                can("edit_teams") && (
+                    <Tooltip title="Edit sub-team">
+                        <IconButton size="small" aria-label={`Edit ${row.name}`} onClick={() => open(row)}>
+                            <EditOutlined fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                ),
         },
     ];
 
@@ -113,14 +120,16 @@ function SubTeams({ subTeams, teams, statuses }: SubTeamsProps) {
                     </>
                 }
                 action={
-                    <StyledButton
-                        startIcon={<AddRounded />}
-                        variant="contained"
-                        onClick={() => open(null)}
-                        sx={{ backgroundColor: "var(--lr-primary)", color: "var(--lr-on-primary)", ":hover": { backgroundColor: "var(--lr-primary-hover)" } }}
-                    >
-                        New sub-team
-                    </StyledButton>
+                    can("edit_teams") && (
+                        <StyledButton
+                            startIcon={<AddRounded />}
+                            variant="contained"
+                            onClick={() => open(null)}
+                            sx={{ backgroundColor: "var(--lr-primary)", color: "var(--lr-on-primary)", ":hover": { backgroundColor: "var(--lr-primary-hover)" } }}
+                        >
+                            New sub-team
+                        </StyledButton>
+                    )
                 }
             />
             <DataTable

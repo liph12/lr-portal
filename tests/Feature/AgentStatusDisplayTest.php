@@ -29,11 +29,11 @@ beforeEach(function () {
 afterEach(fn () => Carbon::setTestNow());
 
 test('a dormant agent shows, filters and counts as inactive, but can still sign in', function () {
-    $this->actingAs($this->superadmin)->get('/superadmin/management/agents?status=inactive')
+    $this->actingAs($this->superadmin)->get('/superadmin/management/agents?status=inactive&membership=any&registration=any')
         ->assertInertia(fn ($page) => $page
             ->where('agents.total', 1)
             ->where('agents.data.0', fn ($r) => $r['name'] === 'Dora Dormant' && $r['status'] === 'inactive' && $r['account_status'] === 'active' && $r['activity'] === 'dormant'));
-    $this->actingAs($this->superadmin)->get('/superadmin/management/agents?status=active')
+    $this->actingAs($this->superadmin)->get('/superadmin/management/agents?status=active&membership=any&registration=any')
         ->assertInertia(fn ($page) => $page->where('agents.total', 1)->where('agents.data.0.name', 'Ace Active'));
 
     $this->actingAs($this->superadmin)->get("/agents/{$this->dormant}")->assertInertia(fn ($page) => $page->where('agent.status', 'inactive'));

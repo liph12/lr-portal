@@ -34,7 +34,8 @@ class SaleValidationService
     private const SORTS = ['created_at' => 't.created_at', 'reservation_date' => 'c.reservation_date', 'value' => 'c.total_contract_price', 'client' => 'cd.client_first_name', 'agent' => 'agent_name'];
 
     // The credited agent's area; sales keyed in without an agent take the recorder's.
-    private const AREA = 'COALESCE(a.area, ra.area)';
+    // The sale's area: the credited agent's, else the recorder's (shared with Brokerage receiving).
+    public const AREA = 'COALESCE(a.area, ra.area)';
 
     // Not offered as areas to validate (still counted under All areas).
     private const HIDDEN_AREAS = ['abroad'];
@@ -374,6 +375,10 @@ class SaleValidationService
                 'developer' => isset($property['developer_id']) ? DB::table('developers')->where('id', $property['developer_id'])->value('name') : null,
                 'brokerage_area' => isset($property['brokerage_area_id']) ? DB::table('brokerage_areas')->where('id', $property['brokerage_area_id'])->value('name') : null,
                 'property_type' => isset($property['project_property_type_id']) ? DB::table('project_property_types')->where('id', $property['project_property_type_id'])->value('name') : null,
+                'signing_broker' => ! empty($property['signing_broker_id']) ? DB::table('agents as a')->join('users as u', 'u.id', '=', 'a.user_id')->where('a.id', $property['signing_broker_id'])->value('u.name') : null,
+                'received_by' => ! empty($property['received_by']) ? DB::table('users')->where('id', $property['received_by'])->value('name') : null,
+                // Rentals from the commission slip: the closing agent's team and unit manager, looked up (never stored).
+                ...(! empty($property['closing_agent_id']) ? RentalSaleService::teamOf((int) $property['closing_agent_id']) : []),
             ],
             // Newest first.
             'history' => is_array($logs) ? array_reverse(array_values(array_filter($logs, 'is_array'))) : [],
@@ -460,7 +465,7 @@ class SaleValidationService
         return is_array($logs) ? $logs : [];
     }
 
-    private function base(): Builder
+    public function base(): Builder
     {
         return DB::table('agent_transactions as t')
             ->leftJoin('agents as a', 'a.id', '=', 't.agent_id')

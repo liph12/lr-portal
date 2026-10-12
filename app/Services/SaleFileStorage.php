@@ -46,6 +46,38 @@ class SaleFileStorage
         return $this->disk()->url($path);
     }
 
+    /**
+     * A file the app made itself (e.g. a generated slip), stored like an upload.
+     *
+     * @return string the object's full URL
+     */
+    public function storeGenerated(string $contents, string $folder, string $extension, string $mimeType, string $downloadName): string
+    {
+        $path = sprintf('%s/%s.%s', trim($folder, '/'), Str::uuid(), $extension);
+        $options = ['ContentType' => $mimeType, 'ContentDisposition' => 'inline; filename="'.addcslashes(Str::ascii($downloadName), '"\\').'"'];
+
+        if (! $this->disk()->put($path, $contents, $options)) {
+            throw new RuntimeException("Could not save {$downloadName} to the [{$this->diskName()}] disk.");
+        }
+        $this->uploaded[] = $path;
+
+        return $this->disk()->url($path);
+    }
+
+    // The contents of a file stored earlier, by the URL store() returned; null when it's gone.
+    public function read(string $url): ?string
+    {
+        return $this->disk()->get($this->pathOf($url));
+    }
+
+    // Overwrites a stored file in place (same URL), e.g. stamping "received" on a slip.
+    public function overwrite(string $url, string $contents, string $mimeType): void
+    {
+        if (! $this->disk()->put($this->pathOf($url), $contents, ['ContentType' => $mimeType])) {
+            throw new RuntimeException('Could not update the stored file.');
+        }
+    }
+
     public function discardUploaded(): void
     {
         foreach ($this->uploaded as $path) {
@@ -65,6 +97,11 @@ class SaleFileStorage
             'bytes_uploaded' => array_sum(array_map(fn (CompressedFile $c) => $c->originalSize, $this->compressed)),
             'bytes_stored' => array_sum(array_map(fn (CompressedFile $c) => $c->size(), $this->compressed)),
         ];
+    }
+
+    private function pathOf(string $url): string
+    {
+        return ltrim(Str::after($url, rtrim($this->disk()->url(''), '/')), '/');
     }
 
     private function disk(): Filesystem

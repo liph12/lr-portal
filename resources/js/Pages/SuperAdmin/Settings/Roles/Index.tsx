@@ -4,7 +4,6 @@ import { AddRounded, ErrorOutlineRounded } from "@mui/icons-material";
 import { router, usePage } from "@inertiajs/react";
 import AppLayout from "../../../../components/layouts/AppLayout";
 import SectionTitle from "../../../../components/utils/SectionTitle";
-import FlashBanner from "../../../../components/utils/FlashBanner";
 import StyledButton from "../../../../components/utils/StyledButton";
 import SectionCard from "../../../../components/cards/SectionCard";
 import RoleCard from "../../../../components/cards/RoleCard";
@@ -66,7 +65,6 @@ function RolesIndex({ roles, permissions, members, statuses, selectedRoleId }: R
                     </StyledButton>
                 }
             />
-            <FlashBanner />
             {roleError && (
                 <Box
                     role="alert"

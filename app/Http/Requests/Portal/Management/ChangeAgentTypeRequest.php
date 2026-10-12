@@ -12,7 +12,8 @@ class ChangeAgentTypeRequest extends ManagementRequest
     {
         $user = $this->route('agent')->user;
 
-        return parent::authorize() && $user && $this->user()->can('updateStatus', $user);
+        // Local or global partner is part of the agent's designation.
+        return $this->allows('edit_designation') && $user && $this->user()->can('updateStatus', $user);
     }
 
     /**

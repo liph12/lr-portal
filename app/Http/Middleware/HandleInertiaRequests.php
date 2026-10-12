@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Entities\Team;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\CommissionReceivingService;
 use App\Services\GlobalPartnerService;
 use App\Services\GroupSearchService;
 use App\Services\ImpersonationService;
@@ -75,6 +76,9 @@ class HandleInertiaRequests extends Middleware
                 'sales_validation' => ($pending = app(SaleValidationService::class)->pendingCount($request->user())) === null
                     ? null
                     : ['pending' => $pending],
+                // Commission slips waiting to be received within reach, per category the user receives: the Brokerage and
+                // Rental receiving menu items and their badges; null when the user receives neither.
+                'commission_receiving' => app(CommissionReceivingService::class)->awaiting($request->user()),
                 // Areas of the offices this user is the secretary of: their sales validation and statistics reach.
                 'office_areas' => collect(app(OfficeService::class)->areasFor($request->user()))->map(fn ($a) => Areas::name($a))->values(),
                 'view_as_roles' => $request->user()->reallyHasRole(Role::SUPERADMIN)
@@ -110,8 +114,11 @@ class HandleInertiaRequests extends Middleware
             'leaderboards' => Inertia::optional(fn () => $request->user()?->can(LeaderboardService::PERMISSION)
                 ? app(LeaderboardService::class)->recentMonths($request->user()->hasAnyRole(LeaderboardService::AMOUNT_ROLES))
                 : null),
+            // Shown as a toast (AppFeedback): ->with('success' | 'warning' | 'error', '…') on a redirect.
             'flash' => fn () => [
                 'success' => $request->session()->get('success'),
+                'warning' => $request->session()->get('warning'),
+                'error' => $request->session()->get('error'),
             ],
         ];
     }

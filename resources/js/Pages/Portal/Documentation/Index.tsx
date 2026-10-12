@@ -5,7 +5,6 @@ import { router } from "@inertiajs/react";
 import { GridColDef } from "@mui/x-data-grid";
 import AppLayout from "../../../components/layouts/AppLayout";
 import SectionTitle from "../../../components/utils/SectionTitle";
-import FlashBanner from "../../../components/utils/FlashBanner";
 import DataTable from "../../../components/utils/tables/DataTable";
 import TableToolbar from "../../../components/utils/tables/TableToolbar";
 import FilterSelect from "../../../components/utils/tables/FilterSelect";
@@ -138,7 +137,6 @@ function Documentation({ documents, filters, counts, types, statuses, document }
 
     return (
         <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 } }}>
-            <FlashBanner />
             <SectionTitle title="Documentation" subtitle="Agents' PRC, DHSUD, contracts and other requirements. Open one to validate it, add remarks or comment." />
 
             <Box role="tablist" aria-label="Document status" sx={{ display: "flex", gap: 1, mb: 2, overflowX: "auto", scrollbarWidth: "none" }}>

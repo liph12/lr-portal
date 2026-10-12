@@ -34,6 +34,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Sessions live in the database; a brokerage property owner's name must not ride along in a failed form's old input.
+        $exceptions->dontFlash(['current_password', 'password', 'password_confirmation', 'property_owner']);
+
         // Browser visits get a real page for these instead of Laravel's plain error HTML (which Inertia
         // would show in a modal). JSON callers keep JSON; local 500s keep the debug screen.
         $exceptions->respond(function (Response $response, Throwable $e, Request $request) {

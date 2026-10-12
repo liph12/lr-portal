@@ -47,29 +47,47 @@ export interface AgentOption {
     avatar: string | null;
 }
 
-export interface RentalFields extends MeasurementFields {
+// Encoded from the Rent.ph Rent Commission Report Slip: the contract's total is worked out from the amount received;
+// Rent.ph's share and the closing agent's team / unit manager are shown, never stored.
+export interface RentalFields {
     unit_no: string;
+    property_type: AutoCompleteValue | null;
+    property_size: string;
     rental_rate: string;
-    total_contract_price: string;
-    reservation_date: string;
-    payment_terms: AutoCompleteValue | null;
+    duration_value: string;
+    duration_unit: string;
+    remittance_date: string;
+    commission_received: string;
     commission_status: AutoCompleteValue | null;
     closing_agent: AgentOption | null;
+    // A closing agent with no LR account yet: kept by name, linked by email / mobile once they sign up.
+    unregistered: boolean;
+    unregistered_agent_name: string;
+    unregistered_agent_email: string;
+    unregistered_agent_mobile: string;
     partner_agent: AgentOption | null;
     remarks: string;
 }
 
 export type RentalSaleFormData = ClientFields &
     RentalFields & {
+        contract: File | null;
+        proof_of_transaction: File | null;
         deposit_slip: File | null;
-        remittance_slip: File | null;
     };
 
+// Encoded from the Brokerage Commission Report Slip: the property's total and the company's share are worked out from
+// the commission received; the owner's name only goes on the generated slip.
 export interface BrokerageFields extends MeasurementFields {
     brokerage_area: AutoCompleteValue | null;
     unit_no: string;
-    total_contract_price: string;
-    reservation_date: string;
+    remittance_date: string;
+    commission_received: string;
+    company_share_rate: number;
+    closing_agent: AgentOption | null;
+    partner_agent: AgentOption | null;
+    signing_broker: AutoCompleteValue | null;
+    property_owner: string;
     payment_terms: AutoCompleteValue | null;
     commission_status: AutoCompleteValue | null;
     remarks: string;
@@ -77,8 +95,9 @@ export interface BrokerageFields extends MeasurementFields {
 
 export type BrokerageSaleFormData = ClientFields &
     BrokerageFields & {
+        contract: File | null;
+        proof_of_transaction: File | null;
         deposit_slip: File | null;
-        remittance_slip: File | null;
     };
 
 export interface DeveloperProjectOption {
@@ -224,7 +243,15 @@ export interface TeamOption {
     sub_teams: { id: number; name: string }[];
 }
 
-export interface AgentRow {
+// Shown as badges beside the role (Management › Agents › Designation sets them).
+export interface Designations {
+    is_broker: boolean;
+    broker_since: string | null;
+    unit_manager_by: "rate" | "dashboard" | null;
+    unit_manager_since: string | null;
+}
+
+export interface AgentRow extends Designations {
     id: number;
     user_id: number;
     name: string;

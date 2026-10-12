@@ -1,7 +1,6 @@
 import { ReactNode } from "react";
 import DashboardLayout from "../../../../components/layouts/DashboardLayout";
 import { Container, Box, Grid, Typography } from "@mui/material";
-import FlashBanner from "../../../../components/utils/FlashBanner";
 import SectionTitle from "../../../../components/utils/SectionTitle";
 import SalesEncodingNotice from "../../../../components/utils/SalesEncodingNotice";
 import { SalesEncodingState } from "../../../../types/app-data-types";
@@ -115,7 +114,6 @@ interface RecordSaleProps {
 function RecordSale({ encoding, can }: RecordSaleProps) {
     return (
         <Container sx={{ py: { xs: 3, sm: 4 } }} maxWidth="lg">
-            <FlashBanner />
             <SalesEncodingNotice encoding={encoding} />
             <SectionTitle
                 title="Record your sale"

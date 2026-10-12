@@ -9,7 +9,10 @@ class UploadPhotoRequest extends ManagementRequest
     {
         $agent = $this->route('agent');
 
-        return parent::authorize() && (! $agent || ($agent->user && $this->user()->can('updatePhoto', $agent->user)));
+        // An agent's photo goes with changing the agent's account; a team or sub-team logo is editing the team.
+        return $agent
+            ? $this->allows('change_agent_status') && $agent->user && $this->user()->can('updatePhoto', $agent->user)
+            : $this->allows('edit_teams');
     }
 
     /**

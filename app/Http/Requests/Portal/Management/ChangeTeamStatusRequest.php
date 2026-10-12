@@ -8,6 +8,11 @@ use Illuminate\Validation\Rule;
 // Shared by teams and sub-teams.
 class ChangeTeamStatusRequest extends ManagementRequest
 {
+    public function authorize(): bool
+    {
+        return $this->allows('change_team_status');
+    }
+
     /**
      * @return array<string, array<mixed>>
      */

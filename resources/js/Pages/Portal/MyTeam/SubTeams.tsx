@@ -5,7 +5,6 @@ import { GridColDef } from "@mui/x-data-grid";
 import { router, useForm } from "@inertiajs/react";
 import AppLayout from "../../../components/layouts/AppLayout";
 import SectionTitle from "../../../components/utils/SectionTitle";
-import FlashBanner from "../../../components/utils/FlashBanner";
 import StyledButton from "../../../components/utils/StyledButton";
 import StatusChip from "../../../components/utils/StatusChip";
 import StyledTextField from "../../../components/utils/StyledTextField";
@@ -194,7 +193,6 @@ function SubTeams({ group, canManage, subTeams, filters, statuses }: SubTeamsPro
                 }
             />
             <MyTeamNav group={group} canManage={canManage} />
-            <FlashBanner />
             <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5, mb: 2 }}>
                 <DateRangeField value={{ from: filters.from, to: filters.to }} presets={reportPresets()} onChange={changeRange} />
                 <ToggleButtonGroup

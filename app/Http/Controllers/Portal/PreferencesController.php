@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Portal\Settings\UpdateGenealogyPreferenceRequest;
 use App\Http\Requests\Portal\Settings\UpdatePreferencesRequest;
 use App\Http\Requests\Portal\Settings\UpdateThemeRequest;
 use App\Services\UserPreferenceService;
@@ -22,6 +23,13 @@ class PreferencesController extends Controller
         $this->preferences->update($request->user(), $request->validated());
 
         return back()->with('success', 'Preferences saved.');
+    }
+
+    public function updateGenealogy(UpdateGenealogyPreferenceRequest $request)
+    {
+        $this->preferences->setGenealogy($request->user(), $request->validated());
+
+        return back();
     }
 
     public function updateTheme(UpdateThemeRequest $request)

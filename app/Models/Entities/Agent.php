@@ -2,6 +2,7 @@
 
 namespace App\Models\Entities;
 
+use App\Services\UnregisteredAgentLinker;
 use App\Support\Areas;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +21,9 @@ class Agent extends Model
     // Re-derive the area whenever where the agent is based changes (profile edits, Management, imports via the model).
     protected static function booted(): void
     {
+        // A rental may have been credited to this person before they had an account.
+        static::created(fn (Agent $agent) => app(UnregisteredAgentLinker::class)->link($agent));
+
         static::saving(function (Agent $agent) {
             // No country recorded means the Philippines.
             if (blank($agent->country_code) && blank($agent->country)) {
@@ -47,6 +51,30 @@ class Agent extends Model
     public const ACTIVITY_DORMANT = 'dormant';
     public const ACTIVITIES = [self::ACTIVITY_ACTIVE, self::ACTIVITY_DORMANT];
     public const DORMANT_AFTER_MONTHS = 6;
+    // Unit manager by rate: a designation only (keeps their role and dashboard); by dashboard: the Unit Manager role.
+    public const UM_BY_RATE = 'rate';
+
+    public const UM_BY_DASHBOARD = 'dashboard';
+
+    public const UM_BASES = [self::UM_BY_RATE, self::UM_BY_DASHBOARD];
+
+    /**
+     * What every place that shows a person sends for their designation badges (an Agent or a raw query row).
+     *
+     * @return array{is_broker: bool, broker_since: ?string, unit_manager_by: ?string, unit_manager_since: ?string}
+     */
+    public static function designationsOf(?object $agent): array
+    {
+        $date = fn ($value) => $value ? substr((string) ($value instanceof \DateTimeInterface ? $value->format('Y-m-d') : $value), 0, 10) : null;
+
+        return [
+            'is_broker' => (bool) ($agent->is_broker ?? false),
+            'broker_since' => $date($agent->broker_since ?? null),
+            'unit_manager_by' => $agent->unit_manager_by ?? null,
+            'unit_manager_since' => $date($agent->unit_manager_since ?? null),
+        ];
+    }
+
     public const ACTIVITY_EXEMPT_ROLES = ['superadmin', 'admin', 'staff', 'secretary', 'team_leader', 'unit_manager'];
 
     // The status people see, filter and count by: an active account whose agent is dormant reads "inactive". Only the
@@ -115,6 +143,9 @@ class Agent extends Model
             // Legacy schema: true = male, false = female.
             'gender' => 'boolean',
             'activated_at' => 'datetime',
+            'is_broker' => 'boolean',
+            'broker_since' => 'date:Y-m-d',
+            'unit_manager_since' => 'date:Y-m-d',
         ];
     }
 

@@ -5,7 +5,6 @@ import { GridColDef } from "@mui/x-data-grid";
 import { router, useForm } from "@inertiajs/react";
 import AppLayout from "../../../components/layouts/AppLayout";
 import SectionTitle from "../../../components/utils/SectionTitle";
-import FlashBanner from "../../../components/utils/FlashBanner";
 import StyledButton from "../../../components/utils/StyledButton";
 import StatusChip from "../../../components/utils/StatusChip";
 import DataTable from "../../../components/utils/tables/DataTable";
@@ -162,7 +161,6 @@ function Members({ group, canManage, members, memberCount, filters, subTeams }: 
         <Container maxWidth="xl" sx={{ py: { xs: 3, sm: 4 } }}>
             <SectionTitle title={`My Team · ${group.name}`} subtitle={`${memberCount.toLocaleString()} active ${memberCount === 1 ? "member" : "members"}${group.team ? ` · sub-team of ${group.team}` : ""}`} />
             <MyTeamNav group={group} canManage={canManage} />
-            <FlashBanner />
             <TableToolbar
                 search={table.search}
                 onSearch={table.setSearch}

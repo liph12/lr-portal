@@ -5,7 +5,6 @@ import { Link, router } from "@inertiajs/react";
 import { GridColDef } from "@mui/x-data-grid";
 import AppLayout from "../../../components/layouts/AppLayout";
 import SectionTitle from "../../../components/utils/SectionTitle";
-import FlashBanner from "../../../components/utils/FlashBanner";
 import StyledButton from "../../../components/utils/StyledButton";
 import StatusMenu from "../../../components/utils/StatusMenu";
 import StatusChip from "../../../components/utils/StatusChip";
@@ -144,7 +143,6 @@ function SalesValidation({ filters, statuses, categories, areaName, areas, count
 
     return (
         <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 } }}>
-            <FlashBanner />
             <SectionTitle
                 title="Sales validation"
                 subtitle={

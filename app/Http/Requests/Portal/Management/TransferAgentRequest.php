@@ -6,6 +6,11 @@ use Illuminate\Validation\Rule;
 
 class TransferAgentRequest extends ManagementRequest
 {
+    public function authorize(): bool
+    {
+        return $this->allows('transfer_agents');
+    }
+
     /**
      * @return array<string, array<mixed>>
      */

@@ -16,6 +16,9 @@ import {
     FactCheckRounded,
     PublicRounded,
     ReceiptLongRounded,
+    AccountTreeRounded,
+    MoveToInboxRounded,
+    KeyRounded,
 } from "@mui/icons-material";
 import { REPORTS } from "./components/reports/reportCatalog";
 import { AGENT, BACKOFFICE, LEADER, PARTNERS, SECRETARY, TEAM_LEADER } from "./helpers/permissions";
@@ -96,6 +99,33 @@ export const dashboardRoute = {
 
 // Global partners: the back office sees every partner, a sponsor their own invites; the badge counts those waiting
 // for confirmation (usePortalRoutes). Their statistics are international sales only, apart from the local reports.
+// The recruit tree: everyone's own downline; back office and office secretaries can open anyone's in reach.
+export const genealogyRoute = {
+    name: "Genealogy",
+    path: "/genealogy",
+    icon: AccountTreeRounded,
+    permission: "view_genealogy",
+    children: [],
+};
+
+// Commission slips waiting to be received and signed for — brokerage and rental separately, each its own permission
+// (shared pages; secretaries see their areas).
+export const brokerageReceivingRoute = {
+    name: "Brokerage receiving",
+    path: "/brokerage-receiving",
+    icon: MoveToInboxRounded,
+    permission: "receive_brokerage_sales",
+    children: [],
+};
+
+export const rentalReceivingRoute = {
+    name: "Rental receiving",
+    path: "/rental-receiving",
+    icon: KeyRounded,
+    permission: "receive_rental_sales",
+    children: [],
+};
+
 export const globalPartnersRoute = {
     name: "Global Partners",
     path: "/global-partners",
@@ -132,23 +162,28 @@ export const reportsRoute = {
 };
 
 // The same Management pages serve /superadmin/management and /admin/management (tabs in ManagementLayout).
+// Any of them opens Management (TeamPolicy::manage); each change needs its own (Permission::MANAGEMENT).
+const MANAGEMENT_PERMISSIONS = ["edit_designation", "transfer_agents", "change_agent_status", "edit_teams", "change_team_status"];
+
 const managementRoute = (base: string) => ({
     name: "Management",
     path: base,
     icon: AdminPanelSettingsRounded,
+    permission: MANAGEMENT_PERMISSIONS,
     children: [
-        { name: "Teams", path: base, children: [] },
-        { name: "Sub-teams", path: `${base}/sub-teams`, children: [] },
         { name: "Agents", path: `${base}/agents`, children: [] },
+        { name: "Teams", path: `${base}/teams`, children: [] },
+        { name: "Sub-teams", path: `${base}/sub-teams`, children: [] },
         { name: "Team transfers", path: `${base}/transfers`, children: [] },
     ],
 });
 
 export const useAppRoutes = [
     dashboardRoute,
+    managementRoute("/superadmin/management"),
     reportsRoute,
     globalPartnersRoute,
-    managementRoute("/superadmin/management"),
+    genealogyRoute,
     {
         name: "Statistics",
         path: "/superadmin/statistics",
@@ -163,6 +198,8 @@ export const useAppRoutes = [
         children: [],
     },
     { name: "Sales validation", path: "/superadmin/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
+    brokerageReceivingRoute,
+    rentalReceivingRoute,
     {
         name: "Documentation",
         path: "/superadmin/documentation",
@@ -220,21 +257,28 @@ export const settingsRoute = {
 // user's role has it — manage this in Settings › Roles & permissions.
 export const adminRoutes = [
     dashboardRoute,
+    managementRoute("/admin/management"),
     reportsRoute,
     globalPartnersRoute,
+    genealogyRoute,
     { name: "Statistics", path: "/admin/statistics", icon: BarChartRounded, permission: "view_statistics", children: [] },
-    managementRoute("/admin/management"),
     { name: "Sales validation", path: "/admin/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
+    brokerageReceivingRoute,
+    rentalReceivingRoute,
     { name: "Documentation", path: "/admin/documentation", icon: FolderShared, permission: "manage_documents", children: [] },
     settingsRoute,
 ];
 
 export const staffRoutes = [
     dashboardRoute,
+    managementRoute("/staff/management"),
     reportsRoute,
     globalPartnersRoute,
+    genealogyRoute,
     { name: "Statistics", path: "/staff/statistics", icon: BarChartRounded, permission: "view_statistics", children: [] },
     { name: "Sales validation", path: "/staff/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
+    brokerageReceivingRoute,
+    rentalReceivingRoute,
     { name: "Documentation", path: "/staff/documentation", icon: FolderShared, permission: "manage_documents", children: [] },
     settingsRoute,
 ];
@@ -266,6 +310,7 @@ export const memberRoutes = [
     dashboardRoute,
     reportsRoute,
     globalPartnersRoute,
+    genealogyRoute,
     { name: "Sales validation", path: "/sales-validation", icon: FactCheckRounded, permission: SECRETARY, requires: ["sales_validation"], children: [] },
     settingsRoute,
 ];
@@ -283,11 +328,8 @@ export const useRecordSaleSteps = [
 ];
 
 // Rental and brokerage sales upload a remittance slip (and optionally a deposit slip) instead of a POT.
-export const useSlipSaleSteps = [
-    "Client Details",
-    "Property/Unit",
-    "Upload Slips",
-];
+// Brokerage and rental: the commission slip is generated, so the last step uploads the contract and photos instead.
+export const useCommissionSaleSteps = ["Client Details", "Property & Commission", "Upload Files"];
 
 export const condoTypes = [
     { id: 1, label: "Studio" },

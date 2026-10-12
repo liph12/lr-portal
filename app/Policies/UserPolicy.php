@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Entities\Team;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\TeamLeadershipService;
@@ -22,14 +23,21 @@ class UserPolicy
         return $user->hasRole(Role::SUPERADMIN);
     }
 
-    // Superadmins manage anyone; admins manage agents and staff, but not other admins or superadmins.
+    // Superadmins manage anyone; admins manage agents and staff, but not other admins or superadmins; anyone else given
+    // Management (e.g. staff) only the field roles — not the back office.
     public function updateStatus(User $user, User $target): bool
     {
         if ($user->hasRole(Role::SUPERADMIN)) {
             return true;
         }
+        if ($user->is($target)) {
+            return false;
+        }
+        if ($user->hasRole('admin')) {
+            return ! $target->hasAnyRole(TeamPolicy::MANAGER_ROLES);
+        }
 
-        return $user->hasRole('admin') && ! $target->hasAnyRole(TeamPolicy::MANAGER_ROLES);
+        return $user->can('manage', Team::class) && ! $target->hasAnyRole(self::SEARCH_ROLES);
     }
 
     public function updatePhoto(User $user, User $target): bool

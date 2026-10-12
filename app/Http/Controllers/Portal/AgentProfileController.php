@@ -105,6 +105,7 @@ class AgentProfileController extends Controller
                 'status' => Agent::displayStatus($agent->user?->status, $agent->activity),
                 'role' => $agent->user?->roles()->value('label'),
                 'agent_type' => $agent->agent_type,
+                ...Agent::designationsOf($agent),
                 'activity' => $agent->activity,
                 'area' => $agent->area ? Areas::name($agent->area) : null,
                 'city' => $agent->city,
@@ -131,7 +132,7 @@ class AgentProfileController extends Controller
         $agent->load('user:id,name');
 
         return inertia('Portal/Agents/Sales', [
-            'agent' => ['id' => $agent->id, 'name' => $agent->user?->name ?? trim("{$agent->first_name} {$agent->last_name}"), 'avatar' => $agent->avatar, 'area' => $agent->area ? Areas::name($agent->area) : null],
+            'agent' => ['id' => $agent->id, 'name' => $agent->user?->name ?? trim("{$agent->first_name} {$agent->last_name}"), 'avatar' => $agent->avatar, 'area' => $agent->area ? Areas::name($agent->area) : null, ...Agent::designationsOf($agent)],
             'filters' => $filters,
             'summary' => fn () => $this->reports->summary($filters),
             'totals' => fn () => $this->reports->categoryTotals($filters),

@@ -121,7 +121,7 @@ test('rental sales go to the rental table with their own details and no develope
         ->and($rental->unit_type)->toBe('1 Bedroom')
         ->and($rental->deposit_slip)->toBe('https://filipinohomes123.s3.amazonaws.com/slip.jpg')
         ->and($rental->remittance_slip)->toBe('https://filipinohomes123.s3.amazonaws.com/pot.jpg')
-        ->and(property_exists($rental, 'proof_of_transaction'))->toBeFalse()
+        ->and($rental->proof_of_transaction)->toBeNull()
         ->and((float) $rental->total_contract_price)->toBe(3500000.0);
 });
 
@@ -137,7 +137,7 @@ test('brokerage sales link to a brokerage area imported from the legacy brokerag
         ->and((int) $brokerage->brokerage_area_id)->toBe(14)
         ->and((float) $brokerage->lot_area)->toBe(120.0)
         ->and($brokerage->remittance_slip)->toBe('https://leuteriorealty.com/proofoftrans/9/slip.jpg')
-        ->and(property_exists($brokerage, 'proof_of_transaction'))->toBeFalse()
+        ->and($brokerage->proof_of_transaction)->toBeNull()
         ->and(DB::table('developers')->where('id', 14)->exists())->toBeFalse()
         ->and($result['stats']['brokerage_areas'])->toBe(1);
 });

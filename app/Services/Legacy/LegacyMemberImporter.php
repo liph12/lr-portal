@@ -36,7 +36,8 @@ class LegacyMemberImporter
         'UNIT MANAGER' => ['unit_manager', 'Unit Manager'],
         // Legacy supervisors lead teams.
         'SUPERVISOR' => ['team_leader', 'Team Leader'],
-        'BROKER' => ['broker', 'Broker'],
+        // Broker isn't a role: brokers keep the agent role and get agents.is_broker (see isBroker()).
+        'BROKER' => ['agent', 'Agent'],
         'SECRETARY' => ['secretary', 'Secretary'],
         'ADMIN' => ['admin', 'Admin'],
     ];
@@ -47,7 +48,7 @@ class LegacyMemberImporter
     // For members without a legacy users row, members.membertype stands in for the role.
     private const MEMBERTYPE_TO_ROLE = [
         'agent' => 'AGENT',
-        'broker' => 'BROKER',
+        'broker' => 'AGENT',
         'supervisor' => 'SUPERVISOR',
         'secretary' => 'SECRETARY',
         'admin' => 'ADMIN',
@@ -180,6 +181,12 @@ class LegacyMemberImporter
 
     // 194 emails are shared by several members; the most recently updated record represents the person.
     // members.lr_joined as Y-m-d, or null for "0000-00-00" / blanks.
+    // Legacy marks brokers by membertype (whatever their account's role); a few accounts carry a BROKER role instead.
+    private static function isBroker(object $member, string $legacyRole): bool
+    {
+        return strtolower(trim((string) $member->membertype)) === 'broker' || $legacyRole === 'BROKER';
+    }
+
     public static function lrJoined(mixed $value): ?string
     {
         $value = substr(trim((string) $value), 0, 10);
@@ -405,6 +412,7 @@ class LegacyMemberImporter
                 // Global partner confirmed by their sponsor; legacy kept no date, so the activation (else sign-up) date.
                 'sponsor_confirmed_at' => strtolower(trim((string) ($m->sponsor_activation_status ?? ''))) === 'confirmed' ? ($activatedAt ?? $created ?? now()->toDateTimeString()) : null,
                 'area' => Areas::forAgent($this->clean($m->state), $this->clean($m->city), $origin['country_code']),
+                'is_broker' => self::isBroker($m, $legacyRole),
             ],
             'profile' => [
                 'about' => $this->clean($m->aboutyourself, 255, true),

@@ -8,6 +8,7 @@ import AppLayout from "../../../components/layouts/AppLayout";
 import SectionCard from "../../../components/cards/SectionCard";
 import StyledButton from "../../../components/utils/StyledButton";
 import StatusChip from "../../../components/utils/StatusChip";
+import DesignationBadges from "../../../components/utils/user/DesignationBadges";
 import CountryFlag from "../../../components/utils/CountryFlag";
 import DateRangeField from "../../../components/utils/DateRangeField";
 import UserAvatar from "../../../components/utils/user/UserAvatar";
@@ -35,6 +36,10 @@ interface AgentProfileProps {
         status: string | null;
         role: string | null;
         agent_type: string;
+        is_broker: boolean;
+        broker_since: string | null;
+        unit_manager_by: "rate" | "dashboard" | null;
+        unit_manager_since: string | null;
         activity: string;
         area: string | null;
         city: string | null;
@@ -184,6 +189,7 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                                 {agent.role}
                             </Typography>
                         )}
+                        <DesignationBadges person={agent} size="medium" showDates />
                         <StatusChip status={agent.agent_type}>{AGENT_TYPE_LABELS[agent.agent_type] ?? agent.agent_type}</StatusChip>
                         {agent.status && (
                             <StatusChip status={agent.status} title={agent.activity === "dormant" ? "Inactive: no sale in the last 6 months since activation" : undefined} />

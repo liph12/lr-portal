@@ -12,17 +12,23 @@ interface AgentPickerProps {
     placeholder?: string;
     // Already chosen elsewhere on the form, so it isn't offered twice.
     exclude?: number | null;
+    // Another sanctioned typeahead returning `{agents}` (e.g. /genealogy/search); extra query params ride along.
+    searchUrl?: string;
+    params?: Record<string, string>;
+    // The line under the name (default: email).
+    describe?: (agent: AgentOption) => string | null | undefined;
 }
 
 const DEBOUNCE_MS = 250;
 
 // ~83k agents: searched on the server as you type (GET /search/agents) rather than sent as a list.
-export default function AgentPicker({ name, value, onChange, error, placeholder = "Search agent by name or email", exclude }: AgentPickerProps) {
+export default function AgentPicker({ name, value, onChange, error, placeholder = "Search agent by name or email", exclude, searchUrl = "/search/agents", params, describe = (o) => o.email }: AgentPickerProps) {
     const [input, setInput] = useState("");
     const [options, setOptions] = useState<AgentOption[]>([]);
     const [loading, setLoading] = useState(false);
     const [fetchError, setFetchError] = useState<string | null>(null);
     const term = input.trim();
+    const query = new URLSearchParams({ ...params, q: term }).toString();
 
     useEffect(() => {
         if (term.length < 2 || term === value?.name) {
@@ -36,7 +42,7 @@ export default function AgentPicker({ name, value, onChange, error, placeholder 
             setLoading(true);
             setFetchError(null);
             try {
-                const res = await fetch(`/search/agents?q=${encodeURIComponent(term)}`, {
+                const res = await fetch(`${searchUrl}?${query}`, {
                     headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
                     credentials: "same-origin",
                     signal: controller.signal,
@@ -54,7 +60,7 @@ export default function AgentPicker({ name, value, onChange, error, placeholder 
             controller.abort();
             window.clearTimeout(timer);
         };
-    }, [term, value?.name]);
+    }, [term, value?.name, searchUrl, query]);
 
     return (
         <Autocomplete
@@ -79,7 +85,7 @@ export default function AgentPicker({ name, value, onChange, error, placeholder 
                             {o.name}
                         </Typography>
                         <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
-                            {o.email}
+                            {describe(o)}
                         </Typography>
                     </Box>
                 </Box>

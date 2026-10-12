@@ -1,6 +1,6 @@
 import { FormEvent, ReactNode } from "react";
 import { Box, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
-import { DarkModeOutlined, LightModeOutlined, SettingsBrightnessOutlined } from "@mui/icons-material";
+import { AccountTreeRounded, DarkModeOutlined, LightModeOutlined, SettingsBrightnessOutlined } from "@mui/icons-material";
 import { useColorScheme } from "@mui/material/styles";
 import { useForm } from "@inertiajs/react";
 import SectionCard from "../../cards/SectionCard";
@@ -16,6 +16,8 @@ interface PreferencesFormProps {
 interface PreferencesFields {
     theme: ThemeMode;
     font_size: FontSize;
+    genealogy_per_branch: number;
+    genealogy_layout: UserPreferences["genealogy_layout"];
     links: UserPreferences["links"];
 }
 
@@ -31,6 +33,9 @@ const THEMES: { value: ThemeMode; label: string; icon: typeof LightModeOutlined 
     { value: "dark", label: "Dark", icon: DarkModeOutlined },
     { value: "system", label: "System default", icon: SettingsBrightnessOutlined },
 ];
+
+// Mirrors User::GENEALOGY_SIZES.
+const GENEALOGY_SIZES = [5, 10, 20, 30, 50];
 
 const LINK_LABELS: Record<LinkMode, string> = { spa: "Same tab", tab: "New tab" };
 
@@ -57,6 +62,8 @@ export default function PreferencesForm({ preferences }: PreferencesFormProps) {
         // Not chosen yet: start from what this device shows now.
         theme: preferences.theme ?? (mode as ThemeMode | undefined) ?? "light",
         font_size: preferences.font_size,
+        genealogy_per_branch: preferences.genealogy_per_branch,
+        genealogy_layout: preferences.genealogy_layout,
         links: { default: preferences.links.default, sections: { ...preferences.links.sections } },
     });
 
@@ -107,6 +114,44 @@ export default function PreferencesForm({ preferences }: PreferencesFormProps) {
                         </Typography>
                     </Box>
                 </Box>
+            </SectionCard>
+
+            <SectionCard title="Genealogy" subtitle="Also adjustable on the genealogy canvas itself.">
+                <Setting title="Recruits per card" help="How many recruits an opened card shows at first — those with the biggest downlines. Show more loads the next batch.">
+                    <ToggleButtonGroup
+                        size="small"
+                        exclusive
+                        value={form.data.genealogy_per_branch}
+                        onChange={(_, v: number | null) => v && form.setData("genealogy_per_branch", v)}
+                        aria-label="Recruits per card"
+                        sx={toggleSx}
+                    >
+                        {GENEALOGY_SIZES.map((size) => (
+                            <ToggleButton key={size} value={size}>
+                                {size}
+                            </ToggleButton>
+                        ))}
+                    </ToggleButtonGroup>
+                </Setting>
+                <Setting title="Layout" help="Top to bottom, each level a row; or left to right, each level a column.">
+                    <ToggleButtonGroup
+                        size="small"
+                        exclusive
+                        value={form.data.genealogy_layout}
+                        onChange={(_, v: PreferencesFields["genealogy_layout"] | null) => v && form.setData("genealogy_layout", v)}
+                        aria-label="Genealogy layout"
+                        sx={toggleSx}
+                    >
+                        <ToggleButton value="vertical">
+                            <AccountTreeRounded sx={{ fontSize: 18 }} aria-hidden />
+                            Top to bottom
+                        </ToggleButton>
+                        <ToggleButton value="horizontal">
+                            <AccountTreeRounded sx={{ fontSize: 18, transform: "rotate(-90deg)" }} aria-hidden />
+                            Left to right
+                        </ToggleButton>
+                    </ToggleButtonGroup>
+                </Setting>
             </SectionCard>
 
             <SectionCard title="Links" subtitle="Where pages open when you click a link, menu item or table row.">

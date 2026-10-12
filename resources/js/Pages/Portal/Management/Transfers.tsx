@@ -9,6 +9,7 @@ import PersonCell from "../../../components/utils/tables/PersonCell";
 import StatusChip from "../../../components/utils/StatusChip";
 import StyledButton from "../../../components/utils/StyledButton";
 import TransferDialog from "../../../components/utils/forms/TransferDialog";
+import useCan from "../../../hooks/useCan";
 import useAuthUser from "../../../hooks/useAuthUser";
 import useServerTable, { ServerPage, TableFilters } from "../../../hooks/useServerTable";
 import { TeamOption, TransferRow } from "../../../types/app-data-types";
@@ -26,6 +27,7 @@ function Transfers({ transfers, filters, teams }: TransfersProps) {
     const baseUrl = `/${useAuthUser()?.portal ?? "superadmin"}/management`;
     const table = useServerTable("transfers", transfers, filters);
     const [open, setOpen] = useState(false);
+    const can = useCan();
 
     const columns: GridColDef<TransferRow>[] = [
         {
@@ -49,14 +51,16 @@ function Transfers({ transfers, filters, teams }: TransfersProps) {
                 placeholder="Search by agent or team"
                 filters={<FilterSelect label="Teams" value={filters.team_id} options={teams.map((t) => ({ value: String(t.id), label: t.name }))} onChange={(v) => table.setFilter("team_id", v)} />}
                 action={
-                    <StyledButton
-                        startIcon={<SwapHorizRounded />}
-                        variant="contained"
-                        onClick={() => setOpen(true)}
-                        sx={{ backgroundColor: "var(--lr-primary)", color: "var(--lr-on-primary)", ":hover": { backgroundColor: "var(--lr-primary-hover)" } }}
-                    >
-                        Transfer an agent
-                    </StyledButton>
+                    can("transfer_agents") && (
+                        <StyledButton
+                            startIcon={<SwapHorizRounded />}
+                            variant="contained"
+                            onClick={() => setOpen(true)}
+                            sx={{ backgroundColor: "var(--lr-primary)", color: "var(--lr-on-primary)", ":hover": { backgroundColor: "var(--lr-primary-hover)" } }}
+                        >
+                            Transfer an agent
+                        </StyledButton>
+                    )
                 }
             />
             <DataTable {...table.gridProps} columns={columns} getRowHeight={() => 56} aria-label="Team transfers" />

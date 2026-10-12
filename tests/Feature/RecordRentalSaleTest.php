@@ -1,13 +1,18 @@
 <?php
 
+use App\Models\Entities\Agent;
 use App\Models\Entities\AgentRentalTransaction;
 use App\Models\Entities\AgentTransaction;
 use App\Models\Entities\ProjectPropertyType;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Services\RentalSaleService;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
@@ -39,110 +44,150 @@ beforeEach(function () {
     $this->partner = $agent('Ben Cruz');
     $this->resigned = $agent('Ana Resigned', 'resigned');
 
+    // Ana closes on Team Dreamchasers, in Mia's sub-team.
+    $team = DB::table('teams')->insertGetId(['name' => 'Dreamchasers', 'agent_id' => $this->partner, 'status' => 'active']);
+    $this->manager = $agent('Mia Lopez');
+    $subTeam = DB::table('sub_teams')->insertGetId(['team_id' => $team, 'name' => 'Dreamchasers 1', 'agent_id' => $this->manager, 'status' => 'active']);
+    DB::table('team_agents')->insert(['team_id' => $team, 'agent_id' => $this->closer, 'joined_at' => '2025-01-01', 'status' => 'active']);
+    DB::table('sub_team_agents')->insert(['sub_team_id' => $subTeam, 'agent_id' => $this->closer, 'joined_at' => '2025-01-01', 'status' => 'active']);
+
     $this->payload = fn (array $overrides = []) => array_merge([
-        'client_firstname' => 'Juan',
-        'client_lastname' => 'Dela Cruz',
+        'client_firstname' => 'Andrew',
+        'client_lastname' => 'Thornhill',
         'client_mobile' => '09171234567',
         'client_country' => 'PH',
-        'unit_no' => 'Unit 5F, Avida Tower',
+        'unit_no' => 'RLC Galleria Residences, Unit 1503',
         'project_property_type_id' => ProjectPropertyType::CONDO,
-        'unit_type' => '1 Bedroom',
-        'floor_area' => '32.5',
-        'lot_area' => '999',
-        'rental_rate' => '25000',
-        'total_contract_price' => '300000',
-        'reservation_date' => '2026-10-05',
-        'payment_terms' => '12 Months',
+        'property_size' => '40.50',
+        'rental_rate' => '40000',
+        'duration_value' => '6',
+        'duration_unit' => 'months',
+        'remittance_date' => '2026-10-09',
+        'commission_received' => '10000',
         'commission_status' => 'Unclaimed',
         'closing_agent_id' => $this->closer,
         'partner_agent_id' => $this->partner,
-        'remittance_slip' => UploadedFile::fake()->image('remittance.jpg', 1200, 900),
-        'deposit_slip' => UploadedFile::fake()->createWithContent('deposit.pdf', "%PDF-1.4\n".str_repeat('x', 5000)),
+        'contract' => UploadedFile::fake()->createWithContent('lease.pdf', "%PDF-1.4\n".str_repeat('x', 5000)),
+        'proof_of_transaction' => UploadedFile::fake()->image('with-client.jpg', 1200, 900),
+        'deposit_slip' => UploadedFile::fake()->image('deposit.jpg', 800, 600),
     ], $overrides);
 
     $this->post = fn (array $overrides = []) => $this->actingAs($this->superadmin)
         ->post('/dashboard/record-sale/rental', ($this->payload)($overrides));
 });
 
-function rentalObjectPath(string $url): string
+// A transparent PNG with a stroke, as the signature pad sends it.
+function rentalSignature(): string
 {
-    return ltrim(str_replace(rtrim(Storage::disk('s3')->url(''), '/'), '', $url), '/');
+    $image = imagecreatetruecolor(600, 180);
+    imagesavealpha($image, true);
+    imagefill($image, 0, 0, imagecolorallocatealpha($image, 0, 0, 0, 127));
+    imagesetthickness($image, 4);
+    imageline($image, 40, 120, 520, 60, imagecolorallocate($image, 26, 58, 138));
+    ob_start();
+    imagepng($image);
+
+    return 'data:image/png;base64,'.base64_encode((string) ob_get_clean());
 }
 
-test('a rental sale is recorded without a developer, with both slips and its agents', function () {
+test('a rental is encoded from the rent commission slip: the contract total is worked out, the rest stored as given', function () {
+    Carbon::setTestNow('2026-10-10 09:00:00');
     ($this->post)()->assertRedirect(route('dashboard.record-sale'))->assertSessionHasNoErrors();
 
-    $sale = AgentTransaction::with(['detail', 'rentalTransaction'])->sole();
-    $rental = $sale->rentalTransaction;
+    $sale = AgentTransaction::with('rentalTransaction')->sole();
+    $r = $sale->rentalTransaction;
 
+    // 10,000 is 8.3% of 120,481.93.
     expect($sale->sale_type)->toBe('rental')
-        ->and($sale->recorded_by)->toBe($this->superadmin->id)
-        ->and($sale->unit_number)->toBe('Unit 5F, Avida Tower')
-        ->and($sale->detail->client_last_name)->toBe('Dela Cruz')
-        ->and(DB::table('agent_project_transactions')->count())->toBe(0)
-        ->and($rental->developer_project_id)->toBeNull()
-        ->and($rental->project_property_type_id)->toBe(ProjectPropertyType::CONDO)
-        ->and($rental->unit_type)->toBe('1 Bedroom')
-        ->and((float) $rental->floor_area)->toBe(32.5)
-        // A condo has no lot area, so a stray value isn't kept.
-        ->and($rental->lot_area)->toBeNull()
-        ->and((float) $rental->rental_rate)->toBe(25000.0)
-        ->and($rental->total_contract_price)->toBe(300000.0)
-        ->and($rental->closing_agent)->toBe('Ana Reyes')
-        ->and($rental->partner_agent)->toBe('Ben Cruz');
+        ->and($sale->sale_status)->toBe('pending')
+        ->and($sale->unit_number)->toBe('RLC Galleria Residences, Unit 1503')
+        ->and($sale->term_of_payment)->toBe('6 months')
+        ->and($r->total_contract_price)->toBe(120481.93)
+        ->and((float) $r->commission_received)->toBe(10000.0)
+        ->and((float) $r->commission_rate)->toBe(8.3)
+        ->and((float) $r->rental_rate)->toBe(40000.0)
+        ->and((float) $r->property_size)->toBe(40.5)
+        ->and($r->duration_value)->toBe(6)
+        ->and($r->duration_unit)->toBe('months')
+        ->and($r->remittance_date->toDateString())->toBe('2026-10-09')
+        ->and($r->reservation_date->toDateString())->toBe('2026-10-09')
+        ->and($r->closing_agent)->toBe('Ana Reyes')
+        ->and($r->closing_agent_id)->toBe($this->closer)
+        ->and($r->partner_agent)->toBe('Ben Cruz');
 
-    foreach ([$rental->remittance_slip, $rental->deposit_slip] as $url) {
-        expect(rentalObjectPath($url))->toStartWith("sales/rental/{$sale->id}/");
-        Storage::disk('s3')->assertExists(rentalObjectPath($url));
+    // The Rent.ph share and the team / unit manager aren't columns; they're worked out.
+    expect(Schema::hasColumns('agent_rental_transactions', ['rent_ph_share']))->toBeFalse()
+        ->and(Schema::hasColumns('agent_rental_transactions', ['team']))->toBeFalse()
+        ->and(RentalSaleService::teamOf($this->closer))->toBe(['team' => 'Dreamchasers', 'unit_manager' => 'Mia Lopez']);
+
+    foreach ([$r->contract, $r->proof_of_transaction, $r->deposit_slip, $r->remittance_slip] as $url) {
+        expect($url)->toContain("sales/rental/{$sale->id}/");
     }
-    expect(Storage::disk('s3')->allFiles())->toHaveCount(2);
+    expect($r->remittance_slip)->toEndWith('.png')->and(Storage::disk('s3')->allFiles())->toHaveCount(4);
 });
 
-test('the remittance slip is required; the deposit slip and agents are optional', function () {
-    ($this->post)(['remittance_slip' => null])->assertSessionHasErrors(['remittance_slip' => 'Upload the remittance slip.']);
-    expect(AgentTransaction::count())->toBe(0);
-
-    ($this->post)(['deposit_slip' => null, 'closing_agent_id' => null, 'partner_agent_id' => null])->assertSessionHasNoErrors();
-
-    $rental = AgentRentalTransaction::sole();
-    expect($rental->deposit_slip)->toBeNull()->and($rental->closing_agent)->toBeNull()->and($rental->partner_agent)->toBeNull();
-});
-
-test('agents must exist and the partner must differ from the closing agent', function () {
-    ($this->post)(['closing_agent_id' => 999999])->assertSessionHasErrors('closing_agent_id');
+test('required: contract, proof of transaction, closing agent, a duration in days / months / years, a past date', function () {
+    Carbon::setTestNow('2026-10-10 09:00:00');
+    ($this->post)(['contract' => null, 'proof_of_transaction' => null])->assertSessionHasErrors(['contract', 'proof_of_transaction']);
+    ($this->post)(['closing_agent_id' => null])->assertSessionHasErrors(['closing_agent_id' => 'Select the closing agent, or enter them as not yet in LR.']);
+    ($this->post)(['duration_unit' => 'weeks'])->assertSessionHasErrors('duration_unit');
+    ($this->post)(['duration_value' => '0'])->assertSessionHasErrors('duration_value');
+    ($this->post)(['remittance_date' => '2026-10-20'])->assertSessionHasErrors('remittance_date');
+    ($this->post)(['property_size' => ''])->assertSessionHasErrors('property_size');
     ($this->post)(['partner_agent_id' => $this->closer])->assertSessionHasErrors('partner_agent_id');
-
+    ($this->post)(['closing_agent_id' => 999999])->assertSessionHasErrors('closing_agent_id');
     expect(AgentTransaction::count())->toBe(0);
+
+    ($this->post)(['deposit_slip' => null, 'partner_agent_id' => null, 'duration_value' => '1', 'duration_unit' => 'years'])->assertSessionHasNoErrors();
+    expect(AgentTransaction::sole()->term_of_payment)->toBe('1 year');
 });
 
-test('each property type asks for its own measurements', function (int $type, array $missing, array $present) {
-    $blank = ['unit_type' => '', 'floor_area' => '', 'lot_area' => ''];
-
-    if ($missing) {
-        ($this->post)(['project_property_type_id' => $type, ...$blank])->assertSessionHasErrors($missing);
-        expect(AgentTransaction::count())->toBe(0);
-    }
-
-    ($this->post)(['project_property_type_id' => $type, 'unit_type' => 'Studio', 'floor_area' => '40', 'lot_area' => '120'])->assertSessionHasNoErrors();
-
-    $rental = AgentRentalTransaction::sole();
-    foreach (['unit_type', 'floor_area', 'lot_area'] as $field) {
-        expect($rental->{$field} !== null)->toBe(in_array($field, $present, true));
-    }
-})->with([
-    'condo' => [ProjectPropertyType::CONDO, ['unit_type', 'floor_area'], ['unit_type', 'floor_area']],
-    'house & lot' => [ProjectPropertyType::HOUSE_AND_LOT, ['floor_area', 'lot_area'], ['floor_area', 'lot_area']],
-    'townhouse' => [ProjectPropertyType::TOWNHOUSE, ['floor_area', 'lot_area'], ['floor_area', 'lot_area']],
-    'lot only' => [ProjectPropertyType::LOT_ONLY, ['lot_area'], ['lot_area']],
-    'office space' => [19, [], []],
-]);
-
-test('a failure after uploading removes both slips', function () {
+test('a failure after uploading removes every file', function () {
+    Carbon::setTestNow('2026-10-10 09:00:00');
     AgentRentalTransaction::creating(fn () => throw new RuntimeException('database went away'));
 
     ($this->post)()->assertServerError();
 
     expect(AgentTransaction::count())->toBe(0)->and(Storage::disk('s3')->allFiles())->toBeEmpty();
+});
+
+test('the rent slip can be previewed, and a rental is signed for in Rental receiving', function () {
+    Carbon::setTestNow('2026-10-10 09:00:00');
+    $this->actingAs($this->superadmin)->post('/dashboard/record-sale/rental/slip-preview', ['commission_received' => '10000', 'closing_agent_id' => $this->closer])
+        ->assertOk()->assertHeader('Content-Type', 'image/png');
+    expect(Storage::disk('s3')->allFiles())->toBe([]);
+
+    ($this->post)();
+    $sale = AgentTransaction::sole();
+
+    // Rental receiving is its own page and permission: brokerage receivers don't get it.
+    $clerk = User::factory()->create(['name' => 'Cara Clerk']);
+    $role = Role::create(['name' => 'staff', 'label' => 'Staff']);
+    $role->permissions()->attach(Permission::where('name', 'receive_brokerage_sales')->value('id'));
+    $clerk->roles()->attach($role);
+    $this->actingAs($clerk)->get('/rental-receiving')->assertForbidden();
+    $this->actingAs($clerk)->post("/rental-receiving/{$sale->id}/receive", ['signature' => rentalSignature(), 'received_on' => '2026-10-10'])->assertForbidden();
+    // Nor can a rental be signed for from the brokerage page.
+    $this->actingAs($clerk)->post("/brokerage-receiving/{$sale->id}/receive", ['signature' => rentalSignature(), 'received_on' => '2026-10-10'])->assertForbidden();
+    $this->actingAs($clerk)->get("/brokerage-receiving?sale={$sale->id}")->assertInertia(fn ($page) => $page->where('category', 'brokerage')->where('saleDetail', null));
+
+    $role->permissions()->attach(Permission::where('name', 'receive_rental_sales')->value('id'));
+    $this->actingAs($clerk)->get('/rental-receiving')
+        ->assertInertia(fn ($page) => $page->component('Portal/CommissionReceiving/Index')
+            ->where('category', 'rental')
+            ->where('counts.awaiting', 1)
+            ->where('sales.data.0.place', 'RLC Galleria Residences, Unit 1503')
+            ->where('sales.data.0.unregistered_agent', false)
+            ->where('sales.data.0.share', 2000)
+            ->where('auth.commission_receiving', ['awaiting' => 1, 'brokerage' => 0, 'rental' => 1]));
+    $this->actingAs($clerk)->get("/rental-receiving?sale={$sale->id}")
+        ->assertInertia(fn ($page) => $page->where('saleDetail.names.team', 'Dreamchasers')->where('saleDetail.names.unit_manager', 'Mia Lopez'));
+
+    $this->actingAs($clerk)->post("/rental-receiving/{$sale->id}/receive", ['signature' => rentalSignature(), 'received_on' => '2026-10-10'])->assertSessionHasNoErrors();
+    $sale->refresh();
+    expect($sale->sale_status)->toBe('valid')
+        ->and($sale->rentalTransaction->received_by)->toBe($clerk->id)
+        ->and($sale->rentalTransaction->received_signature)->toContain("sales/rental/{$sale->id}/");
 });
 
 test('only superadmins can record rentals or search agents, and the search lists active agents', function () {
@@ -159,11 +204,47 @@ test('only superadmins can record rentals or search agents, and the search lists
         ->assertJsonPath('agents.0.name', 'Ana Reyes');
 });
 
-test('the rental page offers property types, not developers', function () {
+test('the rental page offers property types, the fixed rates and the duration units', function () {
     $this->actingAs($this->superadmin)->get('/dashboard/record-sale/rental')
         ->assertInertia(fn ($page) => $page
             ->component('Portal/Dashboard/RecordSale/Rental')
             ->has('propertyTypes', 5)
-            ->has('maxFileKb')
+            ->where('commissionRate', 8.3)
+            ->where('shareRate', 20)
+            ->where('durationUnits', ['days', 'months', 'years'])
             ->missing('developers'));
+});
+
+test('a closing agent with no LR account is entered by hand, credited by name, and linked when their account appears', function () {
+    Carbon::setTestNow('2026-10-10 09:00:00');
+    $unregistered = ['closing_agent_id' => null, 'partner_agent_id' => null, 'unregistered_agent_name' => 'Nora Newbie', 'unregistered_agent_email' => 'Nora@Example.com', 'unregistered_agent_mobile' => '+63 917 555 0101'];
+
+    // An email that already has an account must be picked instead; an email is needed to link later.
+    $taken = User::where('name', 'Ana Reyes')->value('email');
+    ($this->post)([...$unregistered, 'unregistered_agent_email' => $taken])->assertSessionHasErrors('unregistered_agent_email');
+    ($this->post)([...$unregistered, 'unregistered_agent_email' => ''])->assertSessionHasErrors('unregistered_agent_email');
+
+    // Recorded by a field agent, it's still credited to Nora — nobody until she has an account.
+    $recorderRole = Role::create(['name' => 'agent', 'label' => 'Agent']);
+    $recorderRole->permissions()->attach(Permission::firstOrCreate(['name' => 'record_sales'], ['label' => 'Record Sales']));
+    $recorder = User::find(DB::table('agents')->where('id', $this->partner)->value('user_id'));
+    $recorder->roles()->attach($recorderRole);
+    $this->actingAs($recorder)->post('/dashboard/record-sale/rental', ($this->payload)($unregistered))->assertSessionHasNoErrors();
+
+    $sale = AgentTransaction::with('rentalTransaction')->sole();
+    expect($sale->agent_id)->toBeNull()
+        ->and($sale->rentalTransaction->closing_agent)->toBe('Nora Newbie')
+        ->and($sale->rentalTransaction->closing_agent_id)->toBeNull()
+        ->and($sale->rentalTransaction->unregistered_agent_email)->toBe('nora@example.com')
+        ->and($sale->rentalTransaction->unregistered_agent_mobile)->toBe('9175550101');
+
+    // Nora signs up (an agent record with her mobile): the rental becomes hers.
+    $nora = User::factory()->create(['name' => 'Nora Newbie', 'email' => 'someone-else@example.com']);
+    $agent = Agent::create(['user_id' => $nora->id, 'email' => 'someone-else@example.com', 'first_name' => 'Nora', 'last_name' => 'Newbie', 'mobile' => '09175550101']);
+
+    $sale->refresh();
+    expect($sale->agent_id)->toBe($agent->id)->and($sale->rentalTransaction->closing_agent_id)->toBe($agent->id);
+
+    // The command finds nothing left to link.
+    $this->artisan('rentals:link-unregistered-agents')->expectsOutput('0 rentals linked.')->assertSuccessful();
 });

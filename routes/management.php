@@ -11,8 +11,10 @@ return function (string $portal) {
         ->name("{$portal}.management.")
         ->middleware('can:manage,'.Team::class)
         ->controller(ManagementController::class)
-        ->group(function () {
-            Route::get('/', 'teams')->name('index');
+        ->group(function () use ($portal) {
+            // Management opens on Agents.
+            Route::redirect('/', "/{$portal}/management/agents")->name('index');
+            Route::get('/teams', 'teams')->name('teams');
             Route::get('/sub-teams', 'subTeams')->name('sub-teams');
             Route::get('/agents', 'agents')->name('agents');
             Route::get('/transfers', 'transfers')->name('transfers');
@@ -29,6 +31,7 @@ return function (string $portal) {
 
             Route::patch('/agents/{agent}/status', 'agentStatus')->name('agents.status');
             Route::patch('/agents/{agent}/type', 'agentType')->name('agents.type');
+            Route::put('/agents/{agent}/designation', 'agentDesignation')->name('agents.designation');
             Route::post('/agents/{agent}/photo', 'agentPhoto')->name('agents.photo');
             Route::post('/agents/{agent}/transfer', 'transfer')->name('agents.transfer');
         });

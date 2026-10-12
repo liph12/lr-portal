@@ -11,7 +11,7 @@ class ChangeAgentStatusRequest extends ManagementRequest
     {
         $user = $this->route('agent')->user;
 
-        return parent::authorize() && $user && $this->user()->can('updateStatus', $user);
+        return $this->allows('change_agent_status') && $user && $this->user()->can('updateStatus', $user);
     }
 
     /**

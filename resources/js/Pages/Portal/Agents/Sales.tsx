@@ -5,10 +5,12 @@ import { Link } from "@inertiajs/react";
 import AppLayout from "../../../components/layouts/AppLayout";
 import StyledButton from "../../../components/utils/StyledButton";
 import UserAvatar from "../../../components/utils/user/UserAvatar";
+import DesignationBadges from "../../../components/utils/user/DesignationBadges";
+import { Designations } from "../../../types/app-data-types";
 import AgentSalesView, { AgentSalesProps } from "../../../components/sales/AgentSalesView";
 
 interface AgentSalesPageProps extends AgentSalesProps {
-    agent: { id: number; name: string; avatar: string | null; area: string | null };
+    agent: { id: number; name: string; avatar: string | null; area: string | null } & Designations;
 }
 
 // One agent's sales one by one with their statistics (opened from the search bar or their profile).
@@ -30,7 +32,10 @@ function AgentSales({ agent, ...props }: AgentSalesPageProps) {
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
                     <UserAvatar name={agent.name} src={agent.avatar} size={44} />
                     <Box>
-                        <Typography sx={{ fontWeight: 500, color: "var(--lr-text-primary)" }}>{agent.name}</Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <Typography sx={{ fontWeight: 500, color: "var(--lr-text-primary)" }}>{agent.name}</Typography>
+                            <DesignationBadges person={agent} />
+                        </Box>
                         <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
                             {agent.area ?? "No area"}
                         </Typography>

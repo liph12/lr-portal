@@ -29,6 +29,8 @@ Route::middleware(['auth', 'active'])->group(function(){
 
     require base_path('routes/profile.php');
     require base_path('routes/settings.php');
+    require base_path('routes/genealogy.php');
+    require base_path('routes/commission-receiving.php');
     require base_path('routes/dashboard.php');
     require base_path('routes/reports.php');
     require base_path('routes/my-team.php');
@@ -69,6 +71,7 @@ Route::middleware(['auth', 'active'])->group(function(){
 
         require base_path('routes/staff/staff-dashboard.php');
         require base_path('routes/staff/staff-documentation.php');
+        require base_path('routes/staff/staff-management.php');
         require base_path('routes/staff/staff-sales-validation.php');
 
     });

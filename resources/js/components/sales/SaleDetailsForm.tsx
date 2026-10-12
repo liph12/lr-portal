@@ -7,6 +7,8 @@ import StyledAutocomplete from "../utils/StyledAutocomplete";
 import FieldLabel from "../utils/forms/FieldLabel";
 import UserAvatar from "../utils/user/UserAvatar";
 import SaleFiles from "./SaleFiles";
+import CommissionReceipt from "./CommissionReceipt";
+import { isSlipSale } from "../../helpers/commissionSlip";
 import { condoTypes, countries } from "../../app-data";
 import { showsFloorArea, showsLotArea, showsUnitType } from "../../helpers/projectSaleFields";
 import { formatDate } from "../../helpers/formatDate";
@@ -30,7 +32,7 @@ export interface SaleDetail {
     agent: { id: number; name: string | null; email: string | null; avatar: string | null; area: string } | null;
     client: Row;
     property: Row;
-    names: { developer: string | null; brokerage_area: string | null; property_type: string | null };
+    names: { developer: string | null; brokerage_area: string | null; property_type: string | null; signing_broker?: string | null; received_by?: string | null; team?: string | null; unit_manager?: string | null };
     history: { user?: string; updated_at?: string; description?: string }[];
 }
 
@@ -176,6 +178,7 @@ export default function SaleDetailsForm({ detail, options, statuses, statusLabel
 
             {/* The evidence first: what the validator checks before setting the status. */}
             <SaleFiles detail={detail} />
+            {isSlipSale(detail) && <CommissionReceipt detail={detail} />}
 
             <Section title="Validation">
                 {choice("status", "Status", statuses, statusLabels, 6, true)}

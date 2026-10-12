@@ -69,12 +69,12 @@ class TeamDirectoryService
     }
 
     /**
-     * @param  array{q?: ?string, status?: ?string, team_id?: ?int, agent_type?: ?string, sort?: ?string, dir?: ?string, per_page?: ?int}  $filters
+     * @param  array{q?: ?string, status?: ?string, team_id?: ?int, agent_type?: ?string, designation?: ?string, membership?: ?string, registration?: ?string, sort?: ?string, dir?: ?string, per_page?: ?int}  $filters
      */
     public function agents(array $filters): LengthAwarePaginator
     {
         // Keys are the table's column names.
-        $sorts = ['name' => 'u.name', 'status' => 'u.status', 'agent_type' => 'a.agent_type', 'country' => 'a.country', 'area' => 'a.area', 'role_label' => 'r.label', 'team_name' => 't.name', 'joined_at' => 'ta.joined_at', 'id' => 'a.id', 'activated_at' => 'a.activated_at'];
+        $sorts = ['name' => 'u.name', 'status' => 'u.status', 'agent_type' => 'a.agent_type', 'country' => 'a.country', 'area' => 'a.area', 'role_label' => 'r.label', 'team_name' => 't.name', 'joined_at' => 'ta.joined_at', 'id' => 'a.id', 'activated_at' => 'a.activated_at', 'is_broker' => 'a.is_broker'];
         $sorts['status'] = DB::raw(Agent::statusSql());
 
         $query = DB::table('agents as a')
@@ -87,7 +87,7 @@ class TeamDirectoryService
             ->leftJoin('sub_team_agents as sa', fn ($j) => $j->on('sa.agent_id', '=', 'a.id')->where('sa.status', 'active'))
             ->leftJoin('sub_teams as s', 's.id', '=', 'sa.sub_team_id')
             ->select(
-                'a.id', 'a.avatar', 'a.agent_type', 'a.activity', 'a.activated_at', 'a.country', 'a.country_code', 'a.area', 'u.id as user_id', 'u.name', 'u.email', 'r.name as role', 'r.label as role_label',
+                'a.id', 'a.avatar', 'a.agent_type', 'a.is_broker', 'a.broker_since', 'a.unit_manager_by', 'a.unit_manager_since', 'a.activity', 'a.activated_at', 'a.country', 'a.country_code', 'a.area', 'u.id as user_id', 'u.name', 'u.email', 'r.name as role', 'r.label as role_label',
                 't.id as team_id', 't.name as team_name', 's.id as sub_team_id', 's.name as sub_team_name', 'ta.joined_at',
             );
         // Status as people see it (dormant agents read "inactive"); account_status is what the status menu changes.
@@ -100,10 +100,29 @@ class TeamDirectoryService
         }
         if ($teamId = $filters['team_id'] ?? null) {
             $query->where('ta.team_id', $teamId);
+        } else {
+            // Default: only agents on a team; "no_team" for the rest, "any" for everyone.
+            match ($filters['membership'] ?? 'with_team') {
+                'no_team' => $query->whereNull('ta.team_id'),
+                'any' => null,
+                default => $query->whereNotNull('ta.team_id'),
+            };
         }
+        // Default: fully registered only (registration step 4); unfinished sign-ups on request.
+        match ($filters['registration'] ?? 'complete') {
+            'incomplete' => $query->whereNotIn('a.id', Agent::fullyRegisteredIds()),
+            'any' => null,
+            default => $query->whereIn('a.id', Agent::fullyRegisteredIds()),
+        };
         if ($type = $filters['agent_type'] ?? null) {
             $query->where('a.agent_type', $type);
         }
+        match ($filters['designation'] ?? null) {
+            'broker' => $query->where('a.is_broker', true),
+            'um_rate' => $query->where('a.unit_manager_by', Agent::UM_BY_RATE),
+            'um_dashboard' => $query->where('a.unit_manager_by', Agent::UM_BY_DASHBOARD),
+            default => null,
+        };
 
         return $this->sortAndPage($query, $filters, $sorts, 'name');
     }

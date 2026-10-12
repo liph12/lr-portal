@@ -22,6 +22,8 @@ class UpdatePreferencesRequest extends FormRequest
         return [
             'theme' => ['required', Rule::in(User::THEMES)],
             'font_size' => ['required', Rule::in(User::FONT_SIZES)],
+            'genealogy_per_branch' => ['required', 'integer', Rule::in(User::GENEALOGY_SIZES)],
+            'genealogy_layout' => ['required', Rule::in(User::GENEALOGY_LAYOUTS)],
             'links' => ['required', 'array'],
             'links.default' => ['required', Rule::in(User::LINK_MODES)],
             'links.sections' => ['present', 'array', 'max:50'],

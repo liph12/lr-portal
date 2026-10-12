@@ -18,7 +18,7 @@ beforeEach(function () {
 
 function preferencesPayload(array $overrides = []): array
 {
-    return array_replace_recursive(['theme' => 'dark', 'font_size' => 'large', 'links' => ['default' => 'tab', 'sections' => ['/reports' => 'spa']]], $overrides);
+    return array_replace_recursive(['theme' => 'dark', 'font_size' => 'large', 'genealogy_per_branch' => 20, 'genealogy_layout' => 'horizontal', 'links' => ['default' => 'tab', 'sections' => ['/reports' => 'spa']]], $overrides);
 }
 
 test('every user starts on the defaults and saves their own preferences', function () {
@@ -27,12 +27,14 @@ test('every user starts on the defaults and saves their own preferences', functi
         ->assertInertia(fn ($page) => $page->component('Portal/Settings/Preferences')
             ->where('auth.preferences.theme', null)
             ->where('auth.preferences.font_size', 'default')
+            ->where('auth.preferences.genealogy_per_branch', 5)
+            ->where('auth.preferences.genealogy_layout', 'vertical')
             ->where('auth.preferences.links.default', 'spa')
             ->where('auth.preferences.links.sections', []));
 
     $this->actingAs($this->user)->put('/settings/preferences', preferencesPayload())->assertRedirect()->assertSessionHasNoErrors();
 
-    expect($this->user->fresh()->preferences())->toBe(['theme' => 'dark', 'font_size' => 'large', 'links' => ['default' => 'tab', 'sections' => ['/reports' => 'spa']]]);
+    expect($this->user->fresh()->preferences())->toBe(['theme' => 'dark', 'font_size' => 'large', 'genealogy_per_branch' => 20, 'genealogy_layout' => 'horizontal', 'links' => ['default' => 'tab', 'sections' => ['/reports' => 'spa']]]);
     expect(ActivityLog::where('action', 'preferences.updated')->exists())->toBeTrue();
     $this->actingAs($this->user)->get('/dashboard/main')
         ->assertInertia(fn ($page) => $page->where('auth.preferences.font_size', 'large')->where('auth.preferences.links.sections./reports', 'spa'));
@@ -48,6 +50,8 @@ test('the navbar theme switch saves only the theme', function () {
 
 test('preferences only take known values and menu paths', function () {
     $this->actingAs($this->user)->put('/settings/preferences', preferencesPayload(['font_size' => 'huge']))->assertSessionHasErrors('font_size');
+    $this->actingAs($this->user)->put('/settings/preferences', preferencesPayload(['genealogy_per_branch' => 7]))->assertSessionHasErrors('genealogy_per_branch');
+    $this->actingAs($this->user)->put('/settings/preferences', preferencesPayload(['genealogy_layout' => 'radial']))->assertSessionHasErrors('genealogy_layout');
     $this->actingAs($this->user)->put('/settings/preferences', preferencesPayload(['links' => ['default' => 'popup']]))->assertSessionHasErrors('links.default');
     $this->actingAs($this->user)->put('/settings/preferences', preferencesPayload(['links' => ['sections' => ['/reports' => 'window']]]))->assertSessionHasErrors('links.sections./reports');
     $this->actingAs($this->user)->put('/settings/preferences', preferencesPayload(['links' => ['sections' => ['javascript:alert(1)' => 'tab']]]))->assertSessionHasErrors('links.sections');

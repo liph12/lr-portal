@@ -2,6 +2,7 @@ import { createInertiaApp, router } from "@inertiajs/react";
 import { createRoot } from "react-dom/client";
 import { configureEcho } from "@laravel/echo-react";
 import { AppProvider } from "./providers/AppProvider";
+import AppFeedback from "./components/utils/feedback/AppFeedback";
 import { joinPresence, leavePresence, presenceAuthorizer } from "./helpers/presence";
 
 configureEcho({
@@ -25,6 +26,7 @@ createInertiaApp({
         createRoot(el).render(
             <AppProvider>
                 <App {...props} />
+                <AppFeedback />
             </AppProvider>
         );
     },

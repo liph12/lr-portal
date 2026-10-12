@@ -32,6 +32,9 @@ export type FontSize = "small" | "default" | "large" | "xlarge";
 export interface UserPreferences {
     theme: ThemeMode | null;
     font_size: FontSize;
+    // Genealogy: recruits shown per opened card (User::GENEALOGY_SIZES).
+    genealogy_per_branch: number;
+    genealogy_layout: "vertical" | "horizontal";
     links: LinkPreferences;
 }
 
@@ -60,6 +63,9 @@ export interface AuthUser {
     global_partners: { pending: number } | null;
     // Pending sales this user can validate (menu badge); null when they don't validate sales.
     sales_validation: { pending: number } | null;
+    // Commission slips waiting to be received (the Commission receiving badge), in total and per category the user
+    // receives; null when they receive neither.
+    commission_receiving: { awaiting: number; brokerage?: number; rental?: number } | null;
     view_as_roles: { name: string; label: string }[];
     can: {
         access_superadmin: boolean;
@@ -103,6 +109,6 @@ export interface SharedProps {
     // Only present after the leaderboard panel requests it (optional prop), and null without permission.
     leaderboards?: LeaderboardMonth[] | null;
     online_users: OnlineUser[];
-    flash: { success: string | null };
+    flash: { success: string | null; warning: string | null; error: string | null };
     [key: string]: unknown;
 }

@@ -5,7 +5,6 @@ import { GridColDef } from "@mui/x-data-grid";
 import { router, useForm } from "@inertiajs/react";
 import AppLayout from "../../../../components/layouts/AppLayout";
 import SectionTitle from "../../../../components/utils/SectionTitle";
-import FlashBanner from "../../../../components/utils/FlashBanner";
 import SectionCard from "../../../../components/cards/SectionCard";
 import StyledButton from "../../../../components/utils/StyledButton";
 import StyledTextField from "../../../../components/utils/StyledTextField";
@@ -129,7 +128,6 @@ function SalesCutoffs({ cutoffs, encoding }: SalesCutoffsProps) {
     return (
         <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4 } }}>
             <SectionTitle title="Sales cutoff" subtitle="When each month's sales close, and whether sales can be recorded at all." />
-            <FlashBanner />
             <Box sx={{ mb: 3 }}>
                 <EncodingSwitch encoding={encoding} />
             </Box>

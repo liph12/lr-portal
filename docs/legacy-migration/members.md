@@ -18,7 +18,11 @@ original analysis):
   2024).
 - **Roles come from legacy `users.role_id` → `roles.role`** (matched to the member by email): AGENT →
   Agent, UNIT MANAGER → Unit Manager, SUPERVISOR → Team Leader (the legacy supervisor is the team leader), SECRETARY → Secretary, ADMIN → Admin,
-  BROKER → Broker. Members without a legacy account fall back to `membertype`. CLIENT is skipped.
+  BROKER → Agent. Members without a legacy account fall back to `membertype`. CLIENT is skipped.
+- **Broker is an identifier, not a role** (2026-10-12): `agents.is_broker` = legacy `membertype = 'broker'` (275 members:
+  their accounts are SUPERVISOR 10, UNIT MANAGER 50, AGENT 113, none 102) or a BROKER account role. The 102 without an
+  account had been given a Broker role; `legacy:import-brokers` moved them to team leader (5, lead a team), unit manager
+  (3, lead a sub-team) or agent (94), flagged 273 agents and deleted the role.
   Superadmin is never granted by the import.
 - **Passwords**: the legacy `users` bcrypt hash (or a bcrypt in `members`) is kept; others get a
   random password and must use "Forgot password".

@@ -16,7 +16,10 @@ const SEARCH_DEBOUNCE_MS = 300;
 // Drives a server-paged DataTable from Inertia: page, sort, search and filters live in the URL query and
 // are applied with a partial reload of just `prop`, so the rest of the page (and its layout) stays put.
 // `alsoReload` lists other props that depend on the same filters (e.g. a report's totals and chart).
-export default function useServerTable<R>(prop: string, page: ServerPage<R>, filters: TableFilters, alsoReload: string[] = []) {
+export default function useServerTable<R>(prop: string, page: ServerPage<R>, given: TableFilters, alsoReload: string[] = []) {
+    // PHP sends no filters as `[]`, and `[].sort` is Array.prototype.sort — truthy — which made the grid "sort" by a
+    // column that doesn't exist and reload on arrival.
+    const filters: TableFilters = Array.isArray(given) ? {} : given;
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState(String(filters.q ?? ""));
     const first = useRef(true);

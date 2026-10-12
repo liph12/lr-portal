@@ -4,14 +4,13 @@ import { GroupsRounded, Diversity3Rounded, BadgeRounded, SwapHorizRounded } from
 import { Link, usePage } from "@inertiajs/react";
 import AppLayout from "./AppLayout";
 import StyledButton from "../utils/StyledButton";
-import FlashBanner from "../utils/FlashBanner";
 import SectionTitle from "../utils/SectionTitle";
 import useAuthUser from "../../hooks/useAuthUser";
 
 const TABS = [
-    { name: "Teams", path: "", icon: GroupsRounded },
-    { name: "Sub-teams", path: "/sub-teams", icon: Diversity3Rounded },
     { name: "Agents", path: "/agents", icon: BadgeRounded },
+    { name: "Teams", path: "/teams", icon: GroupsRounded },
+    { name: "Sub-teams", path: "/sub-teams", icon: Diversity3Rounded },
     { name: "Team transfers", path: "/transfers", icon: SwapHorizRounded },
 ];
 
@@ -54,7 +53,6 @@ export default function ManagementLayout({ children }: { children: ReactNode }) 
                         );
                     })}
                 </Box>
-                <FlashBanner />
                 {children}
             </Container>
         </AppLayout>

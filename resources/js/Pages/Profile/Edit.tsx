@@ -2,7 +2,6 @@ import { ReactNode } from "react";
 import { Box, Container, Grid } from "@mui/material";
 import AppLayout from "../../components/layouts/AppLayout";
 import SectionTitle from "../../components/utils/SectionTitle";
-import FlashBanner from "../../components/utils/FlashBanner";
 import SectionCard from "../../components/cards/SectionCard";
 import ProfilePhotoCard from "../../components/cards/ProfilePhotoCard";
 import ProfileDetailsForm from "../../components/utils/forms/ProfileDetailsForm";
@@ -22,7 +21,6 @@ function Edit({ profile, maritalStatuses, maxPhotoKb }: EditProfileProps) {
     return (
         <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4 } }}>
             <SectionTitle title="Edit profile" subtitle="Your photo and details as shown across LR Portal." />
-            <FlashBanner />
 
             <Grid container spacing={3}>
                 <Grid size={{ xs: 12, md: 4 }}>

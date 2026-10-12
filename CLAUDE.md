@@ -117,12 +117,44 @@ at the matching path. Nothing else.
   Go through a service, never straight from the controller. Sale documents go through
   `SaleFileStorage` (compress → `config('filesystems.sale_files_disk')`, `SALE_FILES_DISK`, default
   `s3`; returns the **full object URL**; `discardUploaded()` on failure). A project sale has exactly
-  **one** `proof_of_transaction` (`ProjectSaleService`); a rental (`RentalSaleService`, no developer)
-  stores `remittance_slip` (required — its proof of transaction) and `deposit_slip` (optional), plus
-  `closing_agent` / `partner_agent` **by name** (picked by id via `GET /search/agents`, the second
-  sanctioned typeahead endpoint). A brokerage sale (`BrokerageSaleService`) belongs to an active
-  `brokerage_areas` row instead of a developer, with the same two slips and no agents. The
-  rental/brokerage upload step is `forms/SaleSlipsForm.tsx`; steppers use `hooks/useSaleSteps.ts`
+  **one** `proof_of_transaction` (`ProjectSaleService`). A **rental** (`RentalSaleService`, no developer) is **encoded from the
+  Rent.ph Rent Commission Report Slip**: address (`unit_number`), property type, `property_size`, `rental_rate`, duration
+  (`duration_value` + `duration_unit` days / months / years, also written as `term_of_payment`), remittance date (stored as both
+  dates), amount received → `total_contract_price` = amount / 8.3% (`AgentRentalTransaction::COMMISSION_RATE`); **Rent.ph's 20%
+  share is never stored** (worked out: `RentalSaleService::amounts`, `helpers/commissionSlip.ts`); closing agent (required) and
+  partner agent by name **and id** — the team and unit manager are **looked up** from the closing agent
+  (`RentalSaleService::teamOf`), never stored. A closing agent **with no LR account** is typed in ("Not yet in LR": name,
+  email required, mobile) → `closing_agent` + `unregistered_agent_email` / `_mobile` (last 10 digits), `closing_agent_id` and the
+  sale's `agent_id` null (credited to them); `UnregisteredAgentLinker` links it when an agent with that email or mobile is created
+  (`Agent::created`), or via `php artisan rentals:link-unregistered-agents` after imports; uploads contract, proof of transaction, deposit slip; a Rent.ph-branded slip is
+  generated (preview `POST …/rental/slip-preview`). Agents are picked by id via `GET /search/agents` (the second sanctioned
+  typeahead endpoint). A brokerage sale (`BrokerageSaleService`) belongs to an active
+  `brokerage_areas` row instead of a developer and is **encoded from the Brokerage Commission Report Slip**: the commission
+  received (5% fixed, `AgentBrokerageTransaction::COMMISSION_RATE`) gives `total_contract_price` = commission / 5%; the company
+  share is 15% or 10% (`COMPANY_SHARE_RATES` → `company_share_rate`, `company_share`); closing / partner agents (by name),
+  `signing_broker_id` (an agent with `is_broker`); the **remittance date** is stored as both `remittance_date` and
+  `reservation_date` (cutoffs, reports); uploads `contract`, `proof_of_transaction` (photo with the client), `deposit_slip`
+  (optional) via `forms/SaleDocumentsForm.tsx` (shared with rental). The **commission slip is generated** (`CommissionSlipImage` with a `brokerage` / `rental` layout, GD + Roboto in
+  `resources/fonts/`, stored as `remittance_slip` PNG) with the property owner's name — which is **never stored** (not a
+  column, redacted in `config/activity_log.php`, kept out of flashed input in `bootstrap/app.php`). **Preview** before saving:
+  `POST /dashboard/record-sale/brokerage/slip-preview` (`PreviewBrokerageSlipRequest`, everything optional) returns the same PNG,
+  never stored — `components/sales/CommissionSlipPreview.tsx` (fetch → blob, steps 2–3; rental has its own endpoint). Brokerage and rental slip sales stay pending until
+  someone **signs for them** — **separately**: **Brokerage receiving** (`/brokerage-receiving`, `receive_brokerage_sales`) and
+  **Rental receiving** (`/rental-receiving`, `receive_rental_sales`) — **back office only** (superadmin / admin / staff; secretaries
+  never, migration `000044` took their grants). Filters like Sales validation: remittance dates (default this month; the badges
+  count this month), area, and Awaiting / Received / Disapproved. Actions in `CommissionReceiptService` (`CommissionReceiptPanel`):
+  **receive** (signature + `received_on`, any past date), **change the received date** later (`PATCH …/received-date`, the slip is
+  re-signed: `stampReceived` clears the stub first), **disapprove** a waiting one (`POST …/disapprove`, reason required →
+  `disapproved_by/_at`, `disapproval_reason`, sale invalid, red stamp). One route file `routes/commission-receiving.php` registers
+  both (the route's `category` default fixes each page), one `CommissionReceivingController` / `CommissionReceivingService` /
+  page `Portal/CommissionReceiving/Index` (prop `category`; Awaiting / Received; area reach as Sales validation; a sale only
+  opens / is received from its own category's page). Menu `brokerageReceivingRoute` / `rentalReceivingRoute`, badges from
+  `auth.commission_receiving.{brokerage,rental}`. The drawer shows the slip and files and a `forms/SignaturePad.tsx` (canvas →
+  PNG data URL, `--lr-paper-*` tokens stay light in dark mode); `POST /{brokerage,rental}-receiving/{sale}/receive`
+  (`ReceiveCommissionRequest`: a real, non-blank PNG, not already received) stores the signature (`received_signature`),
+  sets `received_by` / `received_at`, validates the sale and signs the slip in place (signature + name + date, green
+  "Received" pill). Sales validation / report details show the state via `CommissionReceipt` (links to the receiving page).
+  Legacy brokerage and rental sales (no `commission_rate`) keep their uploaded remittance slip. Steppers use `hooks/useSaleSteps.ts`
   (never blocks navigation — leaving a step only flags its missing fields; submit checks all). Shared sale rules live in `Requests/Portal/Sales/SaleRequest.php`;
   the shared sale row + client details in `Services/SaleRecord.php`. **Measurements follow the
   property type** (`ProjectPropertyType::WITH_*`, mirrored in `helpers/projectSaleFields.ts`): condo →
@@ -132,8 +164,13 @@ at the matching path. Nothing else.
   `auth` group; `Portal\ProfileController`). A user's agent record is created on first use by
   `ProfileService::agentFor()`. Photos are cropped to 512px WebP by `ProfilePhotoService` and the full
   URL is stored in `agents.avatar` (shared as `auth.avatar`). Render people with
-  `components/utils/user/UserAvatar.tsx` (photo, falling back to initials). Flash messages:
-  `components/utils/FlashBanner.tsx`; titled panels: `components/cards/SectionCard.tsx`.
+  `components/utils/user/UserAvatar.tsx` (photo, falling back to initials). Titled panels: `components/cards/SectionCard.tsx`.
+- **Feedback (every page, nothing to add per form)**: `components/utils/feedback/AppFeedback.tsx`, mounted once in `app.tsx`, listens
+  to Inertia's router events: a small **"Saving… / Uploading n%" modal** for every non-GET visit (after 350 ms, so quick saves
+  don't flash it; not for background writes with `only: [...]` or `async`), and **toasts** (one at a time): the server's flash
+  — `->with('success' | 'warning' | 'error', '…')`, shared as `flash` — validation errors ("Please check the form: …"), a write
+  landing on the Error page, network / server failures. Client-side ones: `toast.success / error / warning / info` from
+  `helpers/toast.ts`. There's no inline flash banner any more — don't add one.
 - **Settings › Preferences** (`/settings/preferences`, `routes/settings.php`, `Portal\PreferencesController`,
   `UserPreferenceService`; every user, gated by permission `use_preferences` — migration `000036` gave it to every role, a
   role made later has it only if ticked): `users.preferences` = `{theme, font_size, links: {default, sections}}`
@@ -248,19 +285,36 @@ at the matching path. Nothing else.
   `PersonCell`. Small sets (< ~1k rows) are sent whole and filtered in the browser (Management Teams);
   large ones are **server-paged** with `hooks/useServerTable.ts` (page/sort/search/filters in the URL
   query, partial reload of one prop; the controller returns `{data,total,page,per_page}` and accepts
-  sort keys equal to the column `field`s — see `TeamDirectoryService`). Controlled grid models (`sortModel`, `paginationModel`) must be
+  sort keys equal to the column `field`s — see `TeamDirectoryService`). PHP sends empty filters as `[]` (the hook treats an array as none —
+  `[].sort` is a function). Controlled grid models (`sortModel`, `paginationModel`) must be
   memoised: DataGrid re-applies them on every new reference and treats a new sort model as a sort, resetting to page 1. Status cells: `StatusChip` /
   `StatusMenu` (PATCH `{status}`, confirm for destructive ones); photo cells: `PhotoUploadButton`.
-- **Management** (`/superadmin/management` and `/admin/management`, same pages in
+- **Management** (`/{superadmin,admin,staff}/management`, same pages in
   `Pages/Portal/Management/`, routes from `routes/management.php` called per portal, guarded by
-  `can:manage,Team` = `TeamPolicy` → superadmin + admin): Teams, Sub-teams, Agents, Team transfers.
+  `can:manage,Team` = `TeamPolicy::manage` → **any of the five Management permissions**, so ticking one for a role opens it): Agents (the default — `/management` redirects to
+  `/management/agents`; by default only agents **on a team** and **fully registered**: filters `membership=no_team|any`,
+  `registration=incomplete|any`, shown with `FilterSelect hideAll`; clicking a name opens `AgentDetailDrawer` — the search's `PersonDetails`, from optional prop
+  `agentDetail` (`?agent=ID`, `PersonDetailsService`, shared with `/search/users`) + "View profile"), Teams (`/management/teams`),
+  Sub-teams, Team transfers. Menu: Management sits right under Dashboard. **Each kind of change is its own permission**
+  (`Permission::MANAGEMENT`, section "Management", migration `000040` gave all five to superadmin + admin): `edit_designation`
+  (also the agent's type), `transfer_agents`, `change_agent_status` (also the agent's photo), `edit_teams` (create / edit / logo of
+  teams and sub-teams), `change_team_status` —
+  checked in each Form Request via `ManagementRequest::allows()`, on top of `can:manage,Team`; the pages hide or disable the
+  control with `hooks/useCan.ts`.
   Logic in `TeamManagementService` (writes) / `TeamDirectoryService` (reads). Team & sub-team statuses
   are `Team::STATUSES` (active, inactive = paused, deactivated = closed: ends every active stint today
   and deactivates its sub-teams). A **transfer** never edits history: it closes the current
   `team_agents` / `sub_team_agents` row (`inactive`, `transferred_at` = date) and opens a new active one —
   one active stint per agent per table. Team photos go through `ProfilePhotoService::uploadSquare`
   (`team-logos/`). Agent status/photo: admins may change agents and staff but not admins/superadmins
-  (`UserPolicy::updateStatus/updatePhoto`).
+  (`UserPolicy::updateStatus/updatePhoto`); anyone else given Management (e.g. staff) only field roles, not the back office. **Designation** (Agents table → `forms/DesignationDialog.tsx`, radio buttons + dates;
+  `PUT …/agents/{agent}/designation`, `UpdateDesignationRequest`, same reach; `AgentDesignationService`, logged
+  `agent.designation_changed`): **Unit Manager by rate** = designation only, they keep their role and dashboard; **by dashboard** =
+  the Unit Manager role (via `RolePermissionService::assignRole`, only from agent / global partner; leaving it goes back to Agent);
+  `agents.unit_manager_by` (`Agent::UM_BASES`) + `unit_manager_since`, and **Broker** `is_broker` + `broker_since` (dates required,
+  not in the future). Filter `designation=um_dashboard|um_rate|broker`. Every place that shows a person sends
+  `Agent::designationsOf()` and renders `components/utils/user/DesignationBadges.tsx` beside the role (UM by rate, Broker; dates in
+  the tooltip, printed on the profile) — search rows, profile, agent sales, genealogy cards, the agents table.
 - **Documentation** (`/{superadmin,admin,staff}/documentation`, routes from `routes/documentation.php` called per portal,
   `can:manage,AgentDocument` = permission `manage_documents`; `Portal\DocumentationController`, `AgentDocumentService`):
   agents' requirement documents in `agent_documents` (type `AgentDocument::TYPES`, status `AgentDocument::STATUSES`,
@@ -306,6 +360,20 @@ at the matching path. Nothing else.
   flags (`FlagIcon`, `BarList` `leading`), sales by client country, trend, top partners (everyone who sold); long lists are
   `PagedBarList` (10 per page, one bar scale across pages, a name search box once a list has more than one page —
   `searchLabel`). Sponsors may open their partners' profiles.
+- **Genealogy** (`/genealogy`, `routes/genealogy.php`, `Portal\GenealogyController`, `GenealogyService`; permission
+  `view_genealogy`, migration `000037` gave it to every role; menu `genealogyRoute`): the recruit tree — sponsor =
+  `agent_attributes.referral_id` — as fixed-size cards (`components/genealogy/GenealogyCard`, `CARD_W`/`CARD_H`) on a pan-and-zoom canvas
+  (`GenealogyTree`: top-down layout computed in the component, SVG connectors, drag / wheel / pinch / buttons, fit, fold all;
+  any card opens at any depth), fully registered agents
+  only (the top card shows whatever its step). Everyone opens their own tree and any card below them (`?agent=ID`); back office
+  picks anyone, an office secretary agents of their areas and everyone below them (`canView` walks up the sponsor chain).
+  The picker is `AgentPicker` with `searchUrl="/genealogy/search"` (+ `role` = team_leader / unit_manager / agent). Branches
+  load as cards open, biggest downline first, `limit` at a time after the ones shown: optional prop `branch`
+  (`?parent=&offset=&limit=`, `router.reload` with `preserveUrl` + `async`). "Recruits per card" (`User::GENEALOGY_SIZES`, default
+  5) and the layout (`User::GENEALOGY_LAYOUTS`: vertical = levels as rows, horizontal = levels as columns) are Preferences
+  (`genealogy_per_branch`, `genealogy_layout`), also switchable on the canvas (`PUT /settings/preferences/genealogy`,
+  `UpdateGenealogyPreferenceRequest`, either field); a smaller number trims what's open to the best few. "Sponsored by" shows the chain above, only as far up as the reader may see. Legacy has
+  self-sponsored agents (and maybe loops): the service excludes them and the tree never repeats a card in its own path.
 - **Office secretaries** (`offices`, legacy `legacy:import-offices`, `docs/legacy-migration/offices.md`): each office has an
   area and an assigned secretary (`secretary_agent_id`). `OfficeService::areasFor($user)` is that secretary's reach —
   from the data, not the role. It drives: **Sales validation** at the shared `/sales-validation` (`routes/sales-validation.php`
@@ -418,7 +486,9 @@ at the matching path. Nothing else.
   credits a sale to the team its agent was on at the reservation date (`team_agents` history).
 - **Legacy data**: the old system is restored locally as database `lr_legacy` (connection `legacy`,
   read-only use). Imports are artisan commands backed by services in `app/Services/Legacy/`
-  (`legacy:import-members`; legacy SUPERVISOR = `team_leader`, there is no supervisor role): idempotent by email, `--dry-run` rolls back, rejects go to
+  (`legacy:import-members`; legacy SUPERVISOR = `team_leader`, there is no supervisor role; **Broker is not a role** —
+  `agents.is_broker`, from legacy `members.membertype = 'broker'` whatever the account's role, `legacy:import-brokers` backfills
+  it and retired the old Broker role (its holders → team leader / unit manager by leadership, else agent)): idempotent by email, `--dry-run` rolls back, rejects go to
   `storage/app/private/legacy-import/`. Mapping and decisions: `docs/legacy-migration/`.
   `agents.agent_type` is `Agent::TYPES` (local, global_partner): global = legacy `national_intern` international
   + joined ≥ 2024-02-01 + country not PH (`Agent::typeFromLegacy`, `LegacyAgentOrigin`, `legacy:import-agent-types`
@@ -449,7 +519,7 @@ at the matching path. Nothing else.
   `users.updated_at` via `legacy:import-last-activity` for now, activity logs later), shown by `PersonDetails` on expand; team leaders / unit managers also search, finding only the current members of the groups
   they lead — `TeamLeadershipService::ledMemberIds` — whose profiles they may open with sales), teams / sub-teams / areas from `GET /search/groups` (`GroupSearchService`, same reach as
   reports: back office → any group, opening `/reports/top-agents?team_id|sub_team_id|area=`; leaders → only groups they
-  lead, opening My Team; `auth.can.search_groups`) — with `/search/agents` and `/search/users/{user}/certificates` (FIRE courses from realestatetraining.ph via
+  lead, opening My Team; `auth.can.search_groups`) — with `/search/agents`, `/genealogy/search` and `/search/users/{user}/certificates` (FIRE courses from realestatetraining.ph via
   `FireCertificateService`: `user.score`, max 3, course/date/score only, cached 1h, `services.fire_certificates.url`), the
   **only sanctioned JSON endpoints**, because typeahead can't be an
   Inertia visit. Don't add other JSON endpoints without the same reason. Who may do what is shared as
