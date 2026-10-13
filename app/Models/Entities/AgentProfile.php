@@ -15,6 +15,11 @@ class AgentProfile extends Model
         'twitter',
         'linkedin',
         'whatsapp',
+        'links',
+    ];
+
+    protected $casts = [
+        'links' => 'array',
     ];
 
     public function agent(): BelongsTo

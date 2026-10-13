@@ -54,6 +54,7 @@ function businessPayload(array $overrides = []): array
         'twitter' => '',
         'linkedin' => '',
         'whatsapp' => '09171234567',
+        'links' => [['label' => 'My website', 'url' => 'https://philip.example.com']],
     ], $overrides);
 }
 
@@ -119,6 +120,7 @@ test('the business profile page has only its own fields and saves them', functio
         ->assertInertia(fn ($page) => $page
             ->component('Profile/Business')
             ->where('business.about', '')
+            ->where('business.links', [])
             ->where('slug', null)
             ->missing('business.first_name'));
 
@@ -133,6 +135,7 @@ test('the business profile page has only its own fields and saves them', functio
         ->and($agent->profile->facebook)->toBe('https://facebook.com/philip')
         ->and($agent->profile->instagram)->toBe('https://instagram.com/philip')
         ->and($agent->profile->whatsapp)->toBe('09171234567')
+        ->and($agent->profile->links)->toBe([['label' => 'My website', 'url' => 'https://philip.example.com']])
         ->and(ActivityLog::where('action', 'profile.business_updated')->count())->toBe(1);
 
     // Both forms edit the same record, so Edit profile shows what the business page saved.
@@ -141,8 +144,8 @@ test('the business profile page has only its own fields and saves them', functio
         ->assertInertia(fn ($page) => $page->where('profile.about', 'Top producer since 2020.')->where('profile.mobile', '09171234567'));
 
     $this->actingAs($this->user)
-        ->post('/profile/business', businessPayload(['facebook' => 'not a url']))
-        ->assertSessionHasErrors(['facebook']);
+        ->post('/profile/business', businessPayload(['facebook' => 'not a url', 'links' => [['label' => '', 'url' => 'nope']]]))
+        ->assertSessionHasErrors(['facebook', 'links.0.label', 'links.0.url']);
 });
 
 test('a photo is cropped square, compressed to webp and stored as a full url', function () {

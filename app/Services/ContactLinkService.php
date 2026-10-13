@@ -52,7 +52,7 @@ class ContactLinkService
     }
 
     /**
-     * What the public business profile shows: the contact card plus the About text and social links.
+     * What the public business profile shows: the contact card plus the About text, social links and "My Links".
      *
      * @return array<string, mixed>
      */
@@ -74,7 +74,28 @@ class ContactLinkService
                 'linkedin' => self::link($profile?->linkedin),
                 'whatsapp' => self::whatsapp($profile?->whatsapp),
             ],
+            'links' => self::links($profile?->links),
         ];
+    }
+
+    /**
+     * "My Links" ready for the card: each label with its link made absolute; entries that aren't links are dropped.
+     *
+     * @param  array<int, array{label?: string|null, url?: string|null}>|null  $links
+     * @return array<int, array{label: string, url: string}>
+     */
+    public static function links(?array $links): array
+    {
+        $out = [];
+        foreach ($links ?? [] as $link) {
+            $label = trim((string) ($link['label'] ?? ''));
+            $url = self::link($link['url'] ?? null);
+            if ($label !== '' && $url) {
+                $out[] = ['label' => $label, 'url' => $url];
+            }
+        }
+
+        return $out;
     }
 
     // A pasted profile link, with https:// added when it was left out; anything that isn't a link is dropped.

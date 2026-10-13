@@ -1,8 +1,9 @@
 import { ReactNode } from "react";
-import { Dialog, DialogContent, DialogTitle, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import { Box, Dialog, DialogContent, DialogTitle, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import { CloseRounded, LinkRounded, WhatsApp, X } from "@mui/icons-material";
 import { FacebookGlyph, LinkedInGlyph } from "./BrandGlyphs";
 import DotsQrCode from "./DotsQrCode";
+import QR_LOGO from "../../../assets/qr-logo.png";
 import { toast } from "../../helpers/toast";
 
 interface ShareCardDialogProps {
@@ -32,14 +33,14 @@ export default function ShareCardDialog({ open, onClose, url, name }: ShareCardD
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth slotProps={{ paper: { sx: { borderRadius: 5, backgroundColor: "var(--lr-surface)" } } }}>
-            <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 22, fontWeight: 700, color: "var(--lr-text-primary)" }}>
+        <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth slotProps={{ paper: { sx: { borderRadius: 5, backgroundColor: "var(--lr-surface)", m: { xs: 2, sm: 4 }, width: { xs: "calc(100% - 32px)", sm: "100%" } } } }}>
+            <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: { xs: 2.5, sm: 3 }, fontSize: { xs: 20, sm: 22 }, fontWeight: 700, color: "var(--lr-text-primary)" }}>
                 Share this card
                 <IconButton onClick={onClose} aria-label="Close" sx={{ color: "var(--lr-text-secondary)" }}>
                     <CloseRounded />
                 </IconButton>
             </DialogTitle>
-            <DialogContent sx={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", pb: 4 }}>
+            <DialogContent sx={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", px: { xs: 2.5, sm: 3 }, pb: { xs: 3, sm: 4 } }}>
                 <Stack
                     sx={{
                         mt: 1,
@@ -51,16 +52,19 @@ export default function ShareCardDialog({ open, onClose, url, name }: ShareCardD
                         border: "4px solid var(--lr-outline)",
                     }}
                 >
-                    <DotsQrCode value={url} size={180} label="QR code for this card" />
+                    <Box sx={{ width: { xs: 150, sm: 180 }, height: { xs: 150, sm: 180 }, "& svg": { width: "100%", height: "100%" } }}>
+                        <DotsQrCode value={url} size={180} label="QR code for this card" logo={QR_LOGO} logoRatio={160 / 251} />
+                    </Box>
                 </Stack>
 
-                <Typography sx={{ mt: 3, fontSize: 16, lineHeight: 1.7, color: "var(--lr-text-body)" }}>
+                <Typography sx={{ mt: { xs: 2.5, sm: 3 }, fontSize: { xs: 15, sm: 16 }, lineHeight: 1.7, color: "var(--lr-text-body)" }}>
                     Point your camera at the QR code,
                     <br />
                     or share via socials:
                 </Typography>
 
-                <Stack direction="row" justifyContent="center" gap={2} sx={{ mt: 3 }}>
+                {/* Five badges: smaller and allowed to wrap so they never spill past a phone's edges. */}
+                <Stack direction="row" flexWrap="wrap" justifyContent="center" gap={{ xs: 1.5, sm: 2 }} sx={{ mt: { xs: 2.5, sm: 3 }, width: "100%" }}>
                     {TARGETS.map((t) => (
                         <Tooltip key={t.label} title={`Share on ${t.label}`}>
                             <IconButton
@@ -70,9 +74,9 @@ export default function ShareCardDialog({ open, onClose, url, name }: ShareCardD
                                 rel="noopener noreferrer"
                                 aria-label={`Share on ${t.label}`}
                                 sx={{
-                                    width: 56,
-                                    height: 56,
-                                    fontSize: 30,
+                                    width: { xs: 48, sm: 56 },
+                                    height: { xs: 48, sm: 56 },
+                                    fontSize: { xs: 26, sm: 30 },
                                     position: "relative",
                                     overflow: "hidden",
                                     background: t.background,
@@ -90,9 +94,9 @@ export default function ShareCardDialog({ open, onClose, url, name }: ShareCardD
                             onClick={copyLink}
                             aria-label="Copy link"
                             sx={{
-                                width: 56,
-                                height: 56,
-                                fontSize: 30,
+                                width: { xs: 48, sm: 56 },
+                                height: { xs: 48, sm: 56 },
+                                fontSize: { xs: 26, sm: 30 },
                                 backgroundColor: "var(--lr-surface-container)",
                                 color: "var(--lr-text-body)",
                                 ":hover": { backgroundColor: "var(--lr-surface-hover)" },

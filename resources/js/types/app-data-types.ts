@@ -138,6 +138,12 @@ export interface ProfileFields {
 }
 
 // Profile › Business profile: what the public business profile shows beyond the agent's basic details.
+// One "My Links" entry on the business profile: a label and where it goes.
+export interface BusinessLink {
+    label: string;
+    url: string;
+}
+
 export interface BusinessProfileFields {
     about: string;
     mobile: string;
@@ -146,6 +152,7 @@ export interface BusinessProfileFields {
     twitter: string;
     linkedin: string;
     whatsapp: string;
+    links: BusinessLink[];
 }
 
 export interface RoleItem {

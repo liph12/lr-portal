@@ -78,6 +78,7 @@ class ProfileController extends Controller
                 'twitter' => $agent?->profile?->twitter ?? '',
                 'linkedin' => $agent?->profile?->linkedin ?? '',
                 'whatsapp' => $agent?->profile?->whatsapp ?? '',
+                'links' => $agent?->profile?->links ?? [],
             ],
             'slug' => $links->slugForUser($user),
         ]);

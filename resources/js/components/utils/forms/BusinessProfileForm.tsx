@@ -1,10 +1,10 @@
 import { ChangeEvent, FormEvent, ReactNode } from "react";
-import { Box, FormHelperText, Grid, InputAdornment } from "@mui/material";
-import { Facebook, Instagram, LinkedIn, PhoneRounded, WhatsApp, X } from "@mui/icons-material";
+import { Box, FormHelperText, Grid, IconButton, InputAdornment, Stack } from "@mui/material";
+import { AddRounded, DeleteOutlineRounded, Facebook, Instagram, LanguageRounded, LinkedIn, PhoneRounded, WhatsApp, X } from "@mui/icons-material";
 import { useForm } from "@inertiajs/react";
 import StyledTextField from "../StyledTextField";
 import StyledButton from "../StyledButton";
-import { BusinessProfileFields } from "../../../types/app-data-types";
+import { BusinessLink, BusinessProfileFields } from "../../../types/app-data-types";
 
 interface BusinessProfileFormProps {
     business: BusinessProfileFields;
@@ -30,6 +30,7 @@ const adornment = (icon: ReactNode) => ({
 });
 
 // Profile › Business profile: only what the public business profile shows (POST /profile/business).
+const MAX_LINKS = 10;
 export default function BusinessProfileForm({ business }: BusinessProfileFormProps) {
     const form = useForm<BusinessProfileFields>(business);
 
@@ -37,6 +38,24 @@ export default function BusinessProfileForm({ business }: BusinessProfileFormPro
         const key = e.target.name as keyof BusinessProfileFields;
         form.setData(key, e.target.value);
         if (form.errors[key]) form.clearErrors(key);
+    };
+
+    // "My Links" rows: validation errors come back keyed links.<row>.<field>.
+    const linkError = (index: number, key: keyof BusinessLink) => (form.errors as Record<string, string | undefined>)[`links.${index}.${key}`] ?? null;
+    const setLink = (index: number, key: keyof BusinessLink, value: string) => {
+        form.setData(
+            "links",
+            form.data.links.map((link, i) => (i === index ? { ...link, [key]: value } : link)),
+        );
+        form.clearErrors(`links.${index}.${key}` as keyof BusinessProfileFields);
+    };
+    const addLink = () => form.setData("links", [...form.data.links, { label: "", url: "" }]);
+    const removeLink = (index: number) => {
+        form.setData(
+            "links",
+            form.data.links.filter((_, i) => i !== index),
+        );
+        form.clearErrors("links");
     };
 
     const handleSubmit = (e: FormEvent) => {
@@ -85,6 +104,62 @@ export default function BusinessProfileForm({ business }: BusinessProfileFormPro
                     placeholder: "09XX XXX XXXX",
                     helper: "This number will be used for client communication features.",
                 })}
+
+                <Grid size={12}>
+                    <Label text="My Links (Optional)" />
+                    <FormHelperText sx={{ ml: 0.5, mb: 1, color: "var(--lr-text-secondary)" }}>
+                        Your website, listings, booking page or anything else. Each one shows on your business profile with a globe icon.
+                    </FormHelperText>
+                    <Stack gap={1.5}>
+                        {form.data.links.map((link, index) => (
+                            <Box
+                                key={index}
+                                sx={{
+                                    display: "grid",
+                                    gridTemplateColumns: { xs: "minmax(0, 1fr) auto", sm: "minmax(0, 1fr) minmax(0, 1.6fr) auto" },
+                                    gap: 1,
+                                    alignItems: "start",
+                                }}
+                            >
+                                <StyledTextField
+                                    name={`links.${index}.label`}
+                                    placeholder="Label, e.g. My website"
+                                    value={link.label}
+                                    error={linkError(index, "label")}
+                                    handleChange={(e) => setLink(index, "label", e.target.value)}
+                                    props={adornment(<LanguageRounded fontSize="small" />)}
+                                />
+                                <Box sx={{ gridColumn: { xs: "1 / 2", sm: "auto" }, gridRow: { xs: 2, sm: "auto" } }}>
+                                    <StyledTextField
+                                        name={`links.${index}.url`}
+                                        type="url"
+                                        placeholder="https://"
+                                        value={link.url}
+                                        error={linkError(index, "url")}
+                                        handleChange={(e) => setLink(index, "url", e.target.value)}
+                                    />
+                                </Box>
+                                <IconButton
+                                    aria-label="Remove link"
+                                    onClick={() => removeLink(index)}
+                                    sx={{ mt: 0.25, color: "var(--lr-text-secondary)", ":hover": { color: "var(--lr-error)" } }}
+                                >
+                                    <DeleteOutlineRounded />
+                                </IconButton>
+                            </Box>
+                        ))}
+                    </Stack>
+                    {form.errors.links && <FormHelperText sx={{ ml: 0.5, color: "var(--lr-error)" }}>{form.errors.links}</FormHelperText>}
+                    <StyledButton
+                        type="button"
+                        startIcon={<AddRounded />}
+                        onClick={addLink}
+                        disabled={form.data.links.length >= MAX_LINKS}
+                        sx={{ mt: 1, px: 1.5, color: "var(--lr-primary)" }}
+                    >
+                        Add link
+                    </StyledButton>
+                </Grid>
             </Grid>
 
             <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mt: 3 }}>

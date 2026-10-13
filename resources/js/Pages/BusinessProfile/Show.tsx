@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { Box, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import {
+    ArrowForwardRounded,
     ChatBubbleOutlineRounded,
     ChevronRightRounded,
     DownloadRounded,
@@ -8,6 +9,7 @@ import {
     ExpandMoreRounded,
     EmailRounded,
     Instagram,
+    LanguageRounded,
     PhoneRounded,
     PlaceRounded,
     ShareRounded,
@@ -25,6 +27,7 @@ import ShareCardDialog from "../../components/utils/ShareCardDialog";
 import DotsQrCode from "../../components/utils/DotsQrCode";
 import UserAvatar from "../../components/utils/user/UserAvatar";
 import COVER_IMAGE from "../../../assets/business-profile-cover.jpg";
+import QR_LOGO from "../../../assets/qr-logo.png";
 
 interface BusinessProfile {
     name: string;
@@ -44,7 +47,15 @@ interface BusinessProfile {
         linkedin: string | null;
         whatsapp: string | null;
     };
+    links: { label: string; url: string }[];
 }
+
+// The pin logo in the middle of every QR (160×251 px).
+const QR_LOGO_RATIO = 160 / 251;
+
+// A link as people read it: no scheme, no trailing slash.
+const prettyUrl = (url: string) =>
+    url.replace(/^https?:\/\//i, "").replace(/\/$/, "");
 
 interface ShowProps {
     slug: string;
@@ -120,7 +131,14 @@ const secondaryActionSx = {
 // A bold heading with the short red rule under it, as on the mock.
 function SectionTitle({ children }: { children: string }) {
     return (
-        <Box>
+        // The underline follows the parent's alignment, so it sits centred under a centred title.
+        <Box
+            sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "inherit",
+            }}
+        >
             <Typography
                 component="h2"
                 sx={{
@@ -150,10 +168,19 @@ interface InfoRowProps {
     value: string;
     href: string;
     external?: boolean;
+    // "arrow": a filled primary circle with an arrow (My Links); default: a plain chevron (Contact Information).
+    trailing?: "chevron" | "arrow";
 }
 
-// A tappable card: the whole row opens the dialer, mail app, WhatsApp or the map.
-function InfoRow({ icon, label, value, href, external }: InfoRowProps) {
+// A tappable card: the whole row opens the dialer, mail app, WhatsApp, the map or the agent's link.
+function InfoRow({
+    icon,
+    label,
+    value,
+    href,
+    external,
+    trailing = "chevron",
+}: InfoRowProps) {
     return (
         <Box
             component="a"
@@ -171,11 +198,15 @@ function InfoRow({ icon, label, value, href, external }: InfoRowProps) {
                 backgroundColor: "var(--lr-surface)",
                 color: "var(--lr-text-primary)",
                 textDecoration: "none",
+                // Left-aligned even inside the phone layout's centred column.
+                textAlign: "left",
                 transition: "background-color 0.15s, border-color 0.15s",
                 ":hover": {
                     backgroundColor: "var(--lr-surface-dim)",
                     borderColor: "var(--lr-outline)",
                 },
+                // The link arrow tilts to point up-right while the row is hovered.
+                ":hover .link-arrow": { transform: "rotate(-45deg)" },
             }}
         >
             <Box
@@ -212,9 +243,30 @@ function InfoRow({ icon, label, value, href, external }: InfoRowProps) {
                     {value}
                 </Typography>
             </Box>
-            <ChevronRightRounded
-                sx={{ color: "var(--lr-text-secondary)", flexShrink: 0 }}
-            />
+            {trailing === "arrow" ? (
+                <Box
+                    sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 99,
+                        flexShrink: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: "var(--lr-primary)",
+                        color: "var(--lr-on-primary)",
+                    }}
+                >
+                    <ArrowForwardRounded
+                        className="link-arrow"
+                        sx={{ fontSize: 20, transition: "transform 0.2s" }}
+                    />
+                </Box>
+            ) : (
+                <ChevronRightRounded
+                    sx={{ color: "var(--lr-text-secondary)", flexShrink: 0 }}
+                />
+            )}
         </Box>
     );
 }
@@ -575,6 +627,52 @@ export default function Show({ slug, agent }: ShowProps) {
                             </Box>
                         </Box>
 
+                        {/* The agent's own links: its own grid row under the left column, so the buttons above stay level with Contact Information and the links may run on below it */}
+                        {agent.links.length > 0 && (
+                            <Box
+                                component="section"
+                                sx={{
+                                    gridColumn: { md: 1 },
+                                    gridRow: { md: 2 },
+                                    width: "100%",
+                                    maxWidth: 760,
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: {
+                                        xs: "center",
+                                        md: "flex-start",
+                                    },
+                                }}
+                            >
+                                <SectionTitle>My Links</SectionTitle>
+                                <Box
+                                    sx={{
+                                        mt: 2.5,
+                                        width: "100%",
+                                        display: "grid",
+                                        gap: 1.25,
+                                        // Two columns from md so a long list stays short beside the right column.
+                                        gridTemplateColumns: {
+                                            xs: "minmax(0, 1fr)",
+                                            md: "repeat(2, minmax(0, 1fr))",
+                                        },
+                                    }}
+                                >
+                                    {agent.links.map((link, index) => (
+                                        <InfoRow
+                                            key={index}
+                                            icon={<LanguageRounded />}
+                                            label={link.label}
+                                            value={prettyUrl(link.url)}
+                                            href={link.url}
+                                            external
+                                            trailing="arrow"
+                                        />
+                                    ))}
+                                </Box>
+                            </Box>
+                        )}
+
                         {/* QR + socials panel (overlaps the cover on desktop), then the contact rows */}
                         <Stack
                             gap={3.5}
@@ -582,6 +680,8 @@ export default function Show({ slug, agent }: ShowProps) {
                                 mt: { md: -2 },
                                 position: "relative",
                                 justifyContent: { md: "space-between" },
+                                gridColumn: { md: 2 },
+                                gridRow: { md: 1 },
                             }}
                         >
                             <Box
@@ -597,20 +697,41 @@ export default function Show({ slug, agent }: ShowProps) {
                                     textAlign: "center",
                                 }}
                             >
+                                {/* Tapping the QR opens the same share dialog as the Share button. */}
                                 <Box
+                                    component="button"
+                                    type="button"
+                                    onClick={() => setSharing(true)}
+                                    aria-label="Share this card"
                                     sx={{
                                         p: 1.5,
                                         borderRadius: 4,
                                         lineHeight: 0,
+                                        border: 0,
+                                        cursor: "pointer",
                                         // Always white so phone cameras read it in dark mode too.
                                         backgroundColor: "var(--lr-logo-tile)",
                                         boxShadow: "0 4px 16px rgba(0,0,0,.08)",
+                                        transition:
+                                            "transform 0.15s, box-shadow 0.15s",
+                                        ":hover": {
+                                            transform: "translateY(-2px)",
+                                            boxShadow:
+                                                "0 8px 20px rgba(0,0,0,.14)",
+                                        },
+                                        ":focus-visible": {
+                                            outline:
+                                                "3px solid var(--lr-primary)",
+                                            outlineOffset: 2,
+                                        },
                                     }}
                                 >
                                     <DotsQrCode
                                         value={profileUrl}
                                         size={150}
                                         label="QR code for this profile"
+                                        logo={QR_LOGO}
+                                        logoRatio={QR_LOGO_RATIO}
                                     />
                                 </Box>
                                 <Typography
@@ -702,10 +823,12 @@ export default function Show({ slug, agent }: ShowProps) {
                             position: "relative",
                             overflow: "hidden",
                             py: 2.5,
-                            px: 2,
+                            pl: 2,
+                            // Keep the text clear of the corner shapes on narrow screens.
+                            pr: { xs: 15, sm: 2 },
                             borderTop: "1px solid var(--lr-border)",
                             backgroundColor: "var(--lr-surface-dim)",
-                            textAlign: "center",
+                            textAlign: { xs: "left", sm: "center" },
                             // The two-tone red corner of the mock: a bright slanted stripe in front of a darker block.
                             "::before, ::after": {
                                 content: '""',
@@ -717,19 +840,21 @@ export default function Show({ slug, agent }: ShowProps) {
                                     "polygon(40% 0, 100% 0, 100% 100%, 0 100%)",
                             },
                             "::before": {
-                                width: { xs: 130, sm: 280 },
+                                width: { xs: 104, sm: 280 },
                                 backgroundColor: "var(--lr-primary)",
                             },
                             "::after": {
-                                width: { xs: 90, sm: 200 },
+                                width: { xs: 72, sm: 200 },
                                 backgroundColor: "var(--lr-primary-hover)",
                             },
                         }}
                     >
                         <Typography
                             sx={{
+                                position: "relative",
                                 color: "var(--lr-text-secondary)",
                                 fontSize: { xs: 12, sm: 14 },
+                                lineHeight: 1.5,
                             }}
                         >
                             © Leuterio Realty | {new Date().getFullYear()} All
