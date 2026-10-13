@@ -92,8 +92,9 @@ class HandleInertiaRequests extends Middleware
                 'avatar' => $request->user()->agent()->value('avatar'),
                 // Imported agents keep their legacy member id, which is also their referral number.
                 'agent_id' => $request->user()->agent()->value('id'),
-                // The public contact page's path (Your links); null until the account has an agent record.
-                'contact_url' => app(ContactLinkService::class)->urlFor($request->user()),
+                // The slug of the public contact page and business profile (Your links); null until the account has an
+                // agent record.
+                'contact_slug' => app(ContactLinkService::class)->slugForUser($request->user()),
                 // Settings › Preferences (links, theme, text size); null without use_preferences = defaults.
                 'preferences' => app(UserPreferenceService::class)->sharedFor($request->user()),
                 'can' => [

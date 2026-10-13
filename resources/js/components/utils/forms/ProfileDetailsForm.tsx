@@ -1,5 +1,6 @@
-import { ChangeEvent, FormEvent } from "react";
-import { Box, FormHelperText, Grid, Typography } from "@mui/material";
+import { ChangeEvent, FormEvent, ReactNode } from "react";
+import { Box, FormHelperText, Grid, InputAdornment, Typography } from "@mui/material";
+import { Facebook, Instagram, LinkedIn, WhatsApp, X } from "@mui/icons-material";
 import { useForm } from "@inertiajs/react";
 import StyledTextField from "../StyledTextField";
 import StyledAutocomplete from "../StyledAutocomplete";
@@ -64,7 +65,20 @@ export default function ProfileDetailsForm({ profile, maritalStatuses, action = 
         });
     };
 
-    const text = (name: keyof ProfileFields, label: string, opts: { required?: boolean; type?: string; placeholder?: string; size?: number } = {}) => (
+    // The network's icon at the start of its link field, so the row reads at a glance.
+    const adornment = (icon: ReactNode) => ({
+        slotProps: {
+            input: {
+                startAdornment: (
+                    <InputAdornment position="start" sx={{ color: "var(--lr-text-secondary)" }}>
+                        {icon}
+                    </InputAdornment>
+                ),
+            },
+        },
+    });
+
+    const text = (name: keyof ProfileFields, label: string, opts: { required?: boolean; type?: string; placeholder?: string; size?: number; icon?: ReactNode } = {}) => (
         <Grid size={{ xs: 12, sm: opts.size ?? 6, md: opts.size ?? 4 }}>
             <Label text={label} required={opts.required} />
             <StyledTextField
@@ -74,6 +88,7 @@ export default function ProfileDetailsForm({ profile, maritalStatuses, action = 
                 value={(form.data[name] as string) ?? ""}
                 error={form.errors[name] ?? null}
                 handleChange={handleChange}
+                props={opts.icon ? adornment(opts.icon) : undefined}
             />
         </Grid>
     );
@@ -121,22 +136,38 @@ export default function ProfileDetailsForm({ profile, maritalStatuses, action = 
                 {text("state", "Province")}
             </Grid>
 
-            <GroupTitle>ABOUT & SOCIAL</GroupTitle>
+            <GroupTitle>BUSINESS PROFILE</GroupTitle>
             <Grid container spacing={2}>
                 <Grid size={12}>
-                    <Label text="About" />
+                    <Label text="About me" />
                     <StyledTextField
                         name="about"
-                        placeholder="A short line clients will see, e.g. specialties or areas you cover"
+                        placeholder="Tell clients who you are: your specialties, the areas you cover, your experience"
                         value={form.data.about}
                         error={form.errors.about ?? null}
                         handleChange={handleChange}
-                        props={{ multiline: true, rows: 2, slotProps: { htmlInput: { maxLength: 255 } } }}
+                        props={{ multiline: true, minRows: 4, slotProps: { htmlInput: { maxLength: 1000 } } }}
                     />
                 </Grid>
-                {text("facebook", "Facebook", { type: "url", placeholder: "https://facebook.com/…" })}
-                {text("linkedin", "LinkedIn", { type: "url", placeholder: "https://linkedin.com/in/…" })}
-                {text("whatsapp", "WhatsApp", { type: "tel" })}
+                {text("facebook", "Facebook profile link (optional)", { icon: <Facebook fontSize="small" />, type: "url", placeholder: "https://facebook.com/yourusername", size: 6 })}
+                {text("instagram", "Instagram profile link (optional)", { icon: <Instagram fontSize="small" />, type: "url", placeholder: "https://instagram.com/yourusername", size: 6 })}
+                {text("twitter", "X (Twitter) profile link (optional)", { icon: <X fontSize="small" />, type: "url", placeholder: "https://x.com/yourusername", size: 6 })}
+                {text("linkedin", "LinkedIn profile link (optional)", { icon: <LinkedIn fontSize="small" />, type: "url", placeholder: "https://linkedin.com/in/yourusername", size: 6 })}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                    <Label text="WhatsApp number (optional)" />
+                    <StyledTextField
+                        name="whatsapp"
+                        type="tel"
+                        placeholder="09XX XXX XXXX"
+                        value={form.data.whatsapp}
+                        error={form.errors.whatsapp ?? null}
+                        handleChange={handleChange}
+                        props={adornment(<WhatsApp fontSize="small" />)}
+                    />
+                    <FormHelperText sx={{ ml: 0.5, color: "var(--lr-text-secondary)" }}>
+                        Clients message you here from your business profile.
+                    </FormHelperText>
+                </Grid>
             </Grid>
 
             <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mt: 3 }}>

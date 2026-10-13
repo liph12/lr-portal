@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Profile\UpdateBusinessProfileRequest;
 use App\Http\Requests\Profile\UpdatePasswordRequest;
 use App\Http\Requests\Profile\UpdateProfilePhotoRequest;
 use App\Http\Requests\Profile\UpdateProfileRequest;
 use App\Models\Entities\Agent;
+use App\Services\ContactLinkService;
 use App\Services\ProfilePhotoService;
 use App\Services\ProfileService;
 use Illuminate\Http\Request;
@@ -43,6 +45,8 @@ class ProfileController extends Controller
                 'state' => $agent?->state ?? '',
                 'about' => $agent?->profile?->about ?? '',
                 'facebook' => $agent?->profile?->facebook ?? '',
+                'instagram' => $agent?->profile?->instagram ?? '',
+                'twitter' => $agent?->profile?->twitter ?? '',
                 'linkedin' => $agent?->profile?->linkedin ?? '',
                 'whatsapp' => $agent?->profile?->whatsapp ?? '',
             ],
@@ -57,6 +61,33 @@ class ProfileController extends Controller
         $this->profiles->update($request->user(), $request->validated());
 
         return back()->with('success', 'Profile saved.');
+    }
+
+    // Profile › Business profile: only what the public business profile shows.
+    public function business(Request $request, ContactLinkService $links)
+    {
+        $user = $request->user();
+        $agent = $user->agent?->load('profile');
+
+        return inertia('Profile/Business', [
+            'business' => [
+                'about' => $agent?->profile?->about ?? '',
+                'mobile' => $agent?->mobile ?? '',
+                'facebook' => $agent?->profile?->facebook ?? '',
+                'instagram' => $agent?->profile?->instagram ?? '',
+                'twitter' => $agent?->profile?->twitter ?? '',
+                'linkedin' => $agent?->profile?->linkedin ?? '',
+                'whatsapp' => $agent?->profile?->whatsapp ?? '',
+            ],
+            'slug' => $links->slugForUser($user),
+        ]);
+    }
+
+    public function updateBusiness(UpdateBusinessProfileRequest $request)
+    {
+        $this->profiles->updateBusiness($request->user(), $request->validated());
+
+        return back()->with('success', 'Business profile saved.');
     }
 
     public function updatePhoto(UpdateProfilePhotoRequest $request)

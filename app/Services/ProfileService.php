@@ -75,11 +75,13 @@ class ProfileService
             'state' => $data['state'] ?? null,
         ]);
 
+        // Instagram / X are only on the agent's own forms; a form without them (edit_agent_profile) leaves them alone.
         $agent->profile()->updateOrCreate([], [
             'about' => $data['about'] ?? null,
             'facebook' => $data['facebook'] ?? null,
             'linkedin' => $data['linkedin'] ?? null,
             'whatsapp' => $data['whatsapp'] ?? null,
+            ...array_intersect_key($data, array_flip(['instagram', 'twitter'])),
         ]);
 
         // The account and the agent record describe the same person; keep them in step.
@@ -87,6 +89,33 @@ class ProfileService
             'name' => trim("{$data['first_name']} {$data['last_name']}"),
             'email' => $data['email'],
         ]);
+
+        return $agent;
+    }
+
+    /**
+     * Profile › Business profile: what the public business profile shows beyond the agent's basic details.
+     *
+     * @param  array<string, mixed>  $data  validated UpdateBusinessProfileRequest input
+     */
+    public function updateBusiness(User $user, array $data): Agent
+    {
+        $agent = DB::transaction(function () use ($user, $data) {
+            $agent = $this->agentFor($user);
+            $agent->update(['mobile' => $data['mobile'] ?? null]);
+            $agent->profile()->updateOrCreate([], [
+                'about' => $data['about'] ?? null,
+                'facebook' => $data['facebook'] ?? null,
+                'instagram' => $data['instagram'] ?? null,
+                'twitter' => $data['twitter'] ?? null,
+                'linkedin' => $data['linkedin'] ?? null,
+                'whatsapp' => $data['whatsapp'] ?? null,
+            ]);
+
+            return $agent;
+        });
+
+        $this->activity->describe('profile.business_updated', 'Updated business profile', $agent);
 
         return $agent;
     }

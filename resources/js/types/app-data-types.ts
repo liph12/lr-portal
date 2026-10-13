@@ -131,6 +131,19 @@ export interface ProfileFields {
     state: string;
     about: string;
     facebook: string;
+    instagram: string;
+    twitter: string;
+    linkedin: string;
+    whatsapp: string;
+}
+
+// Profile › Business profile: what the public business profile shows beyond the agent's basic details.
+export interface BusinessProfileFields {
+    about: string;
+    mobile: string;
+    facebook: string;
+    instagram: string;
+    twitter: string;
     linkedin: string;
     whatsapp: string;
 }

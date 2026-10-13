@@ -16,6 +16,17 @@ class ContactController extends Controller
         private ContactInquiryService $inquiries,
     ) {}
 
+    // The social-media-style public profile: about, contact details, social links, and the way to the inquiry form.
+    public function profile(string $slug)
+    {
+        $agent = $this->links->resolve($slug) ?? abort(404);
+
+        return inertia('BusinessProfile/Show', [
+            'slug' => $slug,
+            'agent' => $this->links->profile($agent->load('profile')),
+        ]);
+    }
+
     public function show(string $slug)
     {
         $agent = $this->links->resolve($slug) ?? abort(404);

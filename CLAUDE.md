@@ -173,17 +173,27 @@ at the matching path. Nothing else.
   — `->with('success' | 'warning' | 'error', '…')`, shared as `flash` — validation errors ("Please check the form: …"), a write
   landing on the Error page, network / server failures. Client-side ones: `toast.success / error / warning / info` from
   `helpers/toast.ts`. There's no inline flash banner any more — don't add one.
-- **Contact page** (public `/contact/{slug}`, `routes/contact.php` required **outside** the `auth` group; `Portal\ContactController`,
-  `Pages/Contact/Show.tsx` — outside `AppLayout`, scrolls itself like the auth pages): the agent card (name, title — "Licensed Real
+- **Business profile & contact page** (public, `routes/contact.php` required **outside** the `auth` group; `Portal\ContactController`;
+  pages outside `AppLayout` that scroll themselves like the auth pages, with the reduced navbar `components/layouts/PublicHeader.tsx`
+  — logo, Dashboard / Sign out for a signed-in user, Sign in otherwise). **Business profile** `/business-profile/{slug}`
+  (`Pages/BusinessProfile/Show.tsx`, `ContactLinkService::profile`): a social-media-style profile — cover, avatar, name, title,
+  area, year joined, About me (`agent_profiles.about`, text), contact details, social buttons (`agent_profiles.facebook`
+  cleaned by `SocialLinks::facebook`, `instagram` / `twitter` / `linkedin` by `ContactLinkService::link`, `whatsapp` → `wa.me`
+  with `whatsapp()`; edited on its own page `/profile/business` — `ProfileController::business/updateBusiness`,
+  `UpdateBusinessProfileRequest`, `ProfileService::updateBusiness` (logged `profile.business_updated`), `Pages/Profile/Business.tsx` +
+  `forms/BusinessProfileForm.tsx` (About me, mobile, Facebook/Instagram/X/LinkedIn links, WhatsApp) — the same fields also stay in the main `/profile` form (`ProfileDetailsForm` › Business profile group); both write the same columns, so they are always in sync), Save contact + Send inquiry.
+  **Contact page** `/contact/{slug}` (`Pages/Contact/Show.tsx`): the agent card (name, title — "Licensed Real
   Estate Broker" when `is_broker` —, avatar, mobile, email, city + province, "Save contact" = `GET …/vcard`) and the inquiry form
   (`POST …`, throttled, `StoreContactInquiryRequest`, consent box `accepted`) → `contact_inquiries` (`ContactInquiry`, `ROLES` /
   `TYPES` constants are the two dropdowns; `ContactInquiryService::submit`, logged `contact.inquiry`) and **emailed to the agent**
   (`Mail\ContactInquiryReceived`, queued, markdown `views/mail/contact-inquiry`, reply-to = the sender; needs `MAIL_MAILER` — the
   legacy `MAIL_DRIVER` key is ignored). Nobody reads inquiries in the app yet (Inbox is under construction). **Slug** = `agents.contact_slug` (unique), made by
   `ContactLinkService::slugFor` from first + last name the first time it's needed, `-2`, `-3`… on duplicates, and **never changed
-  afterwards** (shared links keep working after a rename). Shared as `auth.contact_url` (null until the account has an agent record —
-  `DashboardController::index` creates one like `/profile`), shown in Dashboard › Your links (`helpers/userLinks.ts`; the card's
-  Copy / Share buttons work). Only agents whose account is `active` resolve; others 404.
+  afterwards** (shared links keep working after a rename). Shared as `auth.contact_slug` (null until the account has an agent record —
+  `DashboardController::index` creates one like `/profile`); Dashboard › Your links shows both as `LR | route` like the referral links
+  (`helpers/userLinks.ts`: `url` is the shown text, `href` the real path that Copy / Share prefix with the origin, `settings` adds a gear
+  button → `/profile/business`). Only agents whose account is `active` resolve; others 404.
+  The public name is first + last only (`ContactLinkService::displayName`; the middle name stays in the vCard `N` field). The business profile follows the Leuterio mock: blue `--lr-primary*` accent, two columns from `md` (avatar with red ring + name + verified mark + chips "Leuterio Realty & Brokerage" / province (`profile()['province']` = title-cased `agents.state`) / "Filipino Homes", About Me, Contact me / Save card / Share; right: QR + "Connect with me" badges panel, Contact Information cards that open tel: / mailto: / wa.me / Google Maps), stacked on phones. Social badges use the scheme-independent `--lr-brand-*` tokens in app.css (official brand colours, white mark); the Twitter field is shown as X. QR codes: `components/utils/DotsQrCode.tsx` (round dots + rounded eyes, module grid from the `qrcode` package). Share opens `ShareCardDialog` (QR + share-to links for Facebook / LinkedIn / X / WhatsApp + copy link).
 - **Settings › Preferences** (`/settings/preferences`, `routes/settings.php`, `Portal\PreferencesController`,
   `UserPreferenceService`; every user, gated by permission `use_preferences` — migration `000036` gave it to every role, a
   role made later has it only if ticked): `users.preferences` = `{theme, font_size, links: {default, sections}}`

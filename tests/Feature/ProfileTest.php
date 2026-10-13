@@ -37,6 +37,21 @@ function profilePayload(array $overrides = []): array
         'state' => 'Cebu',
         'about' => 'Top producer since 2020.',
         'facebook' => 'https://facebook.com/philip',
+        'instagram' => 'https://instagram.com/philip',
+        'twitter' => '',
+        'linkedin' => '',
+        'whatsapp' => '09171234567',
+    ], $overrides);
+}
+
+function businessPayload(array $overrides = []): array
+{
+    return array_merge([
+        'about' => 'Top producer since 2020.',
+        'mobile' => '09171234567',
+        'facebook' => 'https://facebook.com/philip',
+        'instagram' => 'https://instagram.com/philip',
+        'twitter' => '',
         'linkedin' => '',
         'whatsapp' => '09171234567',
     ], $overrides);
@@ -77,6 +92,7 @@ test('saving creates the agent record and keeps the account in sync', function (
         ->and($agent->city)->toBe('Cebu City')
         ->and($agent->profile->about)->toBe('Top producer since 2020.')
         ->and($agent->profile->facebook)->toBe('https://facebook.com/philip')
+        ->and($agent->profile->instagram)->toBe('https://instagram.com/philip')
         ->and($this->user->fresh()->name)->toBe('Phil Libres')
         ->and($this->user->fresh()->email)->toBe('phil@example.com');
 
@@ -94,6 +110,39 @@ test('an email used by someone else is rejected', function () {
         ->assertSessionHasErrors(['email', 'facebook']);
 
     expect(Agent::count())->toBe(0);
+});
+
+test('the business profile page has only its own fields and saves them', function () {
+    $this->actingAs($this->user)
+        ->get('/profile/business')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Profile/Business')
+            ->where('business.about', '')
+            ->where('slug', null)
+            ->missing('business.first_name'));
+
+    $this->actingAs($this->user)
+        ->post('/profile/business', businessPayload())
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Business profile saved.');
+
+    $agent = Agent::with('profile')->sole();
+    expect($agent->mobile)->toBe('09171234567')
+        ->and($agent->profile->about)->toBe('Top producer since 2020.')
+        ->and($agent->profile->facebook)->toBe('https://facebook.com/philip')
+        ->and($agent->profile->instagram)->toBe('https://instagram.com/philip')
+        ->and($agent->profile->whatsapp)->toBe('09171234567')
+        ->and(ActivityLog::where('action', 'profile.business_updated')->count())->toBe(1);
+
+    // Both forms edit the same record, so Edit profile shows what the business page saved.
+    $this->actingAs($this->user)
+        ->get('/profile')
+        ->assertInertia(fn ($page) => $page->where('profile.about', 'Top producer since 2020.')->where('profile.mobile', '09171234567'));
+
+    $this->actingAs($this->user)
+        ->post('/profile/business', businessPayload(['facebook' => 'not a url']))
+        ->assertSessionHasErrors(['facebook']);
 });
 
 test('a photo is cropped square, compressed to webp and stored as a full url', function () {

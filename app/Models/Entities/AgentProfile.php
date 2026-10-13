@@ -11,6 +11,8 @@ class AgentProfile extends Model
         'agent_id',
         'about',
         'facebook',
+        'instagram',
+        'twitter',
         'linkedin',
         'whatsapp',
     ];

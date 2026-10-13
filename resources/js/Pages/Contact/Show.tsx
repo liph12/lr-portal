@@ -1,21 +1,8 @@
 import { FormEvent, ReactNode, useState } from "react";
-import { Box, Checkbox, Divider, Grid, Stack, Tooltip, Typography } from "@mui/material";
-import {
-    CheckCircleRounded,
-    DownloadRounded,
-    EmailRounded,
-    HomeRounded,
-    LoginRounded,
-    LogoutRounded,
-    PhoneRounded,
-    PlaceRounded,
-    SendRounded,
-} from "@mui/icons-material";
-import { Head, Link, router, useForm } from "@inertiajs/react";
-import useAuthUser from "../../hooks/useAuthUser";
-import { leavePresence } from "../../helpers/presence";
-import AppLogo from "../../components/utils/AppLogo";
-import ThemeModeToggle from "../../components/utils/ThemeModeToggle";
+import { Box, Checkbox, Divider, Grid, Stack, Typography } from "@mui/material";
+import { CheckCircleRounded, DownloadRounded, EmailRounded, PhoneRounded, PlaceRounded, SendRounded } from "@mui/icons-material";
+import { Head, useForm } from "@inertiajs/react";
+import PublicHeader from "../../components/layouts/PublicHeader";
 import StyledButton from "../../components/utils/StyledButton";
 import StyledTextField from "../../components/utils/StyledTextField";
 import StyledAutocomplete from "../../components/utils/StyledAutocomplete";
@@ -63,68 +50,6 @@ function Label({ text, required = false }: { text: string; required?: boolean })
             {text}
             {required && <Box component="span" sx={{ color: "var(--lr-error)", ml: 0.5 }}>*</Box>}
         </Typography>
-    );
-}
-
-const headerButtonSx = {
-    px: 1.5,
-    color: "var(--lr-text-body)",
-    "& .MuiButton-startIcon": { color: "var(--lr-text-secondary)" },
-    ":hover": { backgroundColor: "var(--lr-surface-hover)" },
-};
-
-// The dashboard navbar, reduced: logo, Dashboard, theme, and Sign out for a signed-in user (Sign in otherwise).
-function ContactHeader() {
-    const user = useAuthUser();
-    const [signingOut, setSigningOut] = useState(false);
-
-    const signOut = () => {
-        // Leave first so others see you go offline immediately, not when the socket times out.
-        leavePresence();
-        router.post("/logout", {}, { onStart: () => setSigningOut(true), onFinish: () => setSigningOut(false) });
-    };
-
-    return (
-        <Box
-            component="header"
-            sx={{
-                flexShrink: 0,
-                py: 1,
-                px: { xs: 1, sm: 2 },
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                backgroundColor: "var(--lr-surface)",
-                borderBottom: "1px solid var(--lr-border)",
-            }}
-        >
-            <AppLogo sx={{ width: 70 }} />
-            <Stack direction="row" spacing={{ xs: 0, sm: 0.5 }} alignItems="center">
-                {user ? (
-                    <>
-                        <Tooltip title="Dashboard">
-                            <StyledButton component={Link} href={user.home} size="small" startIcon={<HomeRounded />} sx={headerButtonSx}>
-                                <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Dashboard</Box>
-                            </StyledButton>
-                        </Tooltip>
-                        <ThemeModeToggle />
-                        <UserAvatar name={user.name} src={user.avatar} size={30} sx={{ mx: 0.5 }} />
-                        <Tooltip title="Sign out">
-                            <StyledButton size="small" onClick={signOut} disabled={signingOut} startIcon={<LogoutRounded />} sx={{ ...headerButtonSx, color: "var(--lr-error)", "& .MuiButton-startIcon": { color: "inherit" } }}>
-                                <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>{signingOut ? "Signing out…" : "Sign out"}</Box>
-                            </StyledButton>
-                        </Tooltip>
-                    </>
-                ) : (
-                    <>
-                        <ThemeModeToggle />
-                        <StyledButton component={Link} href="/login" size="small" startIcon={<LoginRounded />} sx={headerButtonSx}>
-                            Sign in
-                        </StyledButton>
-                    </>
-                )}
-            </Stack>
-        </Box>
     );
 }
 
@@ -189,7 +114,7 @@ export default function Show({ slug, agent, options }: ShowProps) {
         >
             <Head title={`Contact ${agent.name}`} />
 
-            <ContactHeader />
+            <PublicHeader />
 
             <Box sx={{ flex: 1, px: { xs: 2, sm: 3 }, py: { xs: 3, sm: 5 } }}>
                 <Box
