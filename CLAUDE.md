@@ -474,7 +474,9 @@ at the matching path. Nothing else.
   Managers = agents with role `unit_manager`, own sales; Top Teams, Top Sub-teams, Developer / Brokerage / Rental
   Sales — brokerage and rental rank agents). Also **Top Team Leaders** (`team_leaders` view: role members' own sales, like `unit_managers` — `ROLE_VIEWS`) and
   **Developers by Area** (`area-developers` = the developers view + an area picker `areaOptions` for unlocked readers; a
-  developer opens `/reports/top-agents?area=…&developer_id=…`). Inside a developer the page has **Top agents | Sales** tabs: `list=sales` sends
+  developer opens `/reports/top-agents?area=…&developer_id=…`). Inside a developer the page has **Top agents | Top teams | Top sub-teams | Sales** tabs, inside a branch the first
+  three (the team tabs only for the back office and office secretaries — `groupTabs`; `list=teams|sub_teams` switches the view, a
+  team clicked there keeps the developer / branch): `list=sales` sends
   `saleList` (`SalesReportService::saleList`, same filters, newest reservation first, read-only, searchable by agent / client / project / unit via `q` — `ReportSaleList`); a row opens the sale **read-only** in a drawer
   (`?sale=ID` → `saleDetail`, only if `SalesReportService::containsSale` — in this report's filters and the reader's reach —
   data from `SaleValidationService::detail`, shown by `SaleDetailsView`: files incl. proof of transaction, client, property,

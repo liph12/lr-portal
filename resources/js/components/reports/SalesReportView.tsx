@@ -37,8 +37,9 @@ export interface ReportFilters extends TableFilters {
     category: string | null;
     status: string;
     view: string;
-    // "sales" inside a developer: list its sales one by one.
+    // Inside a developer: "sales" lists its sales one by one; inside a developer or a branch "teams" / "sub_teams" rank its groups.
     list?: string | null;
+    developer_id?: number | null;
 }
 
 // The group a drill-down is limited to (clicked from the Teams / Sub-teams / Developers / Areas table).
@@ -46,6 +47,8 @@ export type ReportScope = ReportScopeDetails;
 
 export interface SalesReportViewProps {
     filters: ReportFilters;
+    // Inside a developer or a branch, offer Top teams / Top sub-teams (Reports, for the back office and office secretaries).
+    groupTabs?: boolean;
     scope?: ReportScope | null;
     summary: ReportSummary;
     breakdown: ServerPage<ReportRow>;
@@ -108,11 +111,13 @@ const selectSx = {
 
 // The sales report body: filters, the ranked table first, then the statistics underneath.
 // Used by Dashboard › View Sales (with view tabs) and by each card under Reports (one view).
-export default function SalesReportView({ filters, scope = null, summary, breakdown, options, title, subtitle, fixedView = false, backHref, lockScope = false, header, areaOptions = null, saleList = null, saleDetail = null }: SalesReportViewProps) {
+export default function SalesReportView({ filters, scope = null, summary, breakdown, options, title, subtitle, fixedView = false, backHref, lockScope = false, header, areaOptions = null, saleList = null, saleDetail = null, groupTabs = false }: SalesReportViewProps) {
     // The scope header changes with a drill-down, so it reloads with the table.
     const table = useServerTable("breakdown", breakdown, filters, ["summary", "scope", "saleList"]);
     // A developer opens on its top agents; the Sales tab lists its sales one by one (same filters, read-only).
     const insideDeveloper = scope?.type === "developer";
+    // A branch (clicked, or an office secretary's own) can rank its teams / sub-teams too.
+    const insideBranch = scope?.type === "area";
     const showSales = insideDeveloper && filters.list === "sales" && !!saleList;
 
     const view = VIEWS[filters.view] ?? VIEWS.agents;
@@ -132,8 +137,16 @@ export default function SalesReportView({ filters, scope = null, summary, breakd
             return;
         }
         if (!drill) return;
-        // A developer opened from an area keeps the area: its agents who sold there.
-        const keep = { from: filters.from, to: filters.to, status: filters.status, category: filters.category ?? "", area: drill.key === "developer_id" ? String(filters.area ?? "") : "" };
+        // A developer opened from an area keeps the area: its agents who sold there. A team / sub-team ranked inside a
+        // developer or a branch keeps it: that group's agents for that developer / in that branch.
+        const keep = {
+            from: filters.from,
+            to: filters.to,
+            status: filters.status,
+            category: filters.category ?? "",
+            area: drill.key === "developer_id" || insideBranch ? String(filters.area ?? "") : "",
+            developer_id: insideDeveloper && drill.key !== "developer_id" ? String(filters.developer_id ?? "") : "",
+        };
         if (fixedView) {
             router.get("/reports/top-agents", Object.fromEntries(Object.entries({ ...keep, [drill.key]: row.id }).filter(([, v]) => v !== "")));
         } else {
@@ -269,11 +282,18 @@ export default function SalesReportView({ filters, scope = null, summary, breakd
                     {hint}
                 </Typography>
             )}
-            {insideDeveloper && (
+            {(insideDeveloper || (insideBranch && groupTabs)) && (
                 <Box role="tablist" aria-label="What to list" sx={{ display: "flex", gap: 1, mb: 2 }}>
                     {[
                         { value: "", label: "Top agents" },
-                        { value: "sales", label: "Sales" },
+                        // Ranking its teams / sub-teams: the back office and office secretaries (Reports only).
+                        ...(groupTabs
+                            ? [
+                                  { value: "teams", label: "Top teams" },
+                                  { value: "sub_teams", label: "Top sub-teams" },
+                              ]
+                            : []),
+                        ...(insideDeveloper ? [{ value: "sales", label: "Sales" }] : []),
                     ].map((t) => {
                         const active = (filters.list ?? "") === t.value;
                         return (

@@ -481,3 +481,43 @@ test('an agent\'s sales page lists their sales with statistics, for whoever may 
     $this->actingAs($ana)->get("/agents/{$this->ben}/sales")->assertForbidden();
     $this->actingAs($ana)->get("/agents/{$this->ana}/sales")->assertOk();
 });
+
+test('inside a developer the back office can rank its teams and sub-teams; a team leader can\'t', function () {
+    $range = 'from=2026-01-01&to=2026-10-11';
+    $sub = DB::table('sub_teams')->insertGetId(['name' => 'Alpha One', 'team_id' => $this->alpha, 'agent_id' => $this->ana, 'status' => 'active']);
+    DB::table('sub_team_agents')->insert(['sub_team_id' => $sub, 'agent_id' => $this->ana, 'joined_at' => '2020-01-01', 'status' => 'active']);
+
+    $this->actingAs($this->superadmin)->get("/reports/top-agents?{$range}&developer_id=10&list=teams")
+        ->assertInertia(fn ($page) => $page->where('groupTabs', true)->where('filters.view', 'teams')->where('filters.list', 'teams')
+            ->where('breakdown.total', 1)
+            // Ana's 10M project sale for developer 10 (her brokerage sale isn't this developer's).
+            ->where('breakdown.data.0', fn ($r) => $r['name'] === 'Alpha' && (float) $r['value'] === 10_000_000.0));
+    $this->actingAs($this->superadmin)->get("/reports/top-agents?{$range}&developer_id=10&list=sub_teams")
+        ->assertInertia(fn ($page) => $page->where('filters.view', 'sub_teams')->where('breakdown.data.0.name', 'Alpha One'));
+    // A team clicked inside the developer: that team's agents for it.
+    $this->actingAs($this->superadmin)->get("/reports/top-agents?{$range}&developer_id=10&team_id={$this->alpha}")
+        ->assertInertia(fn ($page) => $page->where('filters.view', 'agents')->where('breakdown.total', 1)->where('breakdown.data.0.name', 'Ana Reyes'));
+
+    // A team leader (locked to their team) gets the plain Top agents.
+    $leaderRole = Role::create(['name' => 'team_leader', 'label' => 'Team Leader']);
+    grantReports($leaderRole);
+    $ana = User::find(DB::table('agents')->where('id', $this->ana)->value('user_id'));
+    $ana->roles()->attach($leaderRole);
+    $this->actingAs($ana)->get("/reports/top-agents?{$range}&developer_id=10&list=teams")
+        ->assertInertia(fn ($page) => $page->where('groupTabs', false)->where('filters.view', 'agents')->where('filters.list', null));
+});
+
+test('inside a branch the back office can rank its teams and sub-teams too', function () {
+    $range = 'from=2026-01-01&to=2026-10-11';
+    DB::table('agents')->where('id', $this->ana)->update(['area' => 'cebu']);
+    DB::table('agents')->where('id', $this->ben)->update(['area' => 'davao']);
+
+    // Cebu: Ana's 10M project + 6M brokerage, on Alpha. Ben (Davao) isn't counted.
+    $this->actingAs($this->superadmin)->get("/reports/top-agents?{$range}&area=cebu&list=teams")
+        ->assertInertia(fn ($page) => $page->where('groupTabs', true)->where('filters.view', 'teams')->where('scope.type', 'area')
+            ->where('breakdown.total', 1)
+            ->where('breakdown.data.0', fn ($r) => $r['name'] === 'Alpha' && (float) $r['value'] === 16_000_000.0));
+    // A team clicked inside the branch: its agents in that branch.
+    $this->actingAs($this->superadmin)->get("/reports/top-agents?{$range}&area=cebu&team_id={$this->alpha}")
+        ->assertInertia(fn ($page) => $page->where('filters.view', 'agents')->where('filters.area', 'cebu')->where('breakdown.data.0.name', 'Ana Reyes'));
+});

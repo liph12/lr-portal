@@ -106,9 +106,21 @@ class ReportsController extends Controller
         abort_unless(in_array($report, $this->available($lock, $request->user()), true), 404);
         $filters = $this->reports->lockedFilters(['view' => self::REPORTS[$report]] + $request->query(), $lock);
 
+        // Inside a developer or a branch, its Top teams / Top sub-teams: for readers who see more than their own group — the
+        // back office and office secretaries (their branch's members). A leader's lock would only rank their own group.
+        $groupTabs = $lock === null || isset($lock['area']);
+        if (in_array($filters['list'], ['teams', 'sub_teams'], true)) {
+            if ($groupTabs && ($filters['developer_id'] || $filters['area'])) {
+                $filters['view'] = $filters['list'];
+            } else {
+                $filters['list'] = null;
+            }
+        }
+
         return inertia('Portal/Reports/Show', [
             'report' => $report,
             'filters' => $filters,
+            'groupTabs' => $groupTabs,
             'scopeLocked' => $lock !== null,
             // Developers by Area picks the area — for readers who see every area (a locked reader's group can't change).
             'areaOptions' => $report === 'area-developers' && $lock === null

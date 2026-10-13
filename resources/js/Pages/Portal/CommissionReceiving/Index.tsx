@@ -1,12 +1,13 @@
-import { ReactNode } from "react";
+import { ElementType, ReactNode } from "react";
 import { Box, Drawer, IconButton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
-import { CloseRounded } from "@mui/icons-material";
+import { BlockRounded, CheckCircleRounded, CloseRounded, HourglassTopRounded } from "@mui/icons-material";
 import { router } from "@inertiajs/react";
 import { GridColDef } from "@mui/x-data-grid";
 import ManagementLayout from "../../../components/layouts/ManagementLayout";
 import DataTable from "../../../components/utils/tables/DataTable";
 import TableToolbar from "../../../components/utils/tables/TableToolbar";
 import PersonCell from "../../../components/utils/tables/PersonCell";
+import StatusChip, { statusTone } from "../../../components/utils/StatusChip";
 import CommissionReceiptPanel from "../../../components/sales/CommissionReceiptPanel";
 import DateRangeField from "../../../components/utils/DateRangeField";
 import FilterSelect from "../../../components/utils/tables/FilterSelect";
@@ -60,14 +61,15 @@ const CATEGORY = {
 
 const toggleSx = {
     "& .MuiToggleButton-root": { textTransform: "none", px: 2, py: 0.75, fontSize: 14, gap: 1, borderColor: "var(--lr-border)", color: "var(--lr-text-secondary)" },
-    "& .Mui-selected": { color: "var(--lr-primary) !important", backgroundColor: "var(--lr-primary-soft) !important" },
 };
 
-const Count = ({ n }: { n: number }) => (
-    <Box component="span" sx={{ px: 0.875, borderRadius: 99, fontSize: 12, fontWeight: 600, backgroundColor: "var(--lr-surface-container)" }}>
-        {n}
-    </Box>
-);
+// Colour-coded like the sale statuses they end in: awaiting = pending (amber), received = valid (green), disapproved =
+// invalid (red), each with its icon so it doesn't rest on colour alone.
+const RECEIPT_STATUSES: { value: "awaiting" | "received" | "disapproved"; label: string; tone: string; icon: ElementType }[] = [
+    { value: "awaiting", label: "Awaiting receipt", tone: "pending", icon: HourglassTopRounded },
+    { value: "received", label: "Received", tone: "valid", icon: CheckCircleRounded },
+    { value: "disapproved", label: "Disapproved", tone: "invalid", icon: BlockRounded },
+];
 
 const str = (v: unknown) => (v === null || v === undefined || v === "" ? null : String(v));
 
@@ -215,15 +217,18 @@ function CommissionReceiving({ category, sales, filters, counts, areas, rentRate
             </Box>
             <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mb: 2 }}>
                 <ToggleButtonGroup exclusive size="small" value={filters.status} onChange={(_, v: string | null) => v && table.setFilter("status", v)} aria-label="Which sales" sx={toggleSx}>
-                    <ToggleButton value="awaiting">
-                        Awaiting receipt <Count n={counts.awaiting} />
-                    </ToggleButton>
-                    <ToggleButton value="received">
-                        Received <Count n={counts.received} />
-                    </ToggleButton>
-                    <ToggleButton value="disapproved">
-                        Disapproved <Count n={counts.disapproved} />
-                    </ToggleButton>
+                    {RECEIPT_STATUSES.map(({ value, label, tone, icon: Icon }) => {
+                        const [bg, fg] = statusTone(tone);
+                        return (
+                            <ToggleButton key={value} value={value} sx={{ "&.Mui-selected, &.Mui-selected:hover": { color: fg, backgroundColor: bg, borderColor: fg } }}>
+                                <Icon sx={{ fontSize: 17, color: fg }} aria-hidden />
+                                {label}
+                                <StatusChip status={tone} sx={{ height: 20, lineHeight: "20px", px: 1, fontFamily: "Google Sans Code, monospace" }}>
+                                    {counts[value]}
+                                </StatusChip>
+                            </ToggleButton>
+                        );
+                    })}
                 </ToggleButtonGroup>
             </Box>
 

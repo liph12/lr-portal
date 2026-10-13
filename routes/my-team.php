@@ -10,8 +10,4 @@ Route::prefix('my-team')->name('my-team.')->controller(MyTeamController::class)-
     Route::get('/sub-teams', 'subTeams')->name('sub-teams');
     Route::get('/recruits', 'recruits')->name('recruits');
 
-    Route::post('/teams/{team}/members', 'addMember')->name('members.add');
-    Route::patch('/teams/{team}/members/{agent}', 'moveMember')->name('members.move');
-    Route::post('/teams/{team}/sub-teams', 'storeSubTeam')->name('sub-teams.store');
-    Route::put('/teams/{team}/sub-teams/{subTeam}', 'updateSubTeam')->name('sub-teams.update');
 });

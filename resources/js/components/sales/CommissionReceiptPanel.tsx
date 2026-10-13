@@ -3,6 +3,7 @@ import { Box, Typography } from "@mui/material";
 import { BlockRounded, EditCalendarRounded, HowToRegRounded } from "@mui/icons-material";
 import { useForm } from "@inertiajs/react";
 import StyledButton from "../utils/StyledButton";
+import StatusChip from "../utils/StatusChip";
 import StyledTextField from "../utils/StyledTextField";
 import FieldLabel from "../utils/forms/FieldLabel";
 import FormDialog from "../utils/forms/FormDialog";
@@ -36,9 +37,11 @@ export default function CommissionReceiptPanel({ detail, base }: CommissionRecei
 
     return (
         <Box sx={{ p: 2, borderRadius: 3, border: "1px solid var(--lr-border)" }}>
-            <Typography sx={{ fontWeight: 500, color: "var(--lr-text-primary)", mb: 1.5 }}>
-                {receivedAt ? "Received" : disapproved ? "Disapproved" : "Receive this commission"}
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5, flexWrap: "wrap" }}>
+                <Typography sx={{ fontWeight: 500, color: "var(--lr-text-primary)" }}>{receivedAt ? "Received" : disapproved ? "Disapproved" : "Receive this commission"}</Typography>
+                {/* The same colours as the receiving tabs. */}
+                <StatusChip status={receivedAt ? "valid" : disapproved ? "invalid" : "pending"}>{receivedAt ? "Received" : disapproved ? "Disapproved" : "Awaiting receipt"}</StatusChip>
+            </Box>
 
             {receivedAt && (
                 <>

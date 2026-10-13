@@ -155,3 +155,13 @@ test('a secretary\'s Recruits and Recruits Progress stay within their area', fun
             ->where('scope.type', 'area')->where('scope.name', 'Davao')
             ->where('trainees.data', fn ($rows) => collect($rows)->pluck('id')->diff([$this->secretary, $this->otherUser->agent()->value('id'), $this->davaoMember])->isEmpty()));
 });
+
+test('a secretary can rank a developer\'s teams too, within their branch', function () {
+    DB::table('agent_project_transactions')->update(['reservation_date' => '2026-09-05']);
+    grantReports(Role::where('name', 'secretary')->first());
+
+    $this->actingAs($this->secretaryUser)->get('/reports/top-agents?from=2026-09-01&to=2026-09-20&status=pending&developer_id=10&list=teams')
+        ->assertInertia(fn ($page) => $page->where('groupTabs', true)->where('filters.view', 'teams')->where('filters.area', 'davao')
+            // Team A, counted only by its Davao member's 3M sale.
+            ->where('breakdown.data.0', fn ($r) => $r['name'] === 'Team A' && (float) $r['value'] === 3_000_000.0));
+});

@@ -68,7 +68,8 @@ class SalesReportService
             'page' => max(1, (int) ($input['page'] ?? 1)),
             'per_page' => in_array((int) ($input['per_page'] ?? 0), self::PER_PAGE, true) ? (int) $input['per_page'] : self::PER_PAGE[0],
             // Inside a developer: "sales" lists the sales one by one instead of ranking agents.
-            'list' => ($input['list'] ?? null) === 'sales' ? 'sales' : null,
+            // …or ranks its teams / sub-teams instead of its agents (ReportsController::show allows it per reader).
+            'list' => in_array($input['list'] ?? null, ['sales', 'teams', 'sub_teams'], true) ? $input['list'] : null,
             // Drill-down from a team / sub-team / developer row: only that group's sales (one at a time).
             'team_id' => ($scope = $this->scopeOf($input))['team_id'],
             'sub_team_id' => $scope['sub_team_id'],

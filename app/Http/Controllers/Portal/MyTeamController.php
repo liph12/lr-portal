@@ -3,9 +3,6 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Portal\MyTeam\AddMemberRequest;
-use App\Http\Requests\Portal\MyTeam\MoveMemberRequest;
-use App\Http\Requests\Portal\MyTeam\SaveSubTeamRequest;
 use App\Models\Entities\Agent;
 use App\Models\Entities\SubTeam;
 use App\Models\Entities\Team;
@@ -62,7 +59,6 @@ class MyTeamController extends Controller
             'members' => ['data' => $page->items(), 'total' => $page->total(), 'page' => $page->currentPage(), 'per_page' => $page->perPage()],
             'memberCount' => $this->leadership->memberCount($current['type'], $current['group']),
             'filters' => $filters,
-            'subTeams' => $current['type'] === 'team' ? collect($this->leadership->subTeamsOf($current['group']))->where('status', Team::STATUS_ACTIVE)->values() : [],
         ]);
     }
 
@@ -91,7 +87,6 @@ class MyTeamController extends Controller
             ...$this->shared($request, $current),
             'subTeams' => $rows->values(),
             'filters' => $range + ['status' => $this->reports->filters($base)['status']],
-            'statuses' => Team::STATUSES,
         ]);
     }
 
@@ -105,37 +100,6 @@ class MyTeamController extends Controller
             ...$this->shared($request, $current),
             ...$recruitment->props($request, $scope),
         ]);
-    }
-
-    public function addMember(AddMemberRequest $request, Team $team)
-    {
-        $agent = Agent::findOrFail($request->validated('agent_id'));
-        $subTeam = $request->validated('sub_team_id') ? SubTeam::findOrFail($request->validated('sub_team_id')) : null;
-        $this->leadership->addMember($team, $agent, $subTeam);
-
-        return back()->with('success', "{$agent->user?->name} joined {$team->name}.");
-    }
-
-    public function moveMember(MoveMemberRequest $request, Team $team, Agent $agent)
-    {
-        $subTeam = $request->validated('sub_team_id') ? SubTeam::findOrFail($request->validated('sub_team_id')) : null;
-        $this->leadership->moveMember($team, $agent, $subTeam);
-
-        return back()->with('success', $subTeam ? "{$agent->user?->name} moved to {$subTeam->name}." : "{$agent->user?->name} left their sub-team.");
-    }
-
-    public function storeSubTeam(SaveSubTeamRequest $request, Team $team)
-    {
-        $subTeam = $this->leadership->saveSubTeam($team, null, $request->validated());
-
-        return back()->with('success', "Sub-team {$subTeam->name} created.");
-    }
-
-    public function updateSubTeam(SaveSubTeamRequest $request, Team $team, SubTeam $subTeam)
-    {
-        $this->leadership->saveSubTeam($team, $subTeam, $request->validated());
-
-        return back()->with('success', "Sub-team {$subTeam->name} saved.");
     }
 
     /**
@@ -167,7 +131,9 @@ class MyTeamController extends Controller
                 'parent' => isset($current['via']) ? ['id' => $current['via']->id, 'name' => $current['via']->name] : null,
             ],
             // Team leaders manage; unit managers monitor.
-            'canManage' => $current['type'] === 'team',
+            // A team leader's whole team (with its Sub-teams tab) rather than one sub-team. Nothing here changes anything:
+            // members and sub-teams are managed in Management (superadmin / admin).
+            'isTeam' => $current['type'] === 'team',
             'leads' => $this->leadership->summaryFor($request->user()),
         ];
     }
