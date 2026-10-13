@@ -1,5 +1,12 @@
-import { ReactNode, useEffect, useRef, useState } from "react";
-import { Box, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+    Box,
+    IconButton,
+    Stack,
+    SxProps,
+    Tooltip,
+    Typography,
+} from "@mui/material";
 import {
     ArrowForwardRounded,
     ChatBubbleOutlineRounded,
@@ -52,6 +59,8 @@ interface BusinessProfile {
 
 // The pin logo in the middle of every QR (160×251 px).
 const QR_LOGO_RATIO = 160 / 251;
+// Desktop: the About area never shrinks below this, even when the right column is short.
+const ABOUT_MIN_HEIGHT = 150;
 
 // A link as people read it: no scheme, no trailing slash.
 const prettyUrl = (url: string) =>
@@ -129,7 +138,7 @@ const secondaryActionSx = {
 };
 
 // A bold heading with the short red rule under it, as on the mock.
-function SectionTitle({ children }: { children: string }) {
+function SectionTitle({ children, sx }: { children: string; sx?: SxProps }) {
     return (
         // The underline follows the parent's alignment, so it sits centred under a centred title.
         <Box
@@ -137,6 +146,7 @@ function SectionTitle({ children }: { children: string }) {
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "inherit",
+                ...sx,
             }}
         >
             <Typography
@@ -295,6 +305,42 @@ export default function Show({ slug, agent }: ShowProps) {
         return () => observer.disconnect();
     }, [aboutExpanded]);
 
+    // Desktop: the About area is sized by hand so a short bio keeps the buttons close underneath while a
+    // long one may only grow until the buttons sit level with the bottom of the right column; past that it
+    // scrolls, and only then is the fade shown. My Links follow the buttons and may run on below the right column.
+    const leftRef = useRef<HTMLDivElement>(null);
+    const rightRef = useRef<HTMLDivElement>(null);
+    const aboutBoxRef = useRef<HTMLDivElement>(null);
+    const actionsRef = useRef<HTMLDivElement>(null);
+    const [aboutHeight, setAboutHeight] = useState<number | null>(null);
+    const [aboutScrolls, setAboutScrolls] = useState(false);
+    useLayoutEffect(() => {
+        const text = aboutRef.current;
+        const left = leftRef.current;
+        const right = rightRef.current;
+        const box = aboutBoxRef.current;
+        const actions = actionsRef.current;
+        if (!text || !left || !right || !box || !actions) return;
+        const measure = () => {
+            const boxRect = box.getBoundingClientRect();
+            const slack =
+                right.getBoundingClientRect().bottom -
+                actions.getBoundingClientRect().bottom;
+            const limit = Math.max(ABOUT_MIN_HEIGHT, boxRect.height + slack);
+            const natural = text.offsetHeight;
+            const next = Math.round(Math.min(natural, limit));
+            setAboutHeight(next);
+            setAboutScrolls(natural > next + 1);
+        };
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(text);
+        observer.observe(left);
+        observer.observe(right);
+        observer.observe(actions);
+        return () => observer.disconnect();
+    }, []);
+
     const rows: InfoRowProps[] = [];
     if (agent.mobile)
         rows.push({
@@ -381,8 +427,9 @@ export default function Show({ slug, agent }: ShowProps) {
                             rowGap: 4,
                         }}
                     >
-                        {/* Identity, about, actions */}
+                        {/* Identity, about, actions, links */}
                         <Box
+                            ref={leftRef}
                             sx={{
                                 display: "flex",
                                 flexDirection: "column",
@@ -447,28 +494,31 @@ export default function Show({ slug, agent }: ShowProps) {
                                 past that, so the left column never grows taller than the right one. */}
                             <Box
                                 sx={{
-                                    mt: { xs: 3.5, md: 4 },
-                                    mb: { md: 4.5 },
+                                    mt: { xs: 3.5, md: 0 },
                                     width: "100%",
-                                    display: "flex",
+                                    // From md the heading and text area join the column directly, so any spare
+                                    // height lands below the buttons rather than between the text and them.
+                                    display: { xs: "flex", md: "contents" },
                                     flexDirection: "column",
                                     alignItems: {
                                         xs: "center",
                                         md: "flex-start",
                                     },
-                                    flex: { md: "1 1 auto" },
-                                    minHeight: { md: 0 },
                                 }}
                             >
-                                <SectionTitle>About Me</SectionTitle>
+                                <SectionTitle sx={{ mt: { md: 4 } }}>
+                                    About Me
+                                </SectionTitle>
                                 <Box
+                                    ref={aboutBoxRef}
                                     sx={{
                                         mt: 2.5,
                                         width: "100%",
                                         maxWidth: 760,
+                                        mb: { md: 4.5 },
                                         position: "relative",
-                                        flex: { md: "1 1 auto" },
-                                        minHeight: { md: 150 },
+                                        flexShrink: 0,
+                                        height: { md: aboutHeight ?? "auto" },
                                     }}
                                 >
                                     <Box
@@ -483,7 +533,9 @@ export default function Show({ slug, agent }: ShowProps) {
                                                 content: '""',
                                                 display: {
                                                     xs: "none",
-                                                    md: "block",
+                                                    md: aboutScrolls
+                                                        ? "block"
+                                                        : "none",
                                                 },
                                                 position: "sticky",
                                                 bottom: 0,
@@ -574,8 +626,10 @@ export default function Show({ slug, agent }: ShowProps) {
                             </Box>
 
                             <Box
+                                ref={actionsRef}
                                 sx={{
-                                    mt: { xs: 3.5, md: "auto" },
+                                    // The About area above carries the desktop gap, so a short bio keeps these close.
+                                    mt: { xs: 3.5, md: 0 },
                                     width: "100%",
                                     maxWidth: 760,
                                     display: "grid",
@@ -617,63 +671,61 @@ export default function Show({ slug, agent }: ShowProps) {
                                     Share
                                 </StyledButton>
                             </Box>
-                        </Box>
 
-                        {/* The agent's own links: its own grid row under the left column, so the buttons above stay level with Contact Information and the links may run on below it */}
-                        {agent.links.length > 0 && (
-                            <Box
-                                component="section"
-                                sx={{
-                                    gridColumn: { md: 1 },
-                                    gridRow: { md: 2 },
-                                    width: "100%",
-                                    maxWidth: 760,
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    alignItems: {
-                                        xs: "center",
-                                        md: "flex-start",
-                                    },
-                                }}
-                            >
-                                <SectionTitle>My Links</SectionTitle>
+                            {/* The agent's own links follow the buttons and may run on below the right column. */}
+                            {agent.links.length > 0 && (
                                 <Box
+                                    component="section"
                                     sx={{
-                                        mt: 2.5,
+                                        mt: 4,
                                         width: "100%",
-                                        display: "grid",
-                                        gap: 1.25,
-                                        // Two columns from md so a long list stays short beside the right column.
-                                        gridTemplateColumns: {
-                                            xs: "minmax(0, 1fr)",
-                                            md: "repeat(2, minmax(0, 1fr))",
+                                        maxWidth: 760,
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: {
+                                            xs: "center",
+                                            md: "flex-start",
                                         },
                                     }}
                                 >
-                                    {agent.links.map((link, index) => (
-                                        <InfoRow
-                                            key={index}
-                                            icon={<LanguageRounded />}
-                                            label={link.label}
-                                            value={prettyUrl(link.url)}
-                                            href={link.url}
-                                            external
-                                            trailing="arrow"
-                                        />
-                                    ))}
+                                    <SectionTitle>My Links</SectionTitle>
+                                    <Box
+                                        sx={{
+                                            mt: 2.5,
+                                            width: "100%",
+                                            display: "grid",
+                                            gap: 1.25,
+                                            // Two columns from md so a long list stays short beside the right column.
+                                            gridTemplateColumns: {
+                                                xs: "minmax(0, 1fr)",
+                                                md: "repeat(2, minmax(0, 1fr))",
+                                            },
+                                        }}
+                                    >
+                                        {agent.links.map((link, index) => (
+                                            <InfoRow
+                                                key={index}
+                                                icon={<LanguageRounded />}
+                                                label={link.label}
+                                                value={prettyUrl(link.url)}
+                                                href={link.url}
+                                                external
+                                                trailing="arrow"
+                                            />
+                                        ))}
+                                    </Box>
                                 </Box>
-                            </Box>
-                        )}
+                            )}
+                        </Box>
 
                         {/* QR + socials panel (overlaps the cover on desktop), then the contact rows */}
                         <Stack
+                            ref={rightRef}
                             gap={3.5}
                             sx={{
                                 mt: { md: -2 },
                                 position: "relative",
-                                justifyContent: { md: "space-between" },
-                                gridColumn: { md: 2 },
-                                gridRow: { md: 1 },
+                                alignSelf: { md: "start" },
                             }}
                         >
                             <Box
