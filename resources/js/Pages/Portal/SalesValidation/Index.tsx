@@ -1,19 +1,20 @@
 import { ElementType, ReactNode } from "react";
 import { Box, ButtonBase, Container, Drawer, Grid, IconButton, Typography } from "@mui/material";
-import { CloseRounded, ApartmentRounded, ChevronRightRounded, HomeWorkRounded, PlaceRounded, PublicRounded, StorefrontRounded } from "@mui/icons-material";
+import { CloseRounded, ApartmentRounded, ChevronRightRounded, HomeWorkRounded, PlaceRounded, PublicRounded, StorefrontRounded, ViewListRounded } from "@mui/icons-material";
 import { Link, router } from "@inertiajs/react";
 import { GridColDef } from "@mui/x-data-grid";
 import AppLayout from "../../../components/layouts/AppLayout";
 import SectionTitle from "../../../components/utils/SectionTitle";
 import StyledButton from "../../../components/utils/StyledButton";
 import StatusMenu from "../../../components/utils/StatusMenu";
-import StatusChip from "../../../components/utils/StatusChip";
+import StatusChip, { statusTone } from "../../../components/utils/StatusChip";
 import DataTable from "../../../components/utils/tables/DataTable";
 import TableToolbar from "../../../components/utils/tables/TableToolbar";
 import PersonCell from "../../../components/utils/tables/PersonCell";
 import FileLink from "../../../components/sales/FileLink";
 import AgentSalesPanel, { AgentSales } from "../../../components/sales/AgentSalesPanel";
-import SaleDetailsForm, { EditOptions, SaleDetail } from "../../../components/sales/SaleDetailsForm";
+import { EditOptions, SaleDetail } from "../../../components/sales/SaleDetailsForm";
+import SaleReview from "../../../components/sales/SaleReview";
 import DateRangeField from "../../../components/utils/DateRangeField";
 import { reportPresets } from "../../../helpers/dateRanges";
 import useAuthUser from "../../../hooks/useAuthUser";
@@ -21,12 +22,15 @@ import useServerTable, { ServerPage, TableFilters } from "../../../hooks/useServ
 import { formatDate } from "../../../helpers/formatDate";
 import { formatCount, formatPeso } from "../../../helpers/formatNumber";
 import { SaleCategory } from "../../../types/app-data-types";
+import { SALE_STATUS_CONFIRM, SALE_STATUS_ICONS, SALE_STATUS_SAFE } from "../../../components/sales/saleStatusConfirm";
 
-type Category = SaleCategory;
+// "all" = every category in one table.
+type Category = SaleCategory | "all";
 
 interface SaleRow {
     id: number;
     agent_id: number | null;
+    sale_type: SaleCategory;
     unit_number: string | null;
     sale_status: string;
     created_at: string | null;
@@ -58,7 +62,7 @@ interface SaleRow {
 interface SalesValidationProps {
     filters: TableFilters & { area: string | null; category: Category | null; status: string; from: string; to: string };
     statuses: string[];
-    categories: Category[];
+    categories: SaleCategory[];
     areaName: string | null;
     areas: { key: string; name: string; pending: number }[] | null;
     counts: Record<Category, Record<string, number>> | null;
@@ -72,13 +76,10 @@ interface SalesValidationProps {
 
 const STATUS_LABELS: Record<string, string> = { pending: "Pending", valid: "Validated", invalid: "Invalid", cancelled: "Cancelled" };
 const CATEGORY: Record<Category, { title: string; icon: ElementType; files: string }> = {
+    all: { title: "All sales", icon: ViewListRounded, files: "Project, brokerage and rental together" },
     project: { title: "Project sales", icon: ApartmentRounded, files: "Proof of transaction" },
     brokerage: { title: "Brokerage sales", icon: StorefrontRounded, files: "Remittance and deposit slips" },
     rental: { title: "Rental sales", icon: HomeWorkRounded, files: "Remittance and deposit slips" },
-};
-const CONFIRM = {
-    invalid: "It stops counting in reports and leaderboards. The agent's record keeps the change in its history.",
-    cancelled: "It stops counting in reports and leaderboards. The agent's record keeps the change in its history.",
 };
 
 const cardSx = {
@@ -147,7 +148,7 @@ function SalesValidation({ filters, statuses, categories, areaName, areas, count
                 title="Sales validation"
                 subtitle={
                     !filters.area
-                        ? "Pick an area to validate its sales reserved in this range."
+                        ? "Pick a branch to validate its sales reserved in this range."
                         : !filters.category
                           ? `${areaName}: pick the kind of sale.`
                           : `${areaName} · ${CATEGORY[filters.category].title}`
@@ -162,7 +163,7 @@ function SalesValidation({ filters, statuses, categories, areaName, areas, count
                         )}
                         {filters.area && !singleArea && (
                             <StyledButton size="small" variant="text" onClick={() => go({})} sx={{ color: "var(--lr-primary)" }}>
-                                Change area
+                                Change branch
                             </StyledButton>
                         )}
                     </Box>
@@ -172,35 +173,13 @@ function SalesValidation({ filters, statuses, categories, areaName, areas, count
             {!filters.area && areas && <AreaStep areas={areas} onPick={(area) => go({ area })} />}
 
             {filters.area && !filters.category && counts && (
+                // All sales across the top, the three kinds of sale in a row underneath.
                 <Grid container spacing={2}>
-                    {categories.map((c) => {
-                        const Icon = CATEGORY[c].icon;
-                        return (
-                            <Grid key={c} size={{ xs: 12, md: 4 }}>
-                                <Link href={baseUrl} data={{ ...range, area: filters.area!, category: c }} style={{ textDecoration: "none", display: "block", height: "100%" }}>
-                                    <Box sx={{ ...cardSx, alignItems: "flex-start" }}>
-                                        <Box sx={iconSx}>
-                                            <Icon />
-                                        </Box>
-                                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                                            <Typography variant="body1" sx={{ fontWeight: 500, color: "var(--lr-text-primary)" }}>
-                                                {CATEGORY[c].title}
-                                            </Typography>
-                                            <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
-                                                {CATEGORY[c].files}
-                                            </Typography>
-                                            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1.5 }}>
-                                                {statuses.map((s) => (
-                                                    <StatusCount key={s} status={s} count={counts[c][s] ?? 0} />
-                                                ))}
-                                            </Box>
-                                        </Box>
-                                        <ChevronRightRounded sx={{ color: "var(--lr-text-secondary)", alignSelf: "center" }} />
-                                    </Box>
-                                </Link>
-                            </Grid>
-                        );
-                    })}
+                    {(["all", ...categories] as Category[]).map((c) => (
+                        <Grid key={c} size={c === "all" ? 12 : { xs: 12, md: 4 }}>
+                            <CategoryCard category={c} statuses={statuses} counts={counts[c]} href={baseUrl} data={{ ...range, area: filters.area!, category: c }} wide={c === "all"} />
+                        </Grid>
+                    ))}
                 </Grid>
             )}
 
@@ -227,7 +206,7 @@ function SalesValidation({ filters, statuses, categories, areaName, areas, count
                 expanded={agentSales ? saleDetail : null}
                 onToggleSale={(id) => showSale(saleDetail?.id === id ? null : id)}
                 renderSale={(detail) => (
-                    <SaleDetailsForm key={`${detail.id}-${detail.history.length}`} detail={detail} options={editOptions} statuses={statuses} statusLabels={STATUS_LABELS} baseUrl={baseUrl} />
+                    <SaleReview key={detail.id} detail={detail} options={editOptions} statusLabels={STATUS_LABELS} baseUrl={baseUrl} />
                 )}
             />
 
@@ -248,7 +227,7 @@ function SalesValidation({ filters, statuses, categories, areaName, areas, count
                                 <CloseRounded />
                             </IconButton>
                         </Box>
-                        <SaleDetailsForm key={`${saleDetail.id}-${saleDetail.history.length}`} detail={saleDetail} options={editOptions} statuses={statuses} statusLabels={STATUS_LABELS} baseUrl={baseUrl} />
+                        <SaleReview key={saleDetail.id} detail={saleDetail} options={editOptions} statusLabels={STATUS_LABELS} baseUrl={baseUrl} />
                     </Box>
                 )}
             </Drawer>
@@ -257,14 +236,54 @@ function SalesValidation({ filters, statuses, categories, areaName, areas, count
 }
 
 // "Pending 46" as a chip in the status's colour: amber pending, green validated, red invalid, grey cancelled.
-function StatusCount({ status, count }: { status: string; count: number }) {
+interface CategoryCardProps {
+    category: Category;
+    statuses: string[];
+    counts: Record<string, number>;
+    href: string;
+    data: Record<string, string>;
+    // All sales: one row of four counts across the page.
+    wide: boolean;
+}
+
+// Step 2: a kind of sale with how many of its sales are in each status — status-tinted tiles in an even grid.
+function CategoryCard({ category, statuses, counts, href, data, wide }: CategoryCardProps) {
+    const Icon = CATEGORY[category].icon;
+
     return (
-        <StatusChip status={status}>
-            {STATUS_LABELS[status]}
-            <Box component="span" sx={{ ml: 0.75, fontFamily: "Google Sans Code, monospace", fontWeight: 600 }}>
-                {formatCount(count)}
+        <Link href={href} data={data} style={{ textDecoration: "none", display: "block", height: "100%" }}>
+            <Box sx={{ ...cardSx, flexDirection: "column", alignItems: "stretch", gap: 2 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+                    <Box sx={iconSx}>
+                        <Icon />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="body1" noWrap sx={{ fontWeight: 500, color: "var(--lr-text-primary)" }}>
+                            {CATEGORY[category].title}
+                        </Typography>
+                        <Typography variant="caption" component="p" noWrap sx={{ color: "var(--lr-text-secondary)" }}>
+                            {CATEGORY[category].files}
+                        </Typography>
+                    </Box>
+                    <ChevronRightRounded sx={{ color: "var(--lr-text-secondary)", flexShrink: 0 }} />
+                </Box>
+                <Box sx={{ display: "grid", gridTemplateColumns: wide ? { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" } : "repeat(2, 1fr)", gap: 1 }}>
+                    {statuses.map((s) => {
+                        const [bg, fg] = statusTone(s);
+                        return (
+                            <Box key={s} sx={{ px: 1.5, py: 1, borderRadius: 2, backgroundColor: bg, minWidth: 0 }}>
+                                <Typography variant="caption" component="p" noWrap sx={{ color: fg, fontWeight: 500 }}>
+                                    {STATUS_LABELS[s]}
+                                </Typography>
+                                <Typography sx={{ fontFamily: "Google Sans Code, monospace", fontSize: 18, fontWeight: 600, color: "var(--lr-text-primary)", lineHeight: 1.3 }}>
+                                    {formatCount(counts[s] ?? 0)}
+                                </Typography>
+                            </Box>
+                        );
+                    })}
+                </Box>
             </Box>
-        </StatusChip>
+        </Link>
     );
 }
 
@@ -308,19 +327,28 @@ function SalesStep({ filters, statuses, counts, sales, baseUrl, onAgent, onOpen 
     const table = useServerTable("sales", sales, filters, ["counts"]);
     const category = filters.category;
 
-    const property: GridColDef<SaleRow> =
-        category === "project"
-            ? { field: "project", headerName: "Project / developer", flex: 1.3, minWidth: 200, sortable: false, renderCell: ({ row }) => <PersonCell hideAvatar name={row.project_name ?? "—"} secondary={row.developer ?? undefined} /> }
-            : category === "brokerage"
-              ? { field: "brokerage_area", headerName: "Brokerage area", flex: 1.1, minWidth: 170, sortable: false, renderCell: ({ row }) => <PersonCell hideAvatar name={row.brokerage_area ?? "—"} secondary={row.property_type ?? undefined} /> }
-              : {
-                    field: "closing_agent",
-                    headerName: "Closing / partner agent",
-                    flex: 1.1,
-                    minWidth: 180,
-                    sortable: false,
-                    renderCell: ({ row }) => <PersonCell hideAvatar name={row.closing_agent ?? "—"} secondary={row.partner_agent ? `Partner: ${row.partner_agent}` : undefined} />,
-                };
+    const all = category === "all";
+
+    // What identifies the property, by the row's own category (so the All sales table can mix them).
+    const propertyCell = (row: SaleRow) =>
+        row.sale_type === "project" ? (
+            <PersonCell hideAvatar name={row.project_name ?? "—"} secondary={row.developer ?? undefined} />
+        ) : row.sale_type === "brokerage" ? (
+            <PersonCell hideAvatar name={row.brokerage_area ?? "—"} secondary={all ? "Brokerage area" : (row.property_type ?? undefined)} />
+        ) : (
+            <PersonCell hideAvatar name={row.closing_agent ?? "—"} secondary={row.partner_agent ? `Partner: ${row.partner_agent}` : all ? "Closing agent" : undefined} />
+        );
+    const property: GridColDef<SaleRow> = {
+        field: "property",
+        headerName: all ? "Project / brokerage area / closing agent" : category === "project" ? "Project / developer" : category === "brokerage" ? "Brokerage area" : "Closing / partner agent",
+        flex: all ? 1.4 : category === "project" ? 1.3 : 1.1,
+        minWidth: all ? 220 : category === "project" ? 200 : 180,
+        sortable: false,
+        renderCell: ({ row }) => propertyCell(row),
+    };
+    const typeColumn: GridColDef<SaleRow>[] = all
+        ? [{ field: "sale_type", headerName: "Type", width: 110, sortable: false, valueGetter: (_, row) => CATEGORY[row.sale_type].title.replace(/ sales$/, "") }]
+        : [];
 
     const columns: GridColDef<SaleRow>[] = [
         {
@@ -346,27 +374,28 @@ function SalesStep({ filters, statuses, counts, sales, baseUrl, onAgent, onOpen 
                     <PersonCell name={row.agent_name ?? "No agent"} avatar={row.agent_avatar} secondary={`${row.area} · recorded by staff`} />
                 ),
         },
+        ...typeColumn,
         property,
         {
             field: "unit",
             headerName: "Unit",
             width: 140,
             sortable: false,
-            renderCell: ({ row }) => <PersonCell hideAvatar name={row.unit_number ?? "—"} secondary={category === "project" ? (row.property_type ?? undefined) : undefined} />,
+            renderCell: ({ row }) => <PersonCell hideAvatar name={row.unit_number ?? "—"} secondary={row.sale_type === "project" ? (row.property_type ?? undefined) : undefined} />,
         },
         { field: "value", headerName: "Contract price", width: 150, renderCell: ({ row }) => formatPeso(row.value) },
         { field: "reservation_date", headerName: "Reserved", width: 120, valueGetter: (_, row) => (row.reservation_date ? formatDate(row.reservation_date) : "—") },
         { field: "created_at", headerName: "Date added", width: 120, valueGetter: (_, row) => (row.created_at ? formatDate(row.created_at) : "—") },
         {
             field: "files",
-            headerName: category === "project" ? "Proof of transaction" : "Slips",
-            width: category === "project" ? 170 : 220,
+            headerName: category === "project" ? "Proof of transaction" : all ? "Files" : "Slips",
+            width: category === "project" ? 170 : 240,
             sortable: false,
             renderCell: ({ row }) =>
-                category === "project" ? (
+                row.sale_type === "project" ? (
                     <FileLink url={row.proof_of_transaction ?? null} label="Proof" />
                 ) : (
-                    <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+                    <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", alignItems: "center", alignContent: "center", height: "100%" }}>
                         <FileLink url={row.remittance_slip ?? null} label="Remittance" />
                         <FileLink url={row.deposit_slip ?? null} label="Deposit" />
                     </Box>
@@ -379,7 +408,7 @@ function SalesStep({ filters, statuses, counts, sales, baseUrl, onAgent, onOpen 
             sortable: false,
             renderCell: ({ row }) => (
                 <Box onClick={stop}>
-                    <StatusMenu status={row.sale_status} statuses={statuses} labels={STATUS_LABELS} url={`${baseUrl}/${row.id}`} subject={`the sale of ${clientName(row)}`} confirm={CONFIRM} />
+                    <StatusMenu status={row.sale_status} statuses={statuses} labels={STATUS_LABELS} url={`${baseUrl}/${row.id}`} subject={`the sale of ${clientName(row)}`} confirm={SALE_STATUS_CONFIRM} safe={SALE_STATUS_SAFE} icons={SALE_STATUS_ICONS} />
                 </Box>
             ),
         },
@@ -429,7 +458,7 @@ function SalesStep({ filters, statuses, counts, sales, baseUrl, onAgent, onOpen 
             <TableToolbar
                 search={table.search}
                 onSearch={table.setSearch}
-                placeholder={category === "project" ? "Search client, agent, unit or project" : "Search client, agent or unit"}
+                placeholder={category === "project" || all ? "Search client, agent, unit or project" : "Search client, agent or unit"}
             />
             <DataTable
                 {...table.gridProps}

@@ -92,7 +92,9 @@ at the matching path. Nothing else.
   checked from the Form Request's `authorize()` or `Gate::authorize()` — the base `Controller`
   has no `AuthorizesRequests` trait.
   `RoleMiddleware` aborts 403, which `bootstrap/app.php` renders as the Inertia `Error` page
-  (403/404/500/503; JSON callers still get JSON).
+  (403/404/500/503; JSON callers still get JSON). **A refused Inertia write** (non-GET) is instead sent `back(303)` with a
+  `flash.error` toast: as an Error page it would take the write's URL (e.g. `/impersonate`), and the next reload of the
+  current page (online-users poll, tables) would GET a write-only route → 405.
 - **Layouts**: persistent `.layout` static pattern only
   (`Project.layout = (page) => <DashboardLayout children={page} />`, `RecordSale/Project.tsx:20`).
   Never wrap a layout inside the page's render. `AppLayout` owns the viewport (`100vh`,
@@ -148,8 +150,8 @@ at the matching path. Nothing else.
   `disapproved_by/_at`, `disapproval_reason`, sale invalid, red stamp). One route file `routes/commission-receiving.php` registers
   both (the route's `category` default fixes each page), one `CommissionReceivingController` / `CommissionReceivingService` /
   page `Portal/CommissionReceiving/Index` (prop `category`; Awaiting / Received; area reach as Sales validation; a sale only
-  opens / is received from its own category's page). Menu `brokerageReceivingRoute` / `rentalReceivingRoute`, badges from
-  `auth.commission_receiving.{brokerage,rental}`. The drawer shows the slip and files and a `forms/SignaturePad.tsx` (canvas →
+  opens / is received from its own category's page). Both are Management cards / tabs (`managementCatalog`); the Management menu badge and the cards
+  count `auth.commission_receiving.{brokerage,rental}`. The drawer shows the slip and files and a `forms/SignaturePad.tsx` (canvas →
   PNG data URL, `--lr-paper-*` tokens stay light in dark mode); `POST /{brokerage,rental}-receiving/{sale}/receive`
   (`ReceiveCommissionRequest`: a real, non-blank PNG, not already received) stores the signature (`received_signature`),
   sets `received_by` / `received_at`, validates the sale and signs the slip in place (signature + name + date, green
@@ -226,6 +228,9 @@ at the matching path. Nothing else.
   still in training; grouped by team, sub-team / unit manager, or sponsor (`agent_attributes.referral_id`); top areas +
   sign-ups over time. Same reach as Recruits; leaders lose the groupings that would only show themselves, and a sponsor scope (an agent's own
   recruits, or a clicked sponsor) groups by team / unit manager / location.
+  **Recruits tab** (`group=recruits`, `RecruitProgressService::recruitRows`): the recruits themselves — sponsor, team / sub-team,
+  signed up, sales, NAO %, FIRE x of 3 — first tab inside a sub-team or one person's recruits, last elsewhere; a row drills
+  into that person. Sort keys follow each tab's column fields (`filters()`), or the grid resets the sort and reloads.
   KPIs are `RecruitsPanel` (ordinary stat tiles + FIRE / NAO / Overall cards: not started · on progress · finished,
   for recruits without a sale — the legacy numbers, in this app's style). Groupings: team, unit manager, location
   (area), sponsor. Rows drill down by `team_id` / `sub_team_id` / `area` / `sponsor_id` (merged with the reader's
@@ -235,7 +240,11 @@ at the matching path. Nothing else.
 - **Recruits** (Reports › Recruits `/reports/recruits`, and My Team › Recruits; `RecruitmentService`): members by status (now),
   new recruits signed up in the date range (`agents.created_at`), and onboarding of recruits **without any sale** (local or
   international): NAO = `agent_attributes.nao_video_tracker` % (100 = finished), FIRE = `fire_certificates` with 3 = 100%
-  (capped). Cards first, then the server-paged trainees table (filter NAO / FIRE level / status). Reach: back office all;
+  (capped). Cards first, then the server-paged trainees table (filter NAO / FIRE level / status). **Clicking a person opens their recruits**
+  (`?person=ID`, `ReportsController::personSelection`; date range kept, a profile button stays in the row): a team leader → their
+  team, a unit manager → their sub-team, anyone else → the agents they sponsored — also Recruits Progress' sponsor rows. A leader
+  stays inside their own group (someone leading another one → just their sponsored agents there); an agent reader goes person by
+  person down their own downline (`GenealogyService::canView`), never sideways. Reach: back office all;
   leaders their team / sub-team; anyone else with reports the recruits they sponsored (`sponsor_id` lock,
   `ReportsController::recruitLock`) (menu pseudo-grants `_backoffice` / `_leader`). Portable SQL only (CASE, not
   LEAST — tests run on SQLite).
@@ -302,8 +311,12 @@ at the matching path. Nothing else.
   `StatusMenu` (PATCH `{status}`, confirm for destructive ones); photo cells: `PhotoUploadButton`.
 - **Management** (`/{superadmin,admin,staff}/management`, same pages in
   `Pages/Portal/Management/`, routes from `routes/management.php` called per portal, guarded by
-  `can:manage,Team` = `TeamPolicy::manage` → **any of the five Management permissions**, so ticking one for a role opens it): Agents (the default — `/management` redirects to
-  `/management/agents`; by default only agents **on a team** and **fully registered**: filters `membership=no_team|any`,
+  `can:manage,Team` = `TeamPolicy::manage` → **any of the five Management permissions**, so ticking one for a role opens it).
+  **`/management` is a card page** (`Pages/Portal/Management/Index`, `can:open,Team` = Management permissions **or** a receiving
+  permission; `TeamDirectoryService::overview` counts): one card per section from `components/management/managementCatalog.ts`
+  (also the `ManagementLayout` tabs — Overview first — and the menu node's children): Agents, Teams, Sub-teams, Team transfers,
+  **Brokerage receiving, Rental receiving** (their pages keep their URLs and permissions but render inside `ManagementLayout`;
+  they're no longer sidebar items — the Management item carries their awaiting badge). Agents ( by default only agents **on a team** and **fully registered**: filters `membership=no_team|any`,
   `registration=incomplete|any`, shown with `FilterSelect hideAll`; clicking a name opens `AgentDetailDrawer` — the search's `PersonDetails`, from optional prop
   `agentDetail` (`?agent=ID`, `PersonDetailsService`, shared with `/search/users`) + "View profile"), Teams (`/management/teams`),
   Sub-teams, Team transfers. Menu: Management sits right under Dashboard. **Each kind of change is its own permission**
@@ -326,6 +339,17 @@ at the matching path. Nothing else.
   not in the future). Filter `designation=um_dashboard|um_rate|broker`. Every place that shows a person sends
   `Agent::designationsOf()` and renders `components/utils/user/DesignationBadges.tsx` beside the role (UM by rate, Broker; dates in
   the tooltip, printed on the profile) — search rows, profile, agent sales, genealogy cards, the agents table.
+- **Editing an agent's profile & upline** (agent profile page `/agents/{agent}`; permission `edit_agent_profile`, section
+  Management, migration `000047` → superadmin + admin; `UserPolicy::updateProfile`: only a superadmin edits superadmins' /
+  admins' own): "Edit profile" = the "my profile" form (`forms/ProfileDetailsForm` with `action`) in
+  `components/agents/EditAgentProfileDialog`, `PUT /agents/{agent}` (`UpdateAgentProfileRequest`, `ProfileService::updateAgent`;
+  the user's name / email follow). "Change upline" (`ChangeUplineDialog`, `PUT /agents/{agent}/upline`, `ChangeUplineRequest`,
+  `AgentUplineService`): sets `agent_attributes.referral_id` and **moves the agent to the upline's team and sub-team** via
+  `TeamManagementService::transfer` from the chosen date (history kept) — the upline's active stint, else the team / sub-team
+  they lead; **team only** when the upline has no sub-team there; nothing moves when the upline is on no team (warning).
+  Refuses the agent themself or anyone in their downline. Preview: optional prop `uplinePlacement` (`?upline_preview=ID`).
+  `team_agents` / `sub_team_agents.transferred_at` is the **end** of a stint — reports credit a sale to the team whose stint
+  covers its reservation date (`joined_at` ≤ date < `transferred_at`), so it is not redundant with `joined_at` + `status`.
 - **Documentation** (`/{superadmin,admin,staff}/documentation`, routes from `routes/documentation.php` called per portal,
   `can:manage,AgentDocument` = permission `manage_documents`; `Portal\DocumentationController`, `AgentDocumentService`):
   agents' requirement documents in `agent_documents` (type `AgentDocument::TYPES`, status `AgentDocument::STATUSES`,
@@ -337,9 +361,12 @@ at the matching path. Nothing else.
   `can:sales_validation`; `SalesValidationController`, `SaleValidationService`): everything is within a reservation-date
   range (`from`/`to`, default this month — first day to today; joined from the three category tables). Pick an area (the credited agent's
   `agents.area`, else the recorder's; plus All areas — Abroad and no-area aren't offered) → a category (project / brokerage / rental, counts as status-coloured `StatusChip`s: amber pending, green valid, red
-  invalid, grey cancelled)
+  invalid, grey cancelled) — or **All sales** (`category=all`, `SaleValidationService::ALL_CATEGORIES`: the three tables as one
+  `UNION ALL` (`allCategories`, date-limited per branch), `counts.all`, a Type column and each row's own property / files by `sale_type`)
   → a server-paged table per status (pending, valid, invalid, cancelled) with client, agent, project + developer /
   brokerage area / closing agent, unit, price, reserved, date added and the files (POT; remittance + deposit slips).
+  **Every status change is confirmed first** (`components/sales/saleStatusConfirm.ts`: what each status does; `StatusMenu` `confirm`
+  + `safe` for the primary-toned ones; `SaleDetailsForm` asks when its status changed; the slip panel's "Sign & receive" asks too).
   Status via `StatusMenu` → `ValidateSaleRequest`; `setStatus` stores `validated_by` / `validated_at`, appends to
   `update_logs`, logs `sale.validate` and refreshes the agent's activity.
   Menu **badge** = pending sales the user can validate **this month** — the range the page opens on, so it equals the "All
@@ -347,11 +374,13 @@ at the matching path. Nothing else.
   Clicking an agent opens `AgentSalesPanel` (`?agent=ID`, partial reload of `agentSales`, `agent_dates=all` for every date):
   their sales client first in Project / Brokerage / Rental tabs (newest 100 each), with status chips and `StatusMenu`.
   Clicking a sale (table row → right drawer; agent panel card → expands in place) loads `saleDetail` (`?sale=ID`,
-  `SaleValidationService::detail`: agent, client, property, payment, files, history) into `SaleDetailsForm`, where every
-  field is editable: `PUT …/sales-validation/{sale}` (`UpdateValidatedSaleRequest`, keys = column names, fields by
+  `SaleValidationService::detail`: agent, client, property, payment, files, history) into `components/sales/SaleReview.tsx`:
+  a colour-coded **status banner** (icon + label + who / when) with **validation buttons** (Validate / Mark invalid / Cancel sale /
+  Back to pending, each confirmed, `PATCH`), then the details **read-only** (`SaleDetailsView`) until "Edit details" opens
+  `SaleDetailsForm` — which **never sets the status** (validating and editing are separate): `PUT …/sales-validation/{sale}` (`UpdateValidatedSaleRequest`, keys = column names, `status` optional and only applied if sent, fields by
   category, measurements optional but cleared when the property type doesn't use them) → `SaleValidationService::update`
   (`EDITABLE` map) writes one `update_logs` line listing every change, logs `sale.edit`, recomputes `client_age` from a new
-  birthdate, then sets the status. Pickers: `editOptions` prop. Controls inside a row stop the click (`stop`).
+  birthdate. Pickers: `editOptions` prop. Controls inside a row stop the click (`stop`).
 - **Global Partners** (`/global-partners` + `/global-partners/statistics`, shared by every role; `GlobalPartnerController`,
   `GlobalPartnerService`): a partner counts here only if `agent_type = global_partner`, based outside the Philippines
   (`country_code` set and not PH), fully registered (status 4) and signed up from 2024-02-01 — one query (`partners()`) drives
@@ -391,12 +420,16 @@ at the matching path. Nothing else.
   called without a portal; `SaleValidationService::allowedAreas` → only those areas, one area opens directly, requests
   refuse other areas' sales); **reports** (`TeamLeadershipService::reportScope` → `['area' => …]`: agents and unit managers
   of the area, teams/sub-teams counted only by their members there — a Cebu team with Davao members shows on Davao's list;
-  the Areas views are hidden); **Recruits / Recruits Progress** (area lock); **agent profiles** of their area; Overview
+  the Areas views are hidden); **Recruits / Recruits Progress** (area lock; every count is that area's, named by the area header and
+  `recruitment/AreaOnlyNote` + "· {area}" on the cards — also when the back office clicks an area); **agent profiles** of their area; Overview
   ranks the area's teams. Shared as `auth.office_areas`; menu pseudo-grant `_secretary` (member menu item needs it +
   `sales_validation`).
 - **Sign in as a user** (superadmin only; Management › Agents row action, agent profile button): `POST /impersonate/{user}`,
-  `DELETE /impersonate`, `ImpersonationService` (session key `impersonator_id`; the session id is regenerated on each switch
-  so slow background requests can't undo it). Never on superadmins or inactive users; `ImpersonationBanner` in `AppLayout`;
+  `DELETE /impersonate` (safe to repeat: with nothing to stop it just goes home; a stray `GET /impersonate` too), `ImpersonationService` (session key `impersonator_id`; each switch moves to a new session id and **retires the old one** —
+  every response re-sends the session cookie, so a slow background request still on the old session would put it back and
+  undo the switch; `DropRetiredSessionCookie` (outermost web middleware) drops such a response's cookie and the row it re-saved, and answers a
+  GET with a redirect to itself so the page is rebuilt for the current session; `AppFeedback` flushes prefetched pages after every
+  finished write (per visit) and whenever `auth.id` / `auth.impersonator` changes). Never on superadmins or inactive users; `ImpersonationBanner` in `AppLayout`;
   activity logs get `impersonated_by`. Shared: `auth.impersonator`, `auth.can.impersonate`.
 - **My Team** (`/my-team`, `MyTeamController`, `TeamLeadershipService`): for whoever leads a team (`teams.agent_id`) or
   sub-team (`sub_teams.agent_id`) — leadership comes from the data, not the role; shared as `auth.leads` (drives the
@@ -456,7 +489,8 @@ at the matching path. Nothing else.
   Drill-down: Teams / Sub-teams / Developers rows open that group's top agents (`team_id` / `sub_team_id` /
   `developer_id` filter → `SalesReportService::sales()` scope; teams by the stint covering each reservation date;
   shared `scope` prop names it for the chip).
-- **Areas** (offices): `config/areas.php` (legacy LOCATIONS_LATEST + `abroad`) → `agents.area` via `App\Support\Areas`
+- **Areas** (offices) — **shown to users as "Branch"** (columns, filters, headers, "Sales by Branch", "All branches"); code,
+  routes and data keep `area` and counting is still by area (an area may hold several branch offices). `config/areas.php` (legacy LOCATIONS_LATEST + `abroad`) → `agents.area` via `App\Support\Areas`
   (state, then city: own area name > listed place > contains name > contains place; non-PH country → abroad).
   The `Agent` model re-derives it when state/city/country_code change; rows written with `DB::table` (imports)
   must set it themselves or run `php artisan agents:assign-areas`. Reports: `areas` view / "Sales by Area" card,
@@ -506,7 +540,7 @@ at the matching path. Nothing else.
   **reserved** in it and **encoded** (`agent_transactions.created_at`) by its cutoff in
   `sales_cutoffs` (imported by `legacy:import-sales-cutoffs`; no row = month still open). Top Teams
   credits a sale to the team its agent was on at the reservation date (`team_agents` history).
-- **NATCON** (`/natcon`, permission `view_natcon` — superadmin, admin, staff, team_leader, unit_manager after migration `000046`;
+- **NATCON** (`/natcon`, permission `view_natcon` — superadmin, admin, staff, team_leader, unit_manager, agent (`000046`, `000048`);
   `Portal\NatconController`, `NatconService`; menu right after Reports): like Reports, `/natcon` is a card per board (with its
   count) and `/natcon/{slug}` the ranking (slugs = `NatconService::BOARDS` = `components/natcon/natconCatalog.ts`, the menu's
   children; `NatconPeriod` header on both) — six boards over one period: Qualifiers (agents whose valid local sales of
@@ -521,7 +555,10 @@ at the matching path. Nothing else.
   key `natcon`, defaults 2025-08-01 – 2026-07-31, July 2026, ₱43M; plus the rental period / cutoff date).
   **Reach** (`NatconService::reach`): the back office (superadmin / admin / staff) every board of everyone; whoever leads a team /
   sub-team (from the data, `TeamLeadershipService::current` — a team first) **only Qualifiers**, locked to that group
-  (`team_id` / `sub_team_id`: sales made while on it); anyone else 403 even with the permission. Menu: `[BACKOFFICE, LEADER]` +
+(`team_id` / `sub_team_id`: sales made while on it); anyone else with an agent record only **My NATCON sales**
+  (`/natcon/my-sales`, `NatconService::mineFilters`: their own valid sales in the main period, encoded by its cutoff, every
+  category — the Qualifiers rule — shown by `AgentSalesView` with `fixedPeriod` + a qualifier progress bar; migration `000048`
+  gave `view_natcon` to agent); no agent record → 403. Menu: `[BACKOFFICE, LEADER]` +
   `requires: view_natcon`, non-qualifier children `BACKOFFICE`. Amounts are shown to everyone with reach; rows open sales
   (`canOpen`) for leaders and readers with view_reports.
 - **Legacy data**: the old system is restored locally as database `lr_legacy` (connection `legacy`,
@@ -557,7 +594,7 @@ at the matching path. Nothing else.
   mobile, address, PRC / DHSUD expiry, Facebook link — `App\Support\SocialLinks::facebook` cleans legacy values, also on
   the profile — `AgentActivityService::windows` 6-month window) and `last_active_at` (users column; legacy
   `users.updated_at` via `legacy:import-last-activity` for now, activity logs later), shown by `PersonDetails` on expand; team leaders / unit managers also search, finding only the current members of the groups
-  they lead — `TeamLeadershipService::ledMemberIds` — whose profiles they may open with sales), teams / sub-teams / areas from `GET /search/groups` (`GroupSearchService`, same reach as
+  they lead — `TeamLeadershipService::ledMemberIds` — office secretaries the agents of their office's area (`SearchController::reach`, `UserPolicy::search`) — whose profiles they may open with sales), teams / sub-teams / areas from `GET /search/groups` (`GroupSearchService`, same reach as
   reports: back office → any group, opening `/reports/top-agents?team_id|sub_team_id|area=`; leaders → only groups they
   lead, opening My Team; `auth.can.search_groups`) — with `/search/agents`, `/genealogy/search` and `/search/users/{user}/certificates` (FIRE courses from realestatetraining.ph via
   `FireCertificateService`: `user.score`, max 3, course/date/score only, cached 1h, `services.fire_certificates.url`), the

@@ -76,7 +76,7 @@ class GroupSearchService
         return collect(config('areas'))
             ->map(function (array $area, string $key) use ($needle) {
                 if (str_contains(mb_strtolower($area['name']), $needle)) {
-                    return $this->result('area', $key, $area['name'], 'Area', null, "/reports/top-agents?area={$key}");
+                    return $this->result('area', $key, $area['name'], 'Branch', null, "/reports/top-agents?area={$key}");
                 }
                 $place = collect($area['places'])->first(fn ($p) => str_contains(mb_strtolower($p), $needle));
 

@@ -29,6 +29,8 @@ export default function AppFeedback() {
     const writing = useRef(false);
     const seq = useRef(0);
     const lastFlash = useRef<string | null>(null);
+    // Who the pages are for (the account, and whom it's impersonated by): prefetched pages belong to one of them.
+    const identity = useRef<string | null>(null);
 
     const push = (severity: ToastSeverity, message: string | null | undefined) => {
         if (message) setQueue((q) => [...q, { severity, message, key: ++seq.current }]);
@@ -61,11 +63,23 @@ export default function AppFeedback() {
                 const p = event.detail.progress?.percentage;
                 if (writing.current && typeof p === "number") setPercent(Math.round(p));
             }),
-            router.on("finish", stopModal),
+            router.on("finish", (event) => {
+                stopModal();
+                // Pages prefetched before a write show old data: drop them (the server's cache moves on by itself). Judged
+                // by this visit, not a shared flag — a background reload starting meanwhile would otherwise hide the write.
+                const visit = event.detail.visit;
+                if (visit.method !== "get" && visit.completed) router.flushAll();
+            }),
             router.on("success", (event) => {
-                // Pages prefetched before this write show old data: drop them (the server's cache moves on by itself).
-                if (writing.current) router.flushAll();
-                const { flash, status } = event.detail.page.props as { flash?: Record<string, string | null>; status?: number };
+                const { flash, status, auth } = event.detail.page.props as {
+                    flash?: Record<string, string | null>;
+                    status?: number;
+                    auth?: { id: number; impersonator?: { id: number } | null } | null;
+                };
+                // Signed in as someone else, or back: anything prefetched was rendered for the other account.
+                const who = auth ? `${auth.id}:${auth.impersonator?.id ?? ""}` : "guest";
+                if (identity.current !== null && identity.current !== who) router.flushAll();
+                identity.current = who;
                 // A partial reload (online users, leaderboards, tables) carries the previous page's flash along: once only.
                 if (flash?.id && flash.id !== lastFlash.current) {
                     lastFlash.current = flash.id;

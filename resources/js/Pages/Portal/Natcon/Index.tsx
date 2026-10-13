@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Box, Chip, Container, Grid, Typography } from "@mui/material";
-import { ChevronRightRounded } from "@mui/icons-material";
+import { ChevronRightRounded, PersonRounded } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
 import AppLayout from "../../../components/layouts/AppLayout";
 import SectionTitle from "../../../components/utils/SectionTitle";
@@ -26,21 +26,70 @@ export interface NatconGroup {
 
 interface NatconProps {
     settings: NatconSettings;
+    // The main NATCON period (Top Rent Managers has its own, on its card).
+    period: NatconBoardPeriod;
     boards: NatconBoard[];
     counts: Record<string, number>;
     group: NatconGroup | null;
+    // The reader has an agent record: their own NATCON sales.
+    hasMine: boolean;
 }
 
+const cardSx = {
+    height: "100%",
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 2,
+    p: 2.5,
+    border: "1px solid var(--lr-border)",
+    borderRadius: 3,
+    backgroundColor: "var(--lr-surface)",
+    transition: "box-shadow 0.2s ease",
+    ":hover": { boxShadow: "0 1px 3px rgba(60,64,67,.15), 0 4px 8px rgba(60,64,67,.1)" },
+};
+
+const iconSx = {
+    width: 44,
+    height: 44,
+    borderRadius: "50%",
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "var(--lr-primary)",
+    backgroundColor: "var(--lr-primary-soft)",
+};
+
 // NATCON: one card per board, like Reports, each opening its own ranking for the convention period.
-function Natcon({ settings, boards, counts, group }: NatconProps) {
+function Natcon({ settings, period, boards, counts, group, hasMine }: NatconProps) {
     return (
         <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4 } }}>
             <SectionTitle
                 title="NATCON"
                 subtitle={group ? `Who qualified on ${group.type === "team" ? "your team" : "your sub-team"}, ${group.name}.` : "National convention rankings. Pick a board."}
             />
-            <NatconPeriod period={boards[0].period} qualifier={settings.qualifier_amount} />
+            <NatconPeriod period={period} qualifier={settings.qualifier_amount} />
             <Grid container spacing={2}>
+                {hasMine && (
+                    <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
+                        <Link href="/natcon/my-sales" style={{ textDecoration: "none", display: "block", height: "100%" }}>
+                            <Box sx={cardSx}>
+                                <Box sx={iconSx}>
+                                    <PersonRounded />
+                                </Box>
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Typography variant="body1" sx={{ fontWeight: 500, color: "var(--lr-text-primary)" }}>
+                                        My NATCON Sales
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)", mt: 0.5 }}>
+                                        Your own sales that count for NATCON, and how far you are from the qualifier.
+                                    </Typography>
+                                </Box>
+                                <ChevronRightRounded sx={{ color: "var(--lr-text-secondary)", alignSelf: "center" }} />
+                            </Box>
+                        </Link>
+                    </Grid>
+                )}
                 {boards.map(({ slug, title, description, group, period }) => {
                     const Icon = NATCON_BOARDS.find((b) => b.slug === slug)?.icon ?? NATCON_BOARDS[0].icon;
                     const count = counts[slug] ?? 0;
@@ -48,33 +97,8 @@ function Natcon({ settings, boards, counts, group }: NatconProps) {
                     return (
                         <Grid key={slug} size={{ xs: 12, sm: 6, lg: 4 }}>
                             <Link href={`/natcon/${slug}`} style={{ textDecoration: "none", display: "block", height: "100%" }}>
-                                <Box
-                                    sx={{
-                                        height: "100%",
-                                        display: "flex",
-                                        alignItems: "flex-start",
-                                        gap: 2,
-                                        p: 2.5,
-                                        border: "1px solid var(--lr-border)",
-                                        borderRadius: 3,
-                                        backgroundColor: "var(--lr-surface)",
-                                        transition: "box-shadow 0.2s ease",
-                                        ":hover": { boxShadow: "0 1px 3px rgba(60,64,67,.15), 0 4px 8px rgba(60,64,67,.1)" },
-                                    }}
-                                >
-                                    <Box
-                                        sx={{
-                                            width: 44,
-                                            height: 44,
-                                            borderRadius: "50%",
-                                            flexShrink: 0,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            color: "var(--lr-primary)",
-                                            backgroundColor: "var(--lr-primary-soft)",
-                                        }}
-                                    >
+                                <Box sx={cardSx}>
+                                    <Box sx={iconSx}>
                                         <Icon />
                                     </Box>
                                     <Box sx={{ flex: 1, minWidth: 0 }}>

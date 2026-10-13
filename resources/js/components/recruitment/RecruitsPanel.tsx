@@ -2,6 +2,7 @@ import { Box, Grid, Typography } from "@mui/material";
 import { ArrowForwardRounded } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
 import SectionCard from "../cards/SectionCard";
+import AreaOnlyNote from "./AreaOnlyNote";
 import StatTile from "../charts/StatTile";
 import StyledButton from "../utils/StyledButton";
 import { formatCount, formatPesoCompact } from "../../helpers/formatNumber";
@@ -27,6 +28,8 @@ interface RecruitsPanelProps {
     overall: StatusBuckets;
     // Opens the list of these recruits.
     viewHref: string;
+    // The area every count is limited to, named on the cards.
+    area?: string | null;
 }
 
 function Breakdown({ title, labels, buckets }: { title: string; labels: [string, string, string]; buckets: StatusBuckets }) {
@@ -50,12 +53,15 @@ function Breakdown({ title, labels, buckets }: { title: string; labels: [string,
 
 // Recruits Progress KPIs: totals for the sign-up range, then how the recruits still in training (no sale yet) are
 // doing — NAO 0 / 1–99 / 100%, then FIRE 0 / 1–2 / 3+, and both together.
-export default function RecruitsPanel({ recruits, trainees, sold, conversion, value, from, to, fire, nao, overall, viewHref }: RecruitsPanelProps) {
+export default function RecruitsPanel({ recruits, trainees, sold, conversion, value, from, to, fire, nao, overall, viewHref, area = null }: RecruitsPanelProps) {
+    const inArea = (title: string) => (area ? `${title} · ${area}` : title);
+
     return (
         <Box component="section" aria-label="Recruits progress" sx={{ mb: 4 }}>
+            {area && <AreaOnlyNote area={area} />}
             <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                    <StatTile label="Total recruits" value={formatCount(recruits)} caption={`Recruits as of ${formatDate(from)} – ${formatDate(to)}`} />
+                    <StatTile label={inArea("Total recruits")} value={formatCount(recruits)} caption={`Recruits as of ${formatDate(from)} – ${formatDate(to)}`} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
                     <StatTile label="Recruits who sold" value={formatCount(sold)} caption={`${conversion}% of recruits`} />
@@ -69,13 +75,13 @@ export default function RecruitsPanel({ recruits, trainees, sold, conversion, va
             </Grid>
             <Grid container spacing={2}>
                 <Grid size={{ xs: 12, md: 4 }}>
-                    <Breakdown title="NAO" labels={["Not yet started", "On progress", "Finished"]} buckets={nao} />
+                    <Breakdown title={inArea("NAO")} labels={["Not yet started", "On progress", "Finished"]} buckets={nao} />
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
-                    <Breakdown title="FIRE" labels={["Not yet started", "On progress", "Finished"]} buckets={fire} />
+                    <Breakdown title={inArea("FIRE")} labels={["Not yet started", "On progress", "Finished"]} buckets={fire} />
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
-                    <Breakdown title="Overall" labels={["No activity", "On progress", "Completed"]} buckets={overall} />
+                    <Breakdown title={inArea("Overall")} labels={["No activity", "On progress", "Completed"]} buckets={overall} />
                 </Grid>
             </Grid>
             <Link href={viewHref} style={{ textDecoration: "none" }}>

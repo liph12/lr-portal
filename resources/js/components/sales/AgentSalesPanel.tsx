@@ -10,6 +10,7 @@ import { SaleDetail } from "./SaleDetailsForm";
 import { formatDate } from "../../helpers/formatDate";
 import { formatCount, formatPeso } from "../../helpers/formatNumber";
 import { SaleCategory } from "../../types/app-data-types";
+import { SALE_STATUS_CONFIRM, SALE_STATUS_ICONS, SALE_STATUS_SAFE } from "./saleStatusConfirm";
 
 type Category = SaleCategory;
 
@@ -58,10 +59,6 @@ interface AgentSalesPanelProps {
 }
 
 const TITLES: Record<Category, string> = { project: "Project", brokerage: "Brokerage", rental: "Rental" };
-const CONFIRM = {
-    invalid: "It stops counting in reports and leaderboards. The change is kept in the sale's history.",
-    cancelled: "It stops counting in reports and leaderboards. The change is kept in the sale's history.",
-};
 
 // One agent's sales, client first, in Project / Brokerage / Rental tabs; statuses can be changed from here too.
 export default function AgentSalesPanel(props: AgentSalesPanelProps) {
@@ -169,7 +166,7 @@ function PanelBody({ data, statuses, statusLabels, baseUrl, rangeLabel, onClose,
                                         {[r.client_mobile, r.client_email].filter(Boolean).join(" · ") || "No contact details"}
                                     </Typography>
                                 </Box>
-                                <StatusMenu status={r.sale_status} statuses={statuses} labels={statusLabels} url={`${baseUrl}/${r.id}`} subject={`this ${TITLES[tab].toLowerCase()} sale`} confirm={CONFIRM} />
+                                <StatusMenu status={r.sale_status} statuses={statuses} labels={statusLabels} url={`${baseUrl}/${r.id}`} subject={`this ${TITLES[tab].toLowerCase()} sale`} confirm={SALE_STATUS_CONFIRM} safe={SALE_STATUS_SAFE} icons={SALE_STATUS_ICONS} />
 
                             </Box>
                             <Typography variant="body2" sx={{ color: "var(--lr-text-body)", mt: 1 }}>

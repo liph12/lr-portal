@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
-import { Box, Grid, LinearProgress, MenuItem, TextField, Typography } from "@mui/material";
+import { Box, Grid, IconButton, LinearProgress, MenuItem, TextField, Tooltip, Typography } from "@mui/material";
+import { AccountCircleOutlined } from "@mui/icons-material";
 import { GridColDef } from "@mui/x-data-grid";
 import { router } from "@inertiajs/react";
 import SectionTitle from "../utils/SectionTitle";
@@ -13,6 +14,7 @@ import PersonCell from "../utils/tables/PersonCell";
 import StatusChip from "../utils/StatusChip";
 import DateRangeField from "../utils/DateRangeField";
 import ReportScopeHeader, { ReportScopeDetails } from "../reports/ReportScopeHeader";
+import AreaOnlyNote from "./AreaOnlyNote";
 import useServerTable, { ServerPage, TableFilters } from "../../hooks/useServerTable";
 import { reportPresets } from "../../helpers/dateRanges";
 import { formatCount } from "../../helpers/formatNumber";
@@ -56,6 +58,10 @@ interface Props extends RecruitmentViewProps {
     keep?: TableFilters;
     // Rendered above the cards (e.g. My Team's tabs).
     header?: ReactNode;
+    // A row click: Reports › Recruits opens that person's own recruits (their downline); elsewhere their profile.
+    onOpen?: (trainee: Trainee) => void;
+    // The area every count is limited to, named on the cards.
+    area?: string | null;
 }
 
 const selectSx = {
@@ -90,12 +96,39 @@ function Progress({ value, label }: { value: number; label: string }) {
 
 // Members, recruits and new sign-ups' NAO / FIRE progress: cards first, then the trainees table.
 // Used by Dashboard › Overview and My Team › Recruits.
-export default function RecruitmentView({ filters, scope, summary, trainees, statuses, keep = {}, header }: Props) {
+export default function RecruitmentView({ filters, scope, summary, trainees, statuses, keep = {}, header, onOpen, area = null }: Props) {
+    const inArea = (title: string) => (area ? `${title} · ${area}` : title);
     const table = useServerTable("trainees", trainees, { ...filters, ...keep }, ["summary"]);
     const { members, recruits, nao, fire } = summary;
 
     const columns: GridColDef<Trainee>[] = [
         { field: "name", headerName: "Recruit", flex: 1.5, minWidth: 230, renderCell: ({ row }) => <PersonCell name={row.name} avatar={row.avatar} secondary={row.email} /> },
+        // When a row opens the person's recruits, the profile stays one click away.
+        ...(onOpen
+            ? [
+                  {
+                      field: "profile",
+                      headerName: "",
+                      width: 56,
+                      sortable: false,
+                      renderCell: ({ row }: { row: Trainee }) => (
+                          <Tooltip title="Open profile">
+                              <IconButton
+                                  size="small"
+                                  aria-label={`Profile of ${row.name}`}
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      router.visit(`/agents/${row.id}`);
+                                  }}
+                                  sx={{ color: "var(--lr-text-secondary)" }}
+                              >
+                                  <AccountCircleOutlined fontSize="small" />
+                              </IconButton>
+                          </Tooltip>
+                      ),
+                  } as GridColDef<Trainee>,
+              ]
+            : []),
         {
             field: "sponsor",
             headerName: "Upline / sponsor",
@@ -119,7 +152,7 @@ export default function RecruitmentView({ filters, scope, summary, trainees, sta
         // Inside one team (or sub-team) that column would only repeat it.
         ...(scope?.type === "team" || scope?.type === "sub_team" ? [] : [{ field: "team", headerName: "Team", flex: 1, minWidth: 140, sortable: false, valueGetter: (_: unknown, r: Trainee) => r.team ?? "—" } as GridColDef<Trainee>]),
         ...(scope?.type === "sub_team" ? [] : [{ field: "sub_team", headerName: "Sub-team", flex: 1, minWidth: 140, sortable: false, valueGetter: (_: unknown, r: Trainee) => r.sub_team ?? "—" } as GridColDef<Trainee>]),
-        { field: "area", headerName: "Area / location", width: 140, sortable: false, valueGetter: (_, r) => r.area ?? "—" },
+        { field: "area", headerName: "Branch", width: 140, sortable: false, valueGetter: (_, r) => r.area ?? "—" },
         { field: "signed_up", headerName: "Signed up", width: 130, valueGetter: (_, r) => formatDate(r.signed_up) },
         { field: "nao", headerName: "NAO", width: 170, renderCell: ({ row }) => <Progress value={row.nao} label={`NAO ${row.nao}%`} /> },
         {
@@ -154,14 +187,19 @@ export default function RecruitmentView({ filters, scope, summary, trainees, sta
                 </Typography>
             </Box>
             {table.loading && <LinearProgress sx={{ height: 2, mb: 2 }} />}
+            {area && <AreaOnlyNote area={area} />}
 
             {/* Cards */}
             <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                    <StatTile label="Members" value={formatCount(members.total)} caption={`${formatCount(members.by_status.active ?? 0)} active now`} />
+                    <StatTile label={inArea("Members")} value={formatCount(members.total)} caption={`${formatCount(members.by_status.active ?? 0)} active now`} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                    <StatTile label="New recruits" value={formatCount(recruits.total)} caption={`${formatCount(recruits.by_status.active ?? 0)} of them active`} />
+                    <StatTile
+                        label={inArea("New recruits")}
+                        value={formatCount(recruits.total)}
+                        caption={`${formatCount(recruits.by_status.active ?? 0)} active · ${formatCount(summary.trainees)} still in training, ${formatCount(recruits.total - summary.trainees)} already sold`}
+                    />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
                     <StatTile label="Finished NAO (100%)" value={pct(nao.finished_pct)} caption={`${formatCount(nao.finished)} of ${formatCount(summary.trainees)} new recruits without a sale`} />
@@ -172,17 +210,17 @@ export default function RecruitmentView({ filters, scope, summary, trainees, sta
             </Grid>
             <Grid container spacing={2} sx={{ mb: 4 }}>
                 <Grid size={{ xs: 12, md: 6, lg: 3 }}>
-                    <SectionCard title="Members by status">
+                    <SectionCard title={inArea("Members by status")}>
                         <BarList items={statusBars(members.by_status)} caption="All current members by account status" formatValue={formatCount} emptyText="No members." />
                     </SectionCard>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6, lg: 3 }}>
-                    <SectionCard title="New recruits by status">
+                    <SectionCard title={inArea("New recruits by status")}>
                         <BarList items={statusBars(recruits.by_status)} caption="Members who signed up in the range, by account status" formatValue={formatCount} emptyText="No recruits in this range." />
                     </SectionCard>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6, lg: 3 }}>
-                    <SectionCard title="NAO">
+                    <SectionCard title={inArea("NAO")}>
                         <ShareBar
                             segments={[
                                 { label: "Finished (100%)", value: nao.finished },
@@ -198,7 +236,7 @@ export default function RecruitmentView({ filters, scope, summary, trainees, sta
                     </SectionCard>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6, lg: 3 }}>
-                    <SectionCard title="FIRE certificates">
+                    <SectionCard title={inArea("FIRE certificates")}>
                         <BarList
                             items={fire.levels.map((l) => ({ name: l.label, value: l.count, detail: `${l.pct}%` }))}
                             caption="New recruits without a sale, by FIRE certificates (3 is complete)"
@@ -210,7 +248,11 @@ export default function RecruitmentView({ filters, scope, summary, trainees, sta
             </Grid>
 
             {/* Table */}
-            <SectionTitle title="New recruits in training" subtitle="Signed up in the range and no sale yet — agents with sales are past onboarding." />
+            {/* The table is the recruits still in training, so it's fewer than the New recruits card: say by how many. */}
+            <SectionTitle
+                title="New recruits in training"
+                subtitle={`${formatCount(summary.trainees)} of the ${formatCount(recruits.total)} new recruits — the ${formatCount(recruits.total - summary.trainees)} who already made a sale are past onboarding and not listed here.`}
+            />
             <TableToolbar
                 search={table.search}
                 onSearch={table.setSearch}
@@ -244,7 +286,7 @@ export default function RecruitmentView({ filters, scope, summary, trainees, sta
                 {...table.gridProps}
                 columns={columns}
                 getRowHeight={() => 64}
-                onRowClick={({ row }) => router.visit(`/agents/${row.id}`)}
+                onRowClick={({ row }) => (onOpen ? onOpen(row as Trainee) : router.visit(`/agents/${row.id}`))}
                 sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
                 aria-label="New recruits in training"
             />

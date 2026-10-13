@@ -18,11 +18,10 @@ import {
     ReceiptLongRounded,
     AccountTreeRounded,
     EmojiEventsRounded,
-    MoveToInboxRounded,
-    KeyRounded,
 } from "@mui/icons-material";
 import { REPORTS } from "./components/reports/reportCatalog";
 import { NATCON_BOARDS } from "./components/natcon/natconCatalog";
+import { MANAGEMENT_SECTIONS } from "./components/management/managementCatalog";
 import { AGENT, BACKOFFICE, LEADER, PARTNERS, SECRETARY, TEAM_LEADER } from "./helpers/permissions";
 
 // The dashboard is the same for every role (shared /dashboard routes); Record Your Sale needs a recording permission.
@@ -111,32 +110,17 @@ export const genealogyRoute = {
 };
 
 // The NATCON rankings for the convention period set in Settings › NATCON: the back office every board, leaders who
-// qualified on the group they lead (NatconService::reach).
+// qualified on the group they lead, and anyone with an agent record their own NATCON sales (NatconService::reach).
 export const natconRoute = {
     name: "NATCON",
     path: "/natcon",
     icon: EmojiEventsRounded,
-    permission: [BACKOFFICE, LEADER],
+    permission: [BACKOFFICE, LEADER, AGENT],
     requires: ["view_natcon"],
-    children: NATCON_BOARDS.map((b) => ({ name: b.title, path: `/natcon/${b.slug}`, ...(b.slug === "qualifiers" ? {} : { permission: BACKOFFICE }), children: [] })),
-};
-
-// Commission slips waiting to be received and signed for — brokerage and rental separately, each its own permission
-// (shared pages; secretaries see their areas).
-export const brokerageReceivingRoute = {
-    name: "Brokerage receiving",
-    path: "/brokerage-receiving",
-    icon: MoveToInboxRounded,
-    permission: "receive_brokerage_sales",
-    children: [],
-};
-
-export const rentalReceivingRoute = {
-    name: "Rental receiving",
-    path: "/rental-receiving",
-    icon: KeyRounded,
-    permission: "receive_rental_sales",
-    children: [],
+    children: [
+        { name: "My NATCON Sales", path: "/natcon/my-sales", permission: AGENT, children: [] },
+        ...NATCON_BOARDS.map((b) => ({ name: b.title, path: `/natcon/${b.slug}`, permission: b.slug === "qualifiers" ? [BACKOFFICE, LEADER] : BACKOFFICE, children: [] })),
+    ],
 };
 
 export const globalPartnersRoute = {
@@ -174,21 +158,14 @@ export const reportsRoute = {
     })),
 };
 
-// The same Management pages serve /superadmin/management and /admin/management (tabs in ManagementLayout).
-// Any of them opens Management (TeamPolicy::manage); each change needs its own (Permission::MANAGEMENT).
-const MANAGEMENT_PERMISSIONS = ["edit_designation", "transfer_agents", "change_agent_status", "edit_teams", "change_team_status"];
-
+// Management: the cards at its base and its sections (managementCatalog) — the same pages in every back-office portal, and
+// the two commission receivings (shared pages with their own permissions). Its badge = slips awaiting receipt.
 const managementRoute = (base: string) => ({
     name: "Management",
     path: base,
     icon: AdminPanelSettingsRounded,
-    permission: MANAGEMENT_PERMISSIONS,
-    children: [
-        { name: "Agents", path: `${base}/agents`, children: [] },
-        { name: "Teams", path: `${base}/teams`, children: [] },
-        { name: "Sub-teams", path: `${base}/sub-teams`, children: [] },
-        { name: "Team transfers", path: `${base}/transfers`, children: [] },
-    ],
+    permission: Array.from(new Set(MANAGEMENT_SECTIONS.flatMap((s) => s.permission))),
+    children: MANAGEMENT_SECTIONS.map((s) => ({ name: s.name, path: s.href(base), permission: s.permission, children: [] })),
 });
 
 export const useAppRoutes = [
@@ -212,8 +189,6 @@ export const useAppRoutes = [
         children: [],
     },
     { name: "Sales validation", path: "/superadmin/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
-    brokerageReceivingRoute,
-    rentalReceivingRoute,
     {
         name: "Documentation",
         path: "/superadmin/documentation",
@@ -283,8 +258,6 @@ export const adminRoutes = [
     genealogyRoute,
     { name: "Statistics", path: "/admin/statistics", icon: BarChartRounded, permission: "view_statistics", children: [] },
     { name: "Sales validation", path: "/admin/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
-    brokerageReceivingRoute,
-    rentalReceivingRoute,
     { name: "Documentation", path: "/admin/documentation", icon: FolderShared, permission: "manage_documents", children: [] },
     settingsRoute,
 ];
@@ -298,8 +271,6 @@ export const staffRoutes = [
     genealogyRoute,
     { name: "Statistics", path: "/staff/statistics", icon: BarChartRounded, permission: "view_statistics", children: [] },
     { name: "Sales validation", path: "/staff/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
-    brokerageReceivingRoute,
-    rentalReceivingRoute,
     { name: "Documentation", path: "/staff/documentation", icon: FolderShared, permission: "manage_documents", children: [] },
     settingsRoute,
 ];

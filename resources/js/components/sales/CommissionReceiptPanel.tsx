@@ -6,6 +6,7 @@ import StyledButton from "../utils/StyledButton";
 import StyledTextField from "../utils/StyledTextField";
 import FieldLabel from "../utils/forms/FieldLabel";
 import FormDialog from "../utils/forms/FormDialog";
+import ConfirmDialog from "../utils/ConfirmDialog";
 import SignaturePad from "../utils/forms/SignaturePad";
 import { formatDate, formatDateTime } from "../../helpers/formatDate";
 import { SaleDetail } from "./SaleDetailsForm";
@@ -29,6 +30,8 @@ export default function CommissionReceiptPanel({ detail, base }: CommissionRecei
     const redate = useForm<{ received_on: string }>({ received_on: dateOnly(receivedAt) });
     const disapprove = useForm<{ reason: string }>({ reason: "" });
     const [disapproving, setDisapproving] = useState(false);
+    // Signing validates the sale: asked first, as a stray click used to.
+    const [confirmingReceipt, setConfirmingReceipt] = useState(false);
     const keep = { preserveScroll: true, preserveState: true };
 
     return (
@@ -117,12 +120,24 @@ export default function CommissionReceiptPanel({ detail, base }: CommissionRecei
                             variant="contained"
                             startIcon={<HowToRegRounded />}
                             disabled={!receive.data.signature || receive.processing}
-                            onClick={() => receive.post(`${base}/${detail.id}/receive`, { ...keep, onSuccess: () => receive.reset() })}
+                            onClick={() => setConfirmingReceipt(true)}
                             sx={{ flex: 1, backgroundColor: "var(--lr-primary)", ":hover": { backgroundColor: "var(--lr-primary-hover)" } }}
                         >
                             Sign & receive
                         </StyledButton>
                     </Box>
+                    <ConfirmDialog
+                        open={confirmingReceipt}
+                        title="Receive this commission?"
+                        message={`Received on ${receive.data.received_on ? formatDate(receive.data.received_on) : "the date chosen"}. The sale becomes valid and the slip is signed with your signature. You can still correct the date afterwards.`}
+                        confirmLabel="Sign & receive"
+                        tone="primary"
+                        onConfirm={() => {
+                            setConfirmingReceipt(false);
+                            receive.post(`${base}/${detail.id}/receive`, { ...keep, onSuccess: () => receive.reset() });
+                        }}
+                        onClose={() => setConfirmingReceipt(false)}
+                    />
                     <FormDialog
                         open={disapproving}
                         title="Disapprove this sale?"

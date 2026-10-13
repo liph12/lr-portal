@@ -13,6 +13,7 @@ use App\Services\FireCertificateService;
 use App\Services\GroupSearchService;
 use App\Services\PersonDetailsService;
 use App\Services\ImpersonationService;
+use App\Services\OfficeService;
 use App\Services\TeamLeadershipService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -40,11 +41,9 @@ class SearchController extends Controller
         // A real superadmin, not already signed in as someone else (same rule as StartImpersonationRequest).
         $canImpersonate = $me->reallyHasRole(Role::SUPERADMIN) && ! $request->session()->has(ImpersonationService::SESSION_KEY);
 
+        $reach = $this->reach($me, $leadership);
         $users = User::query()
-            // Leaders find only the current members of the teams / sub-teams they lead.
-            ->when(! $me->hasAnyRole(UserPolicy::SEARCH_ROLES), fn ($q) => $q->whereIn('id', DB::table('agents')
-                ->whereIn('id', $leadership->ledMemberIds($me))
-                ->select('user_id')))
+            ->when($reach !== null, fn ($q) => $q->whereIn('id', $reach->select('user_id')))
             ->where(fn ($q) => $q->where('name', 'like', $like)->orWhere('email', 'like', $like))
             ->with(['roles:id,name,label', 'agent:id,user_id,avatar,activity,is_broker,broker_since,unit_manager_by,unit_manager_since'])
             ->orderByRaw('CASE WHEN name LIKE ? THEN 0 ELSE 1 END', [addcslashes($term, '%_\\').'%'])
@@ -81,10 +80,10 @@ class SearchController extends Controller
     public function certificates(Request $request, User $user, TeamLeadershipService $leadership, FireCertificateService $fire): JsonResponse
     {
         Gate::authorize('search', User::class);
-        $me = $request->user();
-        if (! $me->hasAnyRole(UserPolicy::SEARCH_ROLES)) {
+        $reach = $this->reach($request->user(), $leadership);
+        if ($reach !== null) {
             $agentId = $user->agent()->value('id');
-            abort_unless($agentId && DB::query()->fromSub($leadership->ledMemberIds($me), 'm')->where('agent_id', $agentId)->exists(), 403);
+            abort_unless($agentId && $reach->where('agents.id', $agentId)->exists(), 403);
         }
 
         $result = $fire->for($user->email);
@@ -107,7 +106,7 @@ class SearchController extends Controller
     // Agent picker (sale agents, team leaders, transfers): active agents only, id is agents.id.
     public function agents(Request $request): JsonResponse
     {
-        abort_unless($request->user()->can('create', AgentTransaction::class) || $request->user()->can('manage', Team::class), 403);
+        abort_unless($request->user()->can('create', AgentTransaction::class) || $request->user()->can('manage', Team::class) || $request->user()->can('edit_agent_profile'), 403);
 
         $term = trim((string) $request->query('q', ''));
 
@@ -127,5 +126,28 @@ class SearchController extends Controller
             ->get(['agents.id', 'users.name', 'users.email', 'agents.avatar']);
 
         return response()->json(['agents' => $agents]);
+    }
+
+    /**
+     * Whose agents a reader finds: null = everyone (the back office); otherwise the agents of the teams / sub-teams they
+     * lead and, for an office secretary, every agent of their office's area (the profiles they may open).
+     */
+    private function reach(User $me, TeamLeadershipService $leadership): ?\Illuminate\Database\Query\Builder
+    {
+        if ($me->hasAnyRole(UserPolicy::SEARCH_ROLES)) {
+            return null;
+        }
+        $led = $leadership->ledMemberIds($me);
+        $areas = app(OfficeService::class)->areasFor($me);
+
+        return DB::table('agents')->where(function ($q) use ($led, $areas) {
+            $q->whereRaw('1 = 0');
+            if ($led) {
+                $q->orWhereIn('agents.id', $led);
+            }
+            if ($areas) {
+                $q->orWhereIn('agents.area', $areas);
+            }
+        });
     }
 }

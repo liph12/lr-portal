@@ -1,10 +1,9 @@
 import { ReactNode } from "react";
-import { Box, Container, Drawer, IconButton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { Box, Drawer, IconButton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { CloseRounded } from "@mui/icons-material";
 import { router } from "@inertiajs/react";
 import { GridColDef } from "@mui/x-data-grid";
-import AppLayout from "../../../components/layouts/AppLayout";
-import SectionTitle from "../../../components/utils/SectionTitle";
+import ManagementLayout from "../../../components/layouts/ManagementLayout";
 import DataTable from "../../../components/utils/tables/DataTable";
 import TableToolbar from "../../../components/utils/tables/TableToolbar";
 import PersonCell from "../../../components/utils/tables/PersonCell";
@@ -205,12 +204,14 @@ function CommissionReceiving({ category, sales, filters, counts, areas, rentRate
     ];
 
     return (
-        <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 } }}>
-            <SectionTitle title={`${labels.label} receiving`} subtitle={labels.subtitle} />
+        <>
+            <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)", mb: 2 }}>
+                {labels.subtitle}
+            </Typography>
 
             <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "center", mb: 2 }}>
                 <DateRangeField value={{ from: filters.from, to: filters.to }} presets={reportPresets()} onChange={(range) => table.setFilters(range)} />
-                <FilterSelect label="Areas" value={filters.area ?? ""} options={areas} onChange={(v) => table.setFilter("area", v)} />
+                <FilterSelect label="Branches" value={filters.area ?? ""} options={areas} onChange={(v) => table.setFilter("area", v)} />
             </Box>
             <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mb: 2 }}>
                 <ToggleButtonGroup exclusive size="small" value={filters.status} onChange={(_, v: string | null) => v && table.setFilter("status", v)} aria-label="Which sales" sx={toggleSx}>
@@ -240,10 +241,11 @@ function CommissionReceiving({ category, sales, filters, counts, areas, rentRate
             <Drawer anchor="right" open={!!saleDetail} onClose={() => showSale(null)} slotProps={{ paper: { sx: { width: { xs: "100%", md: 620 }, backgroundColor: "var(--lr-surface)" } } }}>
                 {saleDetail && <SalePanel key={`${saleDetail.id}-${String(saleDetail.property.received_at ?? "")}`} detail={saleDetail} base={base} rentRates={rentRates} onClose={() => showSale(null)} />}
             </Drawer>
-        </Container>
+        </>
     );
 }
 
-CommissionReceiving.layout = (page: ReactNode) => <AppLayout children={page} />;
+// A card of Management: its tabs and title around it.
+CommissionReceiving.layout = (page: ReactNode) => <ManagementLayout children={page} />;
 
 export default CommissionReceiving;

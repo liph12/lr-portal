@@ -152,7 +152,7 @@ function Members({ group, canManage, members, memberCount, filters, subTeams }: 
                   } as GridColDef<Member>,
               ]
             : []),
-        { field: "area", headerName: "Area / location", width: 150, valueGetter: (_, row) => row.area ?? "—" },
+        { field: "area", headerName: "Branch", width: 150, valueGetter: (_, row) => row.area ?? "—" },
         { field: "joined_at", headerName: "Joined", width: 130, valueGetter: (_, row) => (row.joined_at ? formatDate(row.joined_at) : "—") },
         { field: "status", headerName: "Status", width: 120, renderCell: ({ row }) => <StatusChip status={row.status} /> },
     ];

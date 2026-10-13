@@ -27,6 +27,8 @@ interface AgentSalesViewProps extends AgentSalesProps {
     // Above the title (e.g. a back link), and between the title and the filters (e.g. the agent's header).
     top?: ReactNode;
     header?: ReactNode;
+    // Dates and status set by the page (My NATCON Sales): no pickers for them, only the category.
+    fixedPeriod?: boolean;
 }
 
 const selectSx = {
@@ -37,7 +39,7 @@ const selectSx = {
 
 // One agent's sales one by one (click one for its details and files), then their statistics — My Sales and an agent's
 // sales page (/agents/{agent}/sales) are the same view.
-export default function AgentSalesView({ filters, summary, totals, saleList, saleDetail, options, basePath, title, subtitle, top, header }: AgentSalesViewProps) {
+export default function AgentSalesView({ filters, summary, totals, saleList, saleDetail, options, basePath, title, subtitle, top, header, fixedPeriod = false }: AgentSalesViewProps) {
     const [loading, setLoading] = useState(false);
 
     // Dates, category and status narrow both the list and the statistics; back to page 1.
@@ -55,7 +57,7 @@ export default function AgentSalesView({ filters, summary, totals, saleList, sal
             {header}
 
             <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5, mb: 3 }}>
-                <DateRangeField value={{ from: filters.from, to: filters.to }} presets={reportPresets()} onChange={(range) => change(range)} />
+                {!fixedPeriod && <DateRangeField value={{ from: filters.from, to: filters.to }} presets={reportPresets()} onChange={(range) => change(range)} />}
                 <TextField select size="small" label="Category" value={filters.category ?? ""} onChange={(e) => change({ category: e.target.value })} slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }} sx={selectSx}>
                     <MenuItem value="">All categories</MenuItem>
                     {options.categories.map((c) => (
@@ -64,14 +66,16 @@ export default function AgentSalesView({ filters, summary, totals, saleList, sal
                         </MenuItem>
                     ))}
                 </TextField>
-                <TextField select size="small" label="Status" value={filters.status} onChange={(e) => change({ status: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} sx={selectSx}>
-                    <MenuItem value="all">All statuses</MenuItem>
-                    {options.statuses.map((s) => (
-                        <MenuItem key={s} value={s} sx={{ textTransform: "capitalize" }}>
-                            {s}
-                        </MenuItem>
-                    ))}
-                </TextField>
+                {!fixedPeriod && (
+                    <TextField select size="small" label="Status" value={filters.status} onChange={(e) => change({ status: e.target.value })} slotProps={{ inputLabel: { shrink: true } }} sx={selectSx}>
+                        <MenuItem value="all">All statuses</MenuItem>
+                        {options.statuses.map((s) => (
+                            <MenuItem key={s} value={s} sx={{ textTransform: "capitalize" }}>
+                                {s}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+                )}
             </Box>
             {loading && <LinearProgress sx={{ height: 2, mb: 2 }} />}
 

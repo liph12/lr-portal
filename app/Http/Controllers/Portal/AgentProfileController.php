@@ -7,7 +7,11 @@ use App\Models\Entities\Agent;
 use App\Models\Entities\Team;
 use App\Models\User;
 use App\Policies\UserPolicy;
+use App\Http\Requests\Portal\Agents\ChangeUplineRequest;
+use App\Http\Requests\Portal\Agents\UpdateAgentProfileRequest;
+use App\Services\AgentUplineService;
 use App\Services\GlobalPartnerService;
+use App\Services\ProfileService;
 use App\Services\OfficeService;
 use App\Services\RecruitmentService;
 use App\Services\SaleValidationService;
@@ -15,10 +19,13 @@ use App\Services\SalesReportService;
 use App\Support\Areas;
 use App\Support\SocialLinks;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
-// A read-only agent profile, opened from the reports and the navbar search: for the back office (superadmin, admin,
-// staff), the agent's own leaders, and the agent themself. Their sales need view_reports for the back office.
+// An agent profile, opened from the reports and the navbar search: for the back office (superadmin, admin, staff), the
+// agent's own leaders, and the agent themself. Their sales need view_reports for the back office. Holders of
+// edit_agent_profile (superadmin, admin) may also edit the details and change the upline (UserPolicy::updateProfile).
 class AgentProfileController extends Controller
 {
     public function __construct(private SalesReportService $reports) {}
@@ -47,6 +54,7 @@ class AgentProfileController extends Controller
             ->where('a.id', $sponsorId)->first(['a.id', 'a.avatar', 'a.area', 'u.name', 'u.email']) : null;
 
         $seesSales = ! $user->hasAnyRole(UserPolicy::SEARCH_ROLES) || $user->can('view_reports');
+        $canEdit = $agent->user !== null && $user->can('updateProfile', $agent->user);
 
         // The tax number stays with the back office and the agent themself, not with team leaders.
         $seesPrivate = $user->hasAnyRole(UserPolicy::SEARCH_ROLES) || $agent->user_id === $user->id;
@@ -113,11 +121,59 @@ class AgentProfileController extends Controller
                 'country' => $agent->country,
                 'country_code' => $agent->country_code,
             ],
+            // What the edit dialog starts from (only for those who may edit).
+            'editable' => $canEdit ? [
+                'first_name' => $agent->first_name,
+                'middle_name' => $agent->middle_name,
+                'last_name' => $agent->last_name,
+                'email' => $agent->user?->email ?? $agent->email,
+                'mobile' => $agent->mobile,
+                'phone' => $agent->phone,
+                'gender' => $agent->gender === null ? null : ($agent->gender ? 'Male' : 'Female'),
+                'marital_status' => $agent->marital_status,
+                'address' => $agent->address,
+                'city' => $agent->city,
+                'state' => $agent->state,
+                'about' => $profile?->about,
+                'facebook' => $profile?->facebook,
+                'linkedin' => $profile?->linkedin,
+                'whatsapp' => $profile?->whatsapp,
+            ] : null,
+            'maritalStatuses' => $canEdit ? Agent::MARITAL_STATUSES : [],
+            // Where a picked upline would take the agent (?upline_preview=ID, asked for by the upline dialog).
+            'uplinePlacement' => Inertia::optional(function () use ($request, $canEdit) {
+                $upline = $canEdit ? Agent::find((int) $request->query('upline_preview')) : null;
+                if (! $upline) {
+                    return null;
+                }
+                $placement = app(AgentUplineService::class)->placementOf($upline);
+
+                return ['upline_id' => $upline->id, 'team' => $placement['team']?->name, 'sub_team' => $placement['sub_team']?->name];
+            }),
             'teams' => $memberships('team_agents', 'teams', 'team_id'),
             'subTeams' => $memberships('sub_team_agents', 'sub_teams', 'sub_team_id'),
             'filters' => $filters,
             'summary' => $seesSales ? fn () => $this->reports->summary($filters) : null,
         ]);
+    }
+
+    public function update(UpdateAgentProfileRequest $request, Agent $agent, ProfileService $profiles)
+    {
+        $profiles->updateAgent($agent->load('user'), $request->validated());
+
+        return back()->with('success', 'Profile saved.');
+    }
+
+    public function changeUpline(ChangeUplineRequest $request, Agent $agent, AgentUplineService $uplines)
+    {
+        $result = $uplines->change($agent->load('user'), Agent::with('user')->findOrFail($request->integer('upline_id')), Carbon::parse($request->validated('date')));
+
+        if (! $result['team']) {
+            return back()->with('warning', 'Upline changed. The new upline isn\'t on a team, so the agent\'s team stays as it was.');
+        }
+        $where = $result['team']->name.($result['sub_team'] ? " / {$result['sub_team']->name}" : '');
+
+        return back()->with('success', $result['moved'] ? "Upline changed and moved to {$where}." : "Upline changed. Already on {$where}.");
     }
 
     // One agent's sales one by one (with statistics): the same people who may open the profile, and for the back office

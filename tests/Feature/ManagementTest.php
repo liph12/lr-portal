@@ -46,8 +46,9 @@ beforeEach(function () {
 afterEach(fn () => Carbon::setTestNow());
 
 test('superadmins and admins can open management; staff and agents cannot', function () {
-    // Management opens on Agents; Teams has its own tab.
-    $this->actingAs($this->superadmin)->get('/superadmin/management')->assertRedirect('/superadmin/management/agents');
+    // Management opens on its cards, with what each section holds; Teams has its own tab.
+    $this->actingAs($this->superadmin)->get('/superadmin/management')
+        ->assertInertia(fn ($page) => $page->component('Portal/Management/Index')->where('counts.teams', 2)->has('counts.agents')->has('counts.transfers'));
     $this->actingAs($this->superadmin)->get('/superadmin/management/teams')
         ->assertInertia(fn ($page) => $page->component('Portal/Management/Teams')
             ->has('teams', 2)
@@ -293,7 +294,7 @@ test('staff get Management in their portal once a role holds any Management perm
     $this->actingAs($this->staff)->get('/staff/management/agents')->assertForbidden();
 
     $staffRole->permissions()->sync(\App\Models\Permission::where('name', 'edit_designation')->pluck('id'));
-    $this->actingAs($this->staff)->get('/staff/management')->assertRedirect('/staff/management/agents');
+    $this->actingAs($this->staff)->get('/staff/management')->assertInertia(fn ($page) => $page->component('Portal/Management/Index')->has('counts'));
     $this->actingAs($this->staff)->get('/staff/management/agents')->assertOk();
     $this->actingAs($this->staff)->get('/profile')->assertInertia(fn ($page) => $page->where('auth.can.manage_teams', true));
 
@@ -310,4 +311,19 @@ test('staff get Management in their portal once a role holds any Management perm
     foreach ([$otherStaff, $adminAgent] as $id) {
         $this->actingAs($this->staff)->put("/staff/management/agents/{$id}/designation", ['unit_manager_by' => 'none', 'is_broker' => false])->assertForbidden();
     }
+});
+
+test('the receivings are Management cards: a role with only a receiving permission gets Management with just that', function () {
+    $staffRole = Role::where('name', 'staff')->first();
+    $staffRole->permissions()->sync(\App\Models\Permission::where('name', 'receive_rental_sales')->pluck('id'));
+
+    $this->actingAs($this->staff)->get('/staff/management')
+        ->assertInertia(fn ($page) => $page->component('Portal/Management/Index')->where('counts', null)->where('auth.commission_receiving.rental', 0));
+    $this->actingAs($this->staff)->get('/rental-receiving')->assertOk();
+    $this->actingAs($this->staff)->get('/staff/management/agents')->assertForbidden();
+    $this->actingAs($this->staff)->get('/brokerage-receiving')->assertForbidden();
+
+    // Neither Management nor receiving: no Management at all.
+    $staffRole->permissions()->detach();
+    $this->actingAs($this->staff)->get('/staff/management')->assertForbidden();
 });

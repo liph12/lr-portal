@@ -24,8 +24,11 @@ const TONES: Record<string, [string, string]> = {
     for_reupload: ["var(--lr-error-soft)", "var(--lr-error)"],
 };
 
+// [background, text] for a status, for other status-coloured surfaces (e.g. the Sales validation count tiles).
+export const statusTone = (status: string | null): [string, string] => TONES[status ?? ""] ?? TONES.inactive;
+
 export default function StatusChip({ status, sx, ...props }: StatusChipProps) {
-    const [bg, fg] = TONES[status ?? ""] ?? TONES.inactive;
+    const [bg, fg] = statusTone(status);
 
     return (
         <Box

@@ -67,7 +67,7 @@ function NatconShow({ settings, period, board, group, filters, rows, canOpen }: 
                 sortable: false,
                 renderCell: ({ row }) => <PersonCell name={row.name} avatar={row.avatar} secondary={row.detail ?? undefined} />,
             },
-            { field: "area", headerName: "Area / location", flex: 1, minWidth: 140, sortable: false, valueGetter: (_: unknown, row: NatconRow) => row.area ?? "—" },
+            { field: "area", headerName: "Branch", flex: 1, minWidth: 140, sortable: false, valueGetter: (_: unknown, row: NatconRow) => row.area ?? "—" },
             ...(board.group !== "teams" && group?.type !== "team"
                 ? [{ field: "team", headerName: "Team", flex: 1, minWidth: 160, sortable: false, valueGetter: (_: unknown, row: NatconRow) => row.team ?? "—" } as GridColDef<NatconRow>]
                 : []),

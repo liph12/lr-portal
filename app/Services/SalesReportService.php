@@ -90,7 +90,7 @@ class SalesReportService
             $agent = DB::table('agents as a')->leftJoin('users as u', 'u.id', '=', 'a.user_id')->where('a.id', $f['agent_id'])->first(['u.name', 'a.avatar', 'a.area']);
 
             return ['type' => 'agent', 'id' => $f['agent_id'], 'name' => $agent->name ?? "#{$f['agent_id']}", 'avatar' => $agent->avatar ?? null, 'facts' => [
-                ['label' => 'Area', 'value' => ($agent->area ?? null) ? Areas::name($agent->area) : '—'],
+                ['label' => 'Branch', 'value' => ($agent->area ?? null) ? Areas::name($agent->area) : '—'],
             ]];
         }
 
@@ -98,7 +98,7 @@ class SalesReportService
         if ($f['developer_id'] ?? null) {
             return ['type' => 'developer', 'id' => $f['developer_id'], 'name' => (string) (DB::table('developers')->where('id', $f['developer_id'])->value('name') ?? "#{$f['developer_id']}"), 'avatar' => null, 'facts' => [
                 ['label' => 'Projects on file', 'value' => number_format(DB::table('developer_projects')->where('developer_id', $f['developer_id'])->count())],
-                ...(($f['area'] ?? null) ? [['label' => 'Area', 'value' => Areas::name($f['area'])]] : []),
+                ...(($f['area'] ?? null) ? [['label' => 'Branch', 'value' => Areas::name($f['area'])]] : []),
             ]];
         }
 
@@ -106,7 +106,7 @@ class SalesReportService
             $agents = DB::table('agents')->where('agent_type', Agent::TYPE_LOCAL)->whereIn('id', Agent::fullyRegisteredIds())->where('area', $f['area'])->count();
 
             return ['type' => 'area', 'id' => $f['area'], 'name' => Areas::name($f['area']), 'avatar' => null, 'facts' => [
-                ['label' => 'Agents in this area', 'value' => number_format($agents)],
+                ['label' => 'Agents in this branch', 'value' => number_format($agents)],
             ]];
         }
 
@@ -116,7 +116,7 @@ class SalesReportService
 
             return ['type' => 'team', 'id' => $f['team_id'], 'name' => $team->name ?? "#{$f['team_id']}", 'avatar' => $team->logo ?? null, 'facts' => [
                 ['label' => 'Team leader', 'value' => $team->leader ?? '—'],
-                ['label' => 'Area', 'value' => ($team->area ?? null) ? Areas::name($team->area) : '—'],
+                ['label' => 'Branch', 'value' => ($team->area ?? null) ? Areas::name($team->area) : '—'],
                 ['label' => 'Active members', 'value' => number_format(DB::table('team_agents')->where('team_id', $f['team_id'])->where('status', 'active')->count())],
                 ['label' => 'Status', 'value' => ucfirst((string) ($team->status ?? '—'))],
             ]];
@@ -130,7 +130,7 @@ class SalesReportService
             return ['type' => 'sub_team', 'id' => $f['sub_team_id'], 'name' => $sub->name ?? "#{$f['sub_team_id']}", 'avatar' => $sub->logo ?? null, 'facts' => [
                 ['label' => 'Team', 'value' => $sub->team ?? '—'],
                 ['label' => 'Leader', 'value' => $sub->leader ?? '—'],
-                ['label' => 'Area', 'value' => ($sub->area ?? null) ? Areas::name($sub->area) : '—'],
+                ['label' => 'Branch', 'value' => ($sub->area ?? null) ? Areas::name($sub->area) : '—'],
                 ['label' => 'Active members', 'value' => number_format(DB::table('sub_team_agents')->where('sub_team_id', $f['sub_team_id'])->where('status', 'active')->count())],
             ]];
         }
@@ -461,7 +461,7 @@ class SalesReportService
 
     private function headcountLabel(int $agents): string
     {
-        return number_format($agents).($agents === 1 ? ' agent' : ' agents').' in this area';
+        return number_format($agents).($agents === 1 ? ' agent' : ' agents').' in this branch';
     }
 
     // Every sale matching the filters as (category, agent_id, reservation_date, value, …), one row per sale.

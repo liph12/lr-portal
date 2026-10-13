@@ -71,7 +71,7 @@ test('portals are private to their role and show a forbidden page otherwise', fu
     // Management opens with any of its permissions (admins hold them all: migration 000040).
     $this->roles['admin']->permissions()->attach(\App\Models\Permission::where('name', 'edit_teams')->value('id'));
 
-    $this->actingAs($admin)->get('/admin/management')->assertRedirect('/admin/management/agents');
+    $this->actingAs($admin)->get('/admin/management')->assertInertia(fn ($page) => $page->component('Portal/Management/Index'));
     $this->actingAs($admin)->get('/admin/management/agents')->assertOk();
 
     foreach (['/superadmin/settings', '/staff/statistics'] as $url) {

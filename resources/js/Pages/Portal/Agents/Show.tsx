@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Box, Container, Grid, LinearProgress, Link as MuiLink, Typography } from "@mui/material";
-import { ArrowBackRounded, LoginRounded } from "@mui/icons-material";
+import { ArrowBackRounded, EditRounded, LoginRounded, SwapHorizRounded } from "@mui/icons-material";
 import ConfirmDialog from "../../../components/utils/ConfirmDialog";
 import useAuthUser from "../../../hooks/useAuthUser";
 import { Link, router } from "@inertiajs/react";
@@ -15,7 +15,9 @@ import UserAvatar from "../../../components/utils/user/UserAvatar";
 import ReportStatistics, { ReportSummary } from "../../../components/reports/ReportStatistics";
 import { reportPresets } from "../../../helpers/dateRanges";
 import { formatDate } from "../../../helpers/formatDate";
-import { AGENT_TYPE_LABELS } from "../../../types/app-data-types";
+import { AGENT_TYPE_LABELS, ProfileFields } from "../../../types/app-data-types";
+import EditAgentProfileDialog from "../../../components/agents/EditAgentProfileDialog";
+import ChangeUplineDialog, { UplinePlacement } from "../../../components/agents/ChangeUplineDialog";
 
 interface Membership {
     id: number;
@@ -55,6 +57,10 @@ interface AgentProfileProps {
     filters: { from: string; to: string };
     // Null for back-office readers without view_reports: the profile without the sales.
     summary: ReportSummary | null;
+    // Set only for those who may edit this profile and upline (edit_agent_profile).
+    editable: Record<keyof ProfileFields, string | null> | null;
+    maritalStatuses: string[];
+    uplinePlacement?: UplinePlacement | null;
 }
 
 interface AgentDetails {
@@ -157,9 +163,11 @@ function History({ title, rows }: { title: string; rows: Membership[] }) {
 }
 
 // A read-only agent profile opened from the reports: who they are, where they belong, and their sales.
-function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summary }: AgentProfileProps) {
+function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summary, editable, maritalStatuses, uplinePlacement }: AgentProfileProps) {
     const [loading, setLoading] = useState(false);
     const [confirming, setConfirming] = useState(false);
+    const [editing, setEditing] = useState(false);
+    const [changingUpline, setChangingUpline] = useState(false);
     const me = useAuthUser();
     const location = [agent.city, agent.state].filter(Boolean).join(", ");
 
@@ -199,6 +207,16 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                         </Typography>
                     </Box>
                 </Box>
+                {editable && (
+                    <StyledButton
+                        variant="outlined"
+                        startIcon={<EditRounded />}
+                        onClick={() => setEditing(true)}
+                        sx={{ color: "var(--lr-primary)", borderColor: "var(--lr-outline)" }}
+                    >
+                        Edit profile
+                    </StyledButton>
+                )}
                 {me?.can.impersonate && agent.status === "active" && agent.role !== "Superadmin" && (
                     <StyledButton
                         variant="outlined"
@@ -243,6 +261,17 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                         <Box sx={{ mt: 2 }}>
                             <Fact label="Direct recruits (agents they sponsored)">{details.direct_recruits.toLocaleString()}</Fact>
                         </Box>
+                        {editable && (
+                            <StyledButton
+                                size="small"
+                                variant="text"
+                                startIcon={<SwapHorizRounded />}
+                                onClick={() => setChangingUpline(true)}
+                                sx={{ mt: 1.5, px: 1, color: "var(--lr-primary)" }}
+                            >
+                                Change upline
+                            </StyledButton>
+                        )}
                     </SectionCard>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6, lg: 4 }}>
@@ -256,7 +285,7 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                             <Fact label="Country">
                                 <CountryFlag code={agent.country_code} country={agent.country} />
                             </Fact>
-                            <Fact label="Area">{agent.area ?? "Unassigned"}</Fact>
+                            <Fact label="Branch">{agent.area ?? "Unassigned"}</Fact>
                         </Box>
                     </SectionCard>
                 </Grid>
@@ -381,6 +410,12 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                 }}
                 onClose={() => setConfirming(false)}
             />
+            {editable && (
+                <>
+                    <EditAgentProfileDialog open={editing} agentId={agent.id} profile={editable} maritalStatuses={maritalStatuses} onClose={() => setEditing(false)} />
+                    <ChangeUplineDialog open={changingUpline} agentId={agent.id} agentName={agent.name} placement={uplinePlacement} onClose={() => setChangingUpline(false)} />
+                </>
+            )}
         </Container>
     );
 }

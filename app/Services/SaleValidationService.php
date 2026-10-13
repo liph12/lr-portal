@@ -19,6 +19,9 @@ class SaleValidationService
 {
     public const CATEGORIES = [AgentTransaction::TYPE_PROJECT, AgentTransaction::TYPE_BROKERAGE, AgentTransaction::TYPE_RENTAL];
 
+    // Every category in one table (step 2's "All sales" card).
+    public const ALL_CATEGORIES = 'all';
+
     // Tab order: the work queue first.
     public const STATUSES = ['pending', 'valid', 'invalid', 'cancelled'];
 
@@ -81,7 +84,7 @@ class SaleValidationService
             'area' => is_string($area) && ($area === self::ALL_AREAS || in_array($area, $offered, true)) ? $area : null,
             // Kept in the filters so every query below stays inside the reader's areas.
             'allowed' => $allowed,
-            'category' => in_array($input['category'] ?? null, self::CATEGORIES, true) ? $input['category'] : null,
+            'category' => in_array($input['category'] ?? null, [self::ALL_CATEGORIES, ...self::CATEGORIES], true) ? $input['category'] : null,
             'status' => in_array($input['status'] ?? null, self::STATUSES, true) ? $input['status'] : 'pending',
             'q' => trim((string) ($input['q'] ?? '')) ?: null,
             'sort' => array_key_exists($input['sort'] ?? '', self::SORTS) ? $input['sort'] : 'created_at',
@@ -128,8 +131,8 @@ class SaleValidationService
 
         // "All areas" is everyone's for the back office; a secretary with several areas gets "All my areas".
         $all = $f['allowed'] === null
-            ? [['key' => self::ALL_AREAS, 'name' => 'All areas', 'pending' => $pending->sum()]]
-            : ($rows->count() > 1 ? [['key' => self::ALL_AREAS, 'name' => 'All my areas', 'pending' => $rows->sum('pending')]] : []);
+            ? [['key' => self::ALL_AREAS, 'name' => 'All branches', 'pending' => $pending->sum()]]
+            : ($rows->count() > 1 ? [['key' => self::ALL_AREAS, 'name' => 'All my branches', 'pending' => $rows->sum('pending')]] : []);
 
         return [...$all, ...$rows->sortByDesc('pending')->values()->all()];
     }
@@ -144,19 +147,29 @@ class SaleValidationService
         $counts = $this->inRange($this->inArea($this->base(), $f), $f)
             ->selectRaw('t.sale_type, t.sale_status, COUNT(*) as n')->groupBy('t.sale_type', 't.sale_status')->get();
 
-        return collect(self::CATEGORIES)->mapWithKeys(fn ($category) => [$category => collect(self::STATUSES)->mapWithKeys(
+        $byCategory = collect(self::CATEGORIES)->mapWithKeys(fn ($category) => [$category => collect(self::STATUSES)->mapWithKeys(
             fn ($status) => [$status => (int) ($counts->first(fn ($r) => $r->sale_type === $category && $r->sale_status === $status)?->n ?? 0)]
-        )->all()])->all();
+        )->all()]);
+
+        return [
+            ...$byCategory->all(),
+            self::ALL_CATEGORIES => collect(self::STATUSES)->mapWithKeys(fn ($status) => [$status => $byCategory->sum($status)])->all(),
+        ];
     }
 
     /**
-     * Step 3: the area's sales of one category and status, with client, property and files.
+     * Step 3: the area's sales of one category (or all of them) and status, with client, property and files.
      */
     public function table(array $f): LengthAwarePaginator
     {
         $category = $f['category'];
-        $query = $this->inArea($this->base(), $f)
-            ->join(self::TABLES[$category].' as c', 'c.agent_transaction_id', '=', 't.id')
+        $query = $this->inArea($this->base(), $f);
+        if ($category === self::ALL_CATEGORIES) {
+            $query->joinSub($this->allCategories($f), 'c', 'c.agent_transaction_id', '=', 't.id');
+        } else {
+            $query->join(self::TABLES[$category].' as c', 'c.agent_transaction_id', '=', 't.id');
+        }
+        $query
             ->leftJoin('agent_transaction_details as cd', 'cd.agent_transaction_id', '=', 't.id')
             ->leftJoin('users as au', 'au.id', '=', 'a.user_id')
             ->leftJoin('users as ru', 'ru.id', '=', 't.recorded_by')
@@ -165,7 +178,7 @@ class SaleValidationService
             ->where('t.sale_status', $f['status'])
             ->whereBetween('c.reservation_date', [$f['from'], $f['to']])
             ->select(
-                't.id', 't.agent_id', 't.unit_number', 't.sale_status', 't.created_at', 't.validated_at', 'vu.name as validated_by',
+                't.id', 't.agent_id', 't.sale_type', 't.unit_number', 't.sale_status', 't.created_at', 't.validated_at', 'vu.name as validated_by',
                 'c.reservation_date', 'c.total_contract_price as value', 'pt.name as property_type',
                 'cd.client_first_name', 'cd.client_last_name', 'cd.client_email', 'cd.client_mobile', 'cd.client_country',
                 'a.avatar as agent_avatar', 'ru.name as recorded_by',
@@ -179,6 +192,12 @@ class SaleValidationService
             'brokerage' => $query->leftJoin('brokerage_areas as ba', 'ba.id', '=', 'c.brokerage_area_id')
                 ->addSelect('c.brokerage_area_id', 'ba.name as brokerage_area', 'c.remittance_slip', 'c.deposit_slip'),
             'rental' => $query->addSelect('c.closing_agent', 'c.partner_agent', 'c.rental_rate', 'c.remittance_slip', 'c.deposit_slip'),
+            self::ALL_CATEGORIES => $query->leftJoin('developers as d', 'd.id', '=', 'c.developer_id')
+                ->leftJoin('brokerage_areas as ba', 'ba.id', '=', 'c.brokerage_area_id')
+                ->addSelect(
+                    'c.project_name', 'c.developer_id', 'd.name as developer', 'c.proof_of_transaction', 'c.brokerage_area_id', 'ba.name as brokerage_area',
+                    'c.closing_agent', 'c.partner_agent', 'c.rental_rate', 'c.remittance_slip', 'c.deposit_slip',
+                ),
         };
 
         if ($f['q'] !== null && mb_strlen($f['q']) >= 2) {
@@ -186,7 +205,7 @@ class SaleValidationService
             $query->where(function ($q) use ($like, $category) {
                 $q->where('cd.client_first_name', 'like', $like)->orWhere('cd.client_last_name', 'like', $like)
                     ->orWhere('au.name', 'like', $like)->orWhere('t.unit_number', 'like', $like);
-                if ($category === 'project') {
+                if ($category === 'project' || $category === self::ALL_CATEGORIES) {
                     $q->orWhere('c.project_name', 'like', $like);
                 }
             });
@@ -325,7 +344,9 @@ class SaleValidationService
                 ]);
             }
 
-            $this->setStatus($sale->refresh(), $data['status'], $by);
+            if (isset($data['status'])) {
+                $this->setStatus($sale->refresh(), $data['status'], $by);
+            }
         });
 
         if ($changes) {
@@ -463,6 +484,21 @@ class SaleValidationService
         $logs = json_decode((string) DB::table('agent_transactions')->where('id', $sale->id)->value('update_logs'), true);
 
         return is_array($logs) ? $logs : [];
+    }
+
+    // The three category tables as one, with the columns the table shows (null where a category has none); each branch
+    // is limited to the date range so it keeps its reservation_date index.
+    private function allCategories(array $f): Builder
+    {
+        $branch = fn (string $table, array $columns) => DB::table($table)
+            ->whereBetween('reservation_date', [$f['from'], $f['to']])
+            ->select('agent_transaction_id', 'reservation_date', 'total_contract_price', 'project_property_type_id')
+            ->selectRaw(collect(['project_name', 'developer_id', 'proof_of_transaction', 'brokerage_area_id', 'closing_agent', 'partner_agent', 'rental_rate', 'remittance_slip', 'deposit_slip'])
+                ->map(fn ($c) => in_array($c, $columns, true) ? $c : "NULL as {$c}")->implode(', '));
+
+        return $branch(self::TABLES['project'], ['project_name', 'developer_id', 'proof_of_transaction'])
+            ->unionAll($branch(self::TABLES['brokerage'], ['proof_of_transaction', 'brokerage_area_id', 'closing_agent', 'partner_agent', 'remittance_slip', 'deposit_slip']))
+            ->unionAll($branch(self::TABLES['rental'], ['proof_of_transaction', 'closing_agent', 'partner_agent', 'rental_rate', 'remittance_slip', 'deposit_slip']));
     }
 
     public function base(): Builder

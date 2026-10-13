@@ -145,10 +145,10 @@ export default function ReportStatistics({ summary, showCategories = true, showA
                 </Grid>
                 {showAreas && (
                     <Grid size={12}>
-                        <SectionCard title="By area">
+                        <SectionCard title="By branch">
                             <BarList
                                 items={summary.areas.map((a) => ({ name: a.name, value: a.value, detail: salesWord(a.sales) }))}
-                                caption="Total sales by the area the agent belongs to"
+                                caption="Total sales by the branch the agent belongs to"
                                 formatValue={formatPesoCompact}
                                 emptyText="No sales match these filters."
                             />

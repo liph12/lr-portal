@@ -182,13 +182,13 @@ test('sales by area, and clicking an area shows its top agents', function () {
 
     ($this->report)($range + ['view' => 'areas'])
         ->assertInertia(fn ($page) => $page
-            ->where('breakdown.data.0', fn ($r) => $r['id'] === 'cebu' && $r['name'] === 'Cebu' && (float) $r['value'] === 16_000_000.0 && $r['detail'] === '1 agent in this area')
+            ->where('breakdown.data.0', fn ($r) => $r['id'] === 'cebu' && $r['name'] === 'Cebu' && (float) $r['value'] === 16_000_000.0 && $r['detail'] === '1 agent in this branch')
             ->where('breakdown.data.1.name', 'Metro Manila'));
 
     ($this->report)($range + ['view' => 'agents', 'area' => 'metro-manila'])
         ->assertInertia(fn ($page) => $page
             ->where('scope.name', 'Metro Manila')
-            ->where('scope.facts.0', ['label' => 'Agents in this area', 'value' => '1'])
+            ->where('scope.facts.0', ['label' => 'Agents in this branch', 'value' => '1'])
             ->where('breakdown.total', 1)
             ->where('breakdown.data.0.name', 'Ben Cruz'));
 });
@@ -338,7 +338,7 @@ test('Developers by Area: pick an area to rank its developers, then open one to 
     // Opening Cebu Landmasters from Cebu: the agents who sold it in Cebu, named in the header with the area.
     $this->actingAs($this->superadmin)->get("/reports/top-agents?{$range}&area=cebu&developer_id=10")
         ->assertInertia(fn ($page) => $page->where('scope.type', 'developer')
-            ->where('scope.facts', fn ($facts) => collect($facts)->pluck('value', 'label')->get('Area') === 'Cebu')
+            ->where('scope.facts', fn ($facts) => collect($facts)->pluck('value', 'label')->get('Branch') === 'Cebu')
             ->where('breakdown.data', fn ($rows) => collect($rows)->pluck('name')->all() === ['Ana Reyes'])
             ->where('summary.kpis.value.value', 10_000_000));
 });

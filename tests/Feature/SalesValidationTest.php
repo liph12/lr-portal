@@ -67,7 +67,7 @@ test('the range defaults to this month by reservation date and narrows every ste
 test('step 1 lists areas with their pending sales', function () {
     $this->actingAs($this->superadmin)->get('/superadmin/sales-validation')
         ->assertInertia(fn ($page) => $page->component('Portal/SalesValidation/Index')
-            ->where('areas.0', ['key' => 'all', 'name' => 'All areas', 'pending' => 3])
+            ->where('areas.0', ['key' => 'all', 'name' => 'All branches', 'pending' => 3])
             ->where('areas', fn ($a) => collect($a)->firstWhere('key', 'cebu')['pending'] === 2 && collect($a)->firstWhere('key', 'davao')['pending'] === 1)
             ->where('counts', null)
             ->where('sales', null)
@@ -99,6 +99,24 @@ test('step 2 counts each category by status in the area; step 3 lists the sales 
 
     $this->actingAs($this->superadmin)->get('/superadmin/sales-validation?area=cebu&category=rental&status=cancelled')
         ->assertInertia(fn ($page) => $page->where('sales.total', 1)->where('sales.data.0.remittance_slip', 'https://files.test/remit.pdf')->where('sales.data.0.deposit_slip', null));
+});
+
+test('"All sales" lists every category together, each row with its own property and files', function () {
+    ($this->sale)('rental', $this->cebu, 'pending', ['closing_agent' => 'Carl Closer']);
+
+    $this->actingAs($this->superadmin)->get('/superadmin/sales-validation?area=cebu')
+        ->assertInertia(fn ($page) => $page->where('counts.all', ['pending' => 3, 'valid' => 1, 'invalid' => 1, 'cancelled' => 1]));
+
+    $this->actingAs($this->superadmin)->get('/superadmin/sales-validation?area=cebu&category=all')
+        ->assertInertia(fn ($page) => $page->where('filters.category', 'all')
+            ->where('sales.total', 3)
+            ->where('sales.data', fn ($rows) => collect($rows)->pluck('sale_type')->sort()->values()->all() === ['brokerage', 'project', 'rental'])
+            ->where('sales.data', fn ($rows) => collect($rows)->firstWhere('sale_type', 'project')['proof_of_transaction'] === 'https://files.test/pot.pdf'
+                && collect($rows)->firstWhere('sale_type', 'brokerage')['brokerage_area'] === 'Cebu Brokerage'
+                && collect($rows)->firstWhere('sale_type', 'rental')['closing_agent'] === 'Carl Closer'));
+
+    $this->actingAs($this->superadmin)->get('/superadmin/sales-validation?area=cebu&category=all&status=cancelled&q=12B')
+        ->assertInertia(fn ($page) => $page->where('sales.total', 1)->where('sales.data.0.sale_type', 'rental'));
 });
 
 test('validating a sale records who did it, logs it and moves it between the counts', function () {
@@ -147,6 +165,20 @@ test('clicking an agent shows their sales client first, split into project, brok
 
     $this->actingAs($this->superadmin)->get('/superadmin/sales-validation?area=cebu&category=project')
         ->assertInertia(fn ($page) => $page->where('agentSales', null)->where('sales.data.0.agent_id', $this->cebu));
+});
+
+test('editing the details leaves the status alone: validating is its own action', function () {
+    $url = "/superadmin/sales-validation/{$this->pending->id}";
+
+    $this->actingAs($this->superadmin)->put($url, [
+        'client_first_name' => 'Juana', 'client_last_name' => 'Cruz', 'unit_number' => '7A', 'total_contract_price' => 2500000,
+        'reservation_date' => '2026-09-05', 'developer_id' => 10, 'project_name' => 'Mivela',
+    ])->assertSessionHasNoErrors();
+
+    expect($this->pending->fresh())->sale_status->toBe('pending')->unit_number->toBe('7A')->validated_by->toBeNull();
+
+    $this->actingAs($this->superadmin)->patch($url, ['status' => 'valid'])->assertSessionHasNoErrors();
+    expect($this->pending->fresh())->sale_status->toBe('valid')->validated_by->toBe($this->superadmin->id);
 });
 
 test('editing a project sale corrects client, price, date, developer and project, then the status', function () {

@@ -28,7 +28,7 @@ const TYPE_LABELS: Record<ReportScopeDetails["type"], string> = {
     team: "Team",
     sub_team: "Sub-team",
     developer: "Developer",
-    area: "Area",
+    area: "Branch",
     agent: "Your sales",
 };
 

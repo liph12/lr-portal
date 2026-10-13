@@ -21,6 +21,9 @@ class ImpersonationController extends Controller
 
     public function destroy(StopImpersonationRequest $request)
     {
+        if (! $request->session()->has(ImpersonationService::SESSION_KEY)) {
+            return redirect()->route('dashboard.index');
+        }
         $this->impersonation->stop($request);
 
         return redirect()->route('dashboard.index')->with('success', "You're back in your own account.");

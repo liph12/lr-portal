@@ -195,3 +195,33 @@ test('a superadmin sets the period, cutoff month and qualifier amount; nobody el
     $this->actingAs($admin)->put('/superadmin/settings/natcon', ['from' => '2025-08-01', 'to' => '2026-07-31', 'cutoff_month' => '2026-07', 'qualifier_amount' => '1', 'rental_from' => '2025-09-01', 'rental_to' => '2026-08-31', 'rental_cutoff' => '2026-09-05'])
         ->assertForbidden();
 });
+
+test('My NATCON sales: an agent\'s own valid sales in the period, encoded by the cutoff, shown like My Sales', function () {
+    $agentRole = Role::create(['name' => 'agent', 'label' => 'Agent']);
+    $agentRole->permissions()->attach(Permission::where('name', 'view_natcon')->value('id'));
+    $ben = User::find(DB::table('agents')->where('id', $this->ben)->value('user_id'));
+    $ben->roles()->attach($agentRole);
+
+    // Ben: 30M counts; 20M was encoded after the July cutoff; 90M was reserved before the period.
+    $this->actingAs($ben)->get('/natcon/my-sales')
+        ->assertInertia(fn ($page) => $page->component('Portal/Natcon/MySales')
+            ->where('filters.from', '2025-08-01')->where('filters.to', '2026-07-31')->where('filters.status', 'valid')
+            ->where('filters.agent_id', $this->ben)
+            ->missing('filters.encoded_by')
+            ->where('saleList.total', 1)
+            ->where('totals', fn ($t) => collect($t)->sum('value') == 30_000_000)
+            ->where('settings.qualifier_amount', 43000000));
+
+    // The URL can't widen it: other dates, statuses or agents are ignored.
+    $this->actingAs($ben)->get("/natcon/my-sales?from=2020-01-01&to=2030-01-01&status=all&agent_id={$this->ana}")
+        ->assertInertia(fn ($page) => $page->where('saleList.total', 1)->where('filters.agent_id', $this->ben));
+
+    // Ben leads Bravo: his own sales plus the Qualifiers on his team. Cara leads nothing: just her own card.
+    $this->actingAs($ben)->get('/natcon')->assertInertia(fn ($page) => $page->where('hasMine', true)->has('boards', 1));
+    $cara = User::find(DB::table('agents')->where('id', $this->cara)->value('user_id'));
+    $cara->roles()->attach($agentRole);
+    $this->actingAs($cara)->get('/natcon')->assertInertia(fn ($page) => $page->where('hasMine', true)->has('boards', 0));
+    ($this->natcon)($cara)->assertForbidden();
+    // Cara's brokerage (8M) and rental (400k) both count: every category, the qualifier rule.
+    $this->actingAs($cara)->get('/natcon/my-sales')->assertInertia(fn ($page) => $page->where('totals', fn ($t) => collect($t)->sum('value') == 8_400_000));
+});

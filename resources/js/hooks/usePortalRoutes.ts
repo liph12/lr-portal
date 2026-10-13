@@ -35,8 +35,8 @@ export default function usePortalRoutes(): PortalRoute[] {
             hasAnyPermission(granted, route.permission) && (route.requires ?? []).every((p) => granted.indexOf(p) !== -1);
         const badges: Record<string, number> = {
             "/global-partners": partnersPending,
-            "/brokerage-receiving": brokerageAwaiting,
-            "/rental-receiving": rentalAwaiting,
+            // The receivings sit inside Management (its tabs / cards show each); its menu item carries their total.
+            ...Object.fromEntries(["/superadmin", "/admin", "/staff"].map((p) => [`${p}/management`, brokerageAwaiting + rentalAwaiting])),
             // Sales validation lives in each back-office portal and, for office secretaries, at the shared path.
             ...Object.fromEntries(["/superadmin", "/admin", "/staff", ""].map((p) => [`${p}/sales-validation`, salesPending])),
         };

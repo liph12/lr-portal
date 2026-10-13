@@ -2,15 +2,15 @@
 
 namespace App\Http\Requests\Portal;
 
-use App\Services\ImpersonationService;
 use Illuminate\Foundation\Http\FormRequest;
 
-// The current user is whoever is being impersonated; what matters is that a superadmin started it.
+// The current user is whoever is being impersonated; ImpersonationService::stop checks that a superadmin started it.
+// Not refused when there's nothing to stop (a second click, another tab already returned): that just goes home.
 class StopImpersonationRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->session()->has(ImpersonationService::SESSION_KEY);
+        return $this->user() !== null;
     }
 
     /**

@@ -16,7 +16,8 @@ use Illuminate\Support\Facades\DB;
 // who haven't sold yet, as in Reports › Recruits.
 class RecruitProgressService
 {
-    public const GROUPS = ['teams', 'sub_teams', 'areas', 'sponsors'];
+    // "recruits" isn't a grouping: the recruits themselves, one row each.
+    public const GROUPS = ['teams', 'sub_teams', 'areas', 'sponsors', 'recruits'];
 
     private const SALE_TABLES = ['agent_project_transactions', 'agent_rental_transactions', 'agent_brokerage_transactions'];
 
@@ -28,13 +29,19 @@ class RecruitProgressService
     public function filters(array $input, array $groups): array
     {
         $base = app(RecruitmentService::class)->filters($input);
+        $group = in_array($input['group'] ?? null, $groups, true) ? $input['group'] : $groups[0];
+        // Sort keys are the table's column fields, which differ on the Recruits tab (a key with no column makes the grid
+        // reset its sort, and so reload).
+        [$sorts, $defaultSort] = $group === 'recruits'
+            ? [['name', 'signed_up', 'value', 'nao', 'fire'], 'signed_up']
+            : [['name', 'recruits', 'conversion', 'value', 'nao', 'fire'], 'recruits'];
 
         return [
             'from' => $base['from'],
             'to' => $base['to'],
-            'group' => in_array($input['group'] ?? null, $groups, true) ? $input['group'] : $groups[0],
+            'group' => $group,
             'q' => $base['q'],
-            'sort' => in_array($input['sort'] ?? null, ['name', 'recruits', 'sold', 'conversion', 'value', 'nao', 'fire'], true) ? $input['sort'] : 'recruits',
+            'sort' => in_array($input['sort'] ?? null, $sorts, true) ? $input['sort'] : $defaultSort,
             'dir' => ($input['dir'] ?? null) === 'asc' ? 'asc' : 'desc',
             'page' => $base['page'],
             'per_page' => $base['per_page'],
@@ -58,7 +65,12 @@ class RecruitProgressService
             ...(isset($scope['area']) ? ['areas'] : []),
         ];
 
-        return array_values(array_diff(self::GROUPS, $hidden));
+        $groups = array_values(array_diff(self::GROUPS, $hidden));
+
+        // Inside one sub-team or one person's recruits, the people themselves come first.
+        return isset($scope['sub_team_id']) || isset($scope['sponsor_id'])
+            ? ['recruits', ...array_values(array_diff($groups, ['recruits']))]
+            : $groups;
     }
 
     /**
@@ -74,7 +86,7 @@ class RecruitProgressService
 
             return ['type' => 'sponsor', 'id' => $id, 'name' => $s->name ?? "Member #{$id}", 'avatar' => $s->avatar ?? null, 'facts' => array_values(array_filter([
                 ($s->email ?? null) ? ['label' => 'Email', 'value' => $s->email] : null,
-                ($s->area ?? null) ? ['label' => 'Area', 'value' => Areas::name($s->area)] : null,
+                ($s->area ?? null) ? ['label' => 'Branch', 'value' => Areas::name($s->area)] : null,
             ]))];
         }
 
@@ -146,6 +158,10 @@ class RecruitProgressService
 
     private function computeTable(array $f, ?array $scope): LengthAwarePaginator
     {
+        if ($f['group'] === 'recruits') {
+            return $this->recruitRows($f, $scope);
+        }
+
         $grouped = match ($f['group']) {
             'teams' => DB::query()->fromSub($this->recruits($f, $scope), 'r')
                 ->leftJoin('teams as g', 'g.id', '=', 'r.team_id')
@@ -200,6 +216,51 @@ class RecruitProgressService
             'team' => $teams[$r->key] ?? null,
             ...$this->row($r),
         ]);
+    }
+
+    /**
+     * The Recruits tab: each recruit in the scope with their sponsor, team / sub-team, sign-up, sales and NAO / FIRE.
+     *
+     * @param  array<string, mixed>  $f
+     * @param  array<string, int>|null  $scope
+     */
+    private function recruitRows(array $f, ?array $scope): LengthAwarePaginator
+    {
+        $query = DB::query()->fromSub($this->recruits($f, $scope), 'r')
+            ->join('agents as a', 'a.id', '=', 'r.id')
+            ->leftJoin('users as u', 'u.id', '=', 'a.user_id')
+            ->leftJoin('agent_attributes as at', 'at.agent_id', '=', 'r.id')
+            ->leftJoin('agents as s', 's.id', '=', 'r.sponsor_id')
+            ->leftJoin('users as su', 'su.id', '=', 's.user_id')
+            ->leftJoin('teams as t', 't.id', '=', 'r.team_id')
+            ->leftJoin('sub_teams as st', 'st.id', '=', 'r.sub_team_id')
+            ->select('r.id', 'r.signed_up', 'r.sold', 'r.value', 'r.sponsor_id', 'u.name', 'u.email', 'a.avatar', 'a.area', 'su.name as sponsor', 't.name as team', 'st.name as sub_team')
+            ->selectRaw('CASE WHEN COALESCE(at.nao_video_tracker, 0) > ? THEN ? ELSE COALESCE(at.nao_video_tracker, 0) END as nao', [RecruitmentService::NAO_COMPLETE, RecruitmentService::NAO_COMPLETE])
+            ->selectRaw('COALESCE(at.fire_certificates, 0) as fire');
+
+        if ($f['q'] !== null && mb_strlen($f['q']) >= 2) {
+            $like = '%'.addcslashes($f['q'], '%_\\').'%';
+            $query->where(fn ($q) => $q->where('u.name', 'like', $like)->orWhere('u.email', 'like', $like));
+        }
+        $sort = ['name' => 'u.name', 'value' => 'r.value', 'nao' => 'nao', 'fire' => 'fire'][$f['sort']] ?? 'r.signed_up';
+
+        return $query->orderBy($sort, $f['dir'])->orderByDesc('r.id')
+            ->paginate($f['per_page'], ['*'], 'page', $f['page'])
+            ->through(fn ($r) => [
+                'id' => $r->id,
+                'name' => $r->name ?? "Member #{$r->id}",
+                'detail' => $r->email,
+                'avatar' => $r->avatar,
+                'sponsor' => $r->sponsor_id ? ($r->sponsor ?? "Member #{$r->sponsor_id}") : null,
+                'team' => $r->team,
+                'sub_team' => $r->sub_team,
+                'area' => $r->area ? Areas::name($r->area) : null,
+                'signed_up' => substr((string) $r->signed_up, 0, 10),
+                'sold' => (bool) $r->sold,
+                'value' => (float) $r->value,
+                'nao' => (int) $r->nao,
+                'fire' => (int) $r->fire,
+            ]);
     }
 
     /**

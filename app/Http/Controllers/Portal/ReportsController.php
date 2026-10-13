@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\GenealogyService;
 use App\Services\RecruitProgressService;
 use App\Services\RecruitmentService;
 use App\Services\SaleValidationService;
 use App\Services\SalesReportService;
 use App\Services\TeamLeadershipService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 // Reports: a card per report, each opening its own page (date range, statistics, ranked table).
 // Same data and the same reach as Dashboard › View Sales (TeamLeadershipService::reportScope), one report at a time.
@@ -55,10 +57,10 @@ class ReportsController extends Controller
     {
         $lock = $this->leadership->reportScope($request->user());
         abort_if($lock === false || ! $request->user()->can(self::permission('recruits')), 403);
-        $selection = $this->selection($request);
+        $selection = $this->selection($request, $lock);
 
         return inertia('Portal/Reports/Recruits', [
-            ...$recruitment->props($request, $this->narrow($selection, $this->recruitLock($lock))),
+            ...$recruitment->props($request, $this->narrow($selection, $this->recruitLock($lock), $request->user())),
             // An agent's page is about them: name them in the header.
             ...(isset($lock['agent_id']) ? ['scope' => fn () => $this->reports->scope($this->reports->filters($lock))] : []),
             // Opened from Recruits Progress (a team / sub-team / sponsor): name it, and allow going back to everyone.
@@ -73,8 +75,8 @@ class ReportsController extends Controller
         $lock = $this->leadership->reportScope($request->user());
         abort_if($lock === false || ! $request->user()->can(self::permission('recruits-progress')), 403);
 
-        $selection = $this->selection($request);
-        $scope = $this->narrow($selection, $this->recruitLock($lock));
+        $selection = $this->selection($request, $lock);
+        $scope = $this->narrow($selection, $this->recruitLock($lock), $request->user());
         $groups = $progress->groupsFor($scope);
         $filters = $progress->filters($request->query(), $groups ?: ['sponsors']) + $selection;
 
@@ -160,8 +162,11 @@ class ReportsController extends Controller
      *
      * @return array<string, int|string>
      */
-    private function selection(Request $request): array
+    private function selection(Request $request, array|null|false $lock = null): array
     {
+        if ($person = $request->integer('person')) {
+            return $this->personSelection($person, $lock);
+        }
         $area = $request->query('area');
 
         return array_filter([
@@ -180,14 +185,49 @@ class ReportsController extends Controller
      * @param  array<string, int>|null  $lock
      * @return array<string, int>|null
      */
-    // Recruits reach: the reader's team / sub-team, or for an agent the recruits they sponsored (referral_id).
+    /**
+     * A clicked person, as what their recruits are: a team leader's team, a unit manager's sub-team, anyone else the
+     * agents they sponsored. An agent reading their own recruits goes person by person down their downline (sponsor only).
+     *
+     * @return array<string, int>
+     */
+    private function personSelection(int $person, array|null|false $lock): array
+    {
+        $sponsor = ['sponsor_id' => $person];
+        if (isset($lock['agent_id'])) {
+            return $sponsor;
+        }
+        // A leader reads only inside their own group: someone leading another one shows just the agents they sponsored there.
+        $lockTeam = is_array($lock) ? ($lock['team_id'] ?? null) : null;
+        $lockSubTeam = is_array($lock) ? ($lock['sub_team_id'] ?? null) : null;
+
+        if ($team = (int) DB::table('teams')->where('agent_id', $person)->where('status', 'active')->value('id')) {
+            return ! $lockSubTeam && (! $lockTeam || $lockTeam === $team) ? ['team_id' => $team] : $sponsor;
+        }
+        $subTeam = DB::table('sub_teams')->where('agent_id', $person)->where('status', 'active')->first(['id', 'team_id']);
+        if ($subTeam) {
+            $inside = (! $lockTeam || $lockTeam === (int) $subTeam->team_id) && (! $lockSubTeam || $lockSubTeam === (int) $subTeam->id);
+
+            return $inside ? ['sub_team_id' => (int) $subTeam->id] : $sponsor;
+        }
+
+        return $sponsor;
+    }
+
+    // Recruits reach: the reader's team / sub-team, an office secretary's area, or for an agent the recruits they
+    // sponsored (referral_id).
     private function recruitLock(?array $lock): ?array
     {
         return isset($lock['agent_id']) ? ['sponsor_id' => $lock['agent_id']] : $lock;
     }
 
-    private function narrow(array $selection, ?array $lock): ?array
+    private function narrow(array $selection, ?array $lock, ?User $reader = null): ?array
     {
+        // An agent's lock is their own recruits; a sponsor further down their downline replaces it (agent › agent › …).
+        if (isset($lock['sponsor_id'], $selection['sponsor_id']) && $reader && $selection['sponsor_id'] !== $lock['sponsor_id']
+            && app(GenealogyService::class)->canView($reader, $selection['sponsor_id'])) {
+            unset($lock['sponsor_id']);
+        }
         $scope = array_merge($selection, $lock ?? []);
 
         return $scope ?: null;

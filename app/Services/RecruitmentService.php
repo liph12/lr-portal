@@ -59,8 +59,8 @@ class RecruitmentService
     {
         $f = $this->filters($request->query());
 
-        // The header names the reader's own team / sub-team; a clicked sponsor is named by the caller.
-        $own = array_intersect_key($scope ?? [], array_flip(['team_id', 'sub_team_id']));
+        // The header names the reader's own team / sub-team or (office secretary) area; a clicked sponsor is named by the caller.
+        $own = array_intersect_key($scope ?? [], array_flip(['team_id', 'sub_team_id', 'area']));
 
         return [
             'filters' => $f + array_intersect_key($scope ?? [], array_flip(['team_id', 'sub_team_id', 'sponsor_id', 'area'])),

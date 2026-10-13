@@ -43,13 +43,15 @@ const str = (v: string | number | null | undefined) => (v === null || v === unde
 const date = (v: string | number | null | undefined) => (v ? formatDate(String(v)) : null);
 
 // One sale, read-only (reports): the same details as Sales validation, with its files — nothing editable here.
-export default function SaleDetailsView({ detail }: { detail: SaleDetail }) {
+// `showStatus` off where a status banner already heads the sale (SaleReview).
+export default function SaleDetailsView({ detail, showStatus = true }: { detail: SaleDetail; showStatus?: boolean }) {
     const { client: c, property: p, category, names } = detail;
     const clientName = [c.client_first_name, c.client_middle_name, c.client_last_name].filter(Boolean).join(" ");
     const country = countries.find((x) => x.id === c.client_country || x.label === c.client_country);
 
     return (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+            {showStatus && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
                 <StatusChip status={detail.sale_status}>{STATUS_LABELS[detail.sale_status] ?? detail.sale_status}</StatusChip>
                 <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
@@ -58,6 +60,7 @@ export default function SaleDetailsView({ detail }: { detail: SaleDetail }) {
                     {detail.validated_at && ` · validated ${formatDate(detail.validated_at)}${detail.validated_by ? ` by ${detail.validated_by}` : ""}`}
                 </Typography>
             </Box>
+            )}
 
             {detail.agent && (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>

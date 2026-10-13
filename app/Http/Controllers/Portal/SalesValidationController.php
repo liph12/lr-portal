@@ -34,7 +34,7 @@ class SalesValidationController extends Controller
             'singleArea' => $allowed && count($allowed) === 1,
             'statuses' => SaleValidationService::STATUSES,
             'categories' => SaleValidationService::CATEGORIES,
-            'areaName' => $f['area'] ? ($f['area'] === SaleValidationService::ALL_AREAS ? ($allowed ? 'All my areas' : 'All areas') : Areas::name($f['area'])) : null,
+            'areaName' => $f['area'] ? ($f['area'] === SaleValidationService::ALL_AREAS ? ($allowed ? 'All my branches' : 'All branches') : Areas::name($f['area'])) : null,
             // Each step only loads what it shows.
             'areas' => fn () => $f['area'] ? null : $this->validation->areas($f),
             'counts' => fn () => $f['area'] ? $this->validation->categoryCounts($f) : null,

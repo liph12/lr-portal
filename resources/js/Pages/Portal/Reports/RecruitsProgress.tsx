@@ -18,6 +18,7 @@ import RecruitsPanel, { StatusBuckets } from "../../../components/recruitment/Re
 import useServerTable, { ServerPage, TableFilters } from "../../../hooks/useServerTable";
 import { reportPresets } from "../../../helpers/dateRanges";
 import { formatCount, formatPeso } from "../../../helpers/formatNumber";
+import { formatDate } from "../../../helpers/formatDate";
 
 interface Measures {
     nao_status: StatusBuckets;
@@ -43,7 +44,24 @@ interface ProgressRow extends Measures {
     team: string | null;
 }
 
-type Group = "teams" | "sub_teams" | "areas" | "sponsors";
+type Group = "teams" | "sub_teams" | "areas" | "sponsors" | "recruits";
+
+// The Recruits tab: one recruit per row.
+interface RecruitRow {
+    id: number;
+    name: string;
+    detail: string | null;
+    avatar: string | null;
+    sponsor: string | null;
+    team: string | null;
+    sub_team: string | null;
+    area: string | null;
+    signed_up: string;
+    sold: boolean;
+    value: number;
+    nao: number;
+    fire: number;
+}
 
 interface RecruitsProgressProps {
     filters: TableFilters & { from: string; to: string; group: Group; team_id?: number; sub_team_id?: number; sponsor_id?: number; area?: string };
@@ -59,8 +77,9 @@ interface RecruitsProgressProps {
 const GROUP_LABELS: Record<Group, { tab: string; column: string; search: string }> = {
     teams: { tab: "By team", column: "Team", search: "Search teams" },
     sub_teams: { tab: "By unit manager", column: "Sub-team / unit manager", search: "Search sub-teams or unit managers" },
-    areas: { tab: "By location", column: "Area / location", search: "Search locations" },
+    areas: { tab: "By branch", column: "Branch", search: "Search branches" },
     sponsors: { tab: "By agent (sponsor)", column: "Sponsor / upline", search: "Search sponsors" },
+    recruits: { tab: "Recruits", column: "Recruit", search: "Search recruits" },
 };
 
 const CHART_LABELS = {
@@ -105,9 +124,43 @@ function RecruitsProgress({ filters, groups, scope, selection, summary, rows }: 
 
     // Clicking a row narrows the page to that group; the table then goes one level down.
     const open = (row: ProgressRow) => {
-        const key = { teams: "team_id", sub_teams: "sub_team_id", areas: "area", sponsors: "sponsor_id" }[filters.group];
-        if (row.id) table.drillInto({ [key]: row.id, group: "", sort: "", dir: "", q: "" });
+        if (!row.id) return;
+        // A sponsor or a recruit is a person: their own recruits (a team leader's team, a unit manager's sub-team), replacing the last pick.
+        if (filters.group === "sponsors" || filters.group === "recruits") {
+            table.drillInto({ person: row.id, team_id: "", sub_team_id: "", sponsor_id: "", area: "", group: "", sort: "", dir: "", q: "" });
+            return;
+        }
+        const key = { teams: "team_id", sub_teams: "sub_team_id", areas: "area" }[filters.group];
+        table.drillInto({ [key]: row.id, group: "", sort: "", dir: "", q: "" });
     };
+
+    // The people themselves: who brought them in, where they are, and how far they got.
+    const recruitColumns: GridColDef<RecruitRow>[] = [
+        { field: "name", headerName: "Recruit", flex: 1.5, minWidth: 240, renderCell: ({ row }) => <PersonCell name={row.name} avatar={row.avatar} secondary={row.detail ?? undefined} /> },
+        { field: "sponsor", headerName: "Sponsor / upline", flex: 1.1, minWidth: 180, sortable: false, valueGetter: (_: unknown, r: RecruitRow) => r.sponsor ?? "—" },
+        {
+            field: "team",
+            headerName: "Team / sub-team",
+            flex: 1.1,
+            minWidth: 180,
+            sortable: false,
+            renderCell: ({ row }) => <PersonCell hideAvatar name={row.team ?? "—"} secondary={row.sub_team ?? undefined} />,
+        },
+        { field: "signed_up", headerName: "Signed up", width: 120, valueGetter: (_: unknown, r: RecruitRow) => formatDate(r.signed_up) },
+        {
+            field: "value",
+            headerName: "Sales",
+            width: 150,
+            renderCell: ({ row }) => <PersonCell hideAvatar name={row.sold ? formatPeso(row.value) : "No sale yet"} secondary={row.sold ? "Valid sales, any date" : "In training"} />,
+        },
+        { field: "nao", headerName: "NAO", width: 150, renderCell: ({ row }) => <Percent value={row.nao} caption={row.nao >= 100 ? "Finished" : row.nao > 0 ? "On progress" : "Not yet started"} /> },
+        {
+            field: "fire",
+            headerName: "FIRE",
+            width: 150,
+            renderCell: ({ row }) => <Percent value={Math.min(100, Math.round((row.fire / 3) * 100))} caption={`${Math.min(row.fire, 3)} of 3 certificates`} />,
+        },
+    ];
 
     const columns: GridColDef<ProgressRow>[] = [
         {
@@ -162,6 +215,7 @@ function RecruitsProgress({ filters, groups, scope, selection, summary, rows }: 
 
             {/* KPIs */}
             <RecruitsPanel
+                area={scope?.type === "area" ? scope.name : selection?.type === "area" ? selection.name : null}
                 recruits={kpis.recruits}
                 trainees={kpis.trainees}
                 sold={kpis.sold}
@@ -210,8 +264,8 @@ function RecruitsProgress({ filters, groups, scope, selection, summary, rows }: 
                     </Typography>
                     <TableToolbar search={table.search} onSearch={table.setSearch} placeholder={label.search} />
                     <DataTable
-                        {...table.gridProps}
-                        columns={columns}
+                        {...(table.gridProps as never)}
+                        columns={(filters.group === "recruits" ? recruitColumns : columns) as never}
                         getRowHeight={() => 68}
                         onRowClick={({ row }) => open(row as ProgressRow)}
                         sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
@@ -229,7 +283,7 @@ function RecruitsProgress({ filters, groups, scope, selection, summary, rows }: 
                 <SectionTitle title="Statistics" subtitle="For the same recruits." />
                 <Grid container spacing={2}>
                     <Grid size={{ xs: 12, lg: 5 }}>
-                        <SectionCard title="Top areas">
+                        <SectionCard title="Top branches">
                             <BarList
                                 items={summary.areas.map((a) => ({ name: a.name, value: a.recruits, detail: `${a.conversion}% sold · NAO ${a.nao}% · FIRE ${a.fire}%` }))}
                                 caption="Recruits by the area they belong to, with how many sold and their NAO / FIRE completion"

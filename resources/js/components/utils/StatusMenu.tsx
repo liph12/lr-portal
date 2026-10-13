@@ -1,4 +1,4 @@
-import { MouseEvent, ReactNode, useState } from "react";
+import { ElementType, MouseEvent, ReactNode, useState } from "react";
 import { ButtonBase, ListItemText, Menu, MenuItem } from "@mui/material";
 import { ExpandMoreRounded } from "@mui/icons-material";
 import { router } from "@inertiajs/react";
@@ -17,10 +17,15 @@ interface StatusMenuProps {
     disabled?: boolean;
     // Statuses that need a confirm first, with what they will do.
     confirm?: Record<string, ReactNode>;
+    // Of those, the ones confirmed with the primary button instead of the red one (nothing is lost).
+    safe?: string[];
+    // An icon per status inside the chip, beside its colour.
+    icons?: Record<string, ElementType>;
 }
 
 // A status chip that opens a menu of the other statuses.
-export default function StatusMenu({ status, statuses, url, field = "status", labels = {}, subject, disabled = false, confirm = {} }: StatusMenuProps) {
+export default function StatusMenu({ status, statuses, url, field = "status", labels = {}, subject, disabled = false, confirm = {}, safe = [], icons = {} }: StatusMenuProps) {
+    const StatusIcon = status ? icons[status] : undefined;
     const label = (value: string | null) => (value ? (labels[value] ?? value) : "—");
     const [anchor, setAnchor] = useState<HTMLElement | null>(null);
     const [pending, setPending] = useState<string | null>(null);
@@ -53,7 +58,8 @@ export default function StatusMenu({ status, statuses, url, field = "status", la
                 }}
                 sx={{ borderRadius: 99, lineHeight: 1, alignSelf: "center", opacity: saving ? 0.6 : 1 }}
             >
-                <StatusChip status={status} sx={{ pr: disabled ? 1.25 : 0.5 }}>
+                <StatusChip status={status} sx={{ pr: disabled ? 1.25 : 0.5, ...(StatusIcon ? { pl: 0.75 } : {}) }}>
+                    {StatusIcon && <StatusIcon sx={{ fontSize: 15, mr: 0.5 }} />}
                     {label(status)}
                     {!disabled && <ExpandMoreRounded sx={{ fontSize: 16, ml: 0.25 }} />}
                 </StatusChip>
@@ -70,6 +76,7 @@ export default function StatusMenu({ status, statuses, url, field = "status", la
                 title={`Set ${subject} to ${label(pending)}?`}
                 message={pending ? confirm[pending] : null}
                 confirmLabel={`Set to ${pending ? label(pending) : ""}`}
+                tone={pending && safe.indexOf(pending) !== -1 ? "primary" : "danger"}
                 onConfirm={() => pending && save(pending)}
                 onClose={() => setPending(null)}
             />

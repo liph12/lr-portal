@@ -1,5 +1,5 @@
 import { Box, BoxProps } from "@mui/material";
-import { DescriptionOutlined } from "@mui/icons-material";
+import { DescriptionOutlined, DoNotDisturbAltRounded } from "@mui/icons-material";
 
 interface FileLinkProps extends BoxProps<"a"> {
     url: string | null;
@@ -7,10 +7,26 @@ interface FileLinkProps extends BoxProps<"a"> {
 }
 
 // An uploaded sale file (proof of transaction, remittance / deposit slip), opened in a new tab; "No <label>" when missing.
+// The pill's box, shared by both: a missing file sits in line with the files beside it (a bare span took the table row's
+// line height and dropped out of line).
+const pillSx = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 0.5,
+    px: 1,
+    height: 24,
+    lineHeight: "22px",
+    borderRadius: 99,
+    fontSize: 12,
+    fontWeight: 500,
+    whiteSpace: "nowrap",
+} as const;
+
 export default function FileLink({ url, label, sx, ...props }: FileLinkProps) {
     if (!url) {
         return (
-            <Box component="span" sx={{ fontSize: 12, color: "var(--lr-text-secondary)", whiteSpace: "nowrap" }}>
+            <Box component="span" sx={{ ...pillSx, color: "var(--lr-text-secondary)", border: "1px dashed var(--lr-border)", ...sx }}>
+                <DoNotDisturbAltRounded sx={{ fontSize: 13 }} />
                 No {label.toLowerCase()}
             </Box>
         );
@@ -25,15 +41,7 @@ export default function FileLink({ url, label, sx, ...props }: FileLinkProps) {
             onClick={(e) => e.stopPropagation()}
             {...props}
             sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.5,
-                px: 1,
-                height: 24,
-                borderRadius: 99,
-                fontSize: 12,
-                fontWeight: 500,
-                whiteSpace: "nowrap",
+                ...pillSx,
                 textDecoration: "none",
                 color: "var(--lr-primary)",
                 backgroundColor: "var(--lr-primary-soft)",

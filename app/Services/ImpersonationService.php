@@ -6,16 +6,32 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 // A superadmin signs in as a specific user (to see exactly what they see) and returns to their own account.
-// The original account is remembered in the session; the session id is regenerated on every switch, so a slow
-// background request still holding the old session can't undo it.
+// The original account is remembered in the session. Every switch moves to a new session id and retires the old one:
+// a slow background request still on the old session would otherwise send its cookie back when it finishes and undo
+// the switch (DropRetiredSessionCookie).
 class ImpersonationService
 {
     public const SESSION_KEY = 'impersonator_id';
 
     public function __construct(private ActivityLogger $activity, private ViewAsService $viewAs) {}
+
+    public function isRetired(string $sessionId): bool
+    {
+        return Cache::has("session-retired:{$sessionId}");
+    }
+
+    // Signs in as $user on a new session id (Auth::login moves to one) and retires the id the browser had, for long
+    // enough to outlast any request already running on it.
+    private function switchTo(Request $request, User $user): void
+    {
+        $old = $request->session()->getId();
+        Auth::login($user);
+        Cache::put("session-retired:{$old}", true, now()->addHour());
+    }
 
     public function impersonator(Request $request): ?User
     {
@@ -39,8 +55,7 @@ class ImpersonationService
 
         // A role preview belongs to the superadmin's own session, not the person they become.
         $this->viewAs->forget();
-        Auth::login($target);
-        $request->session()->migrate(true);
+        $this->switchTo($request, $target);
         $request->session()->put(self::SESSION_KEY, $me->id);
     }
 
@@ -51,8 +66,7 @@ class ImpersonationService
 
         abort_unless($original && $original->reallyHasRole(Role::SUPERADMIN), 403);
 
-        Auth::login($original);
-        $request->session()->migrate(true);
+        $this->switchTo($request, $original);
         $request->session()->forget(self::SESSION_KEY);
 
         $this->activity->describe('auth.impersonation_stopped', "Returned from {$was?->name}'s account", $was, ['impersonator_id' => $original->id]);

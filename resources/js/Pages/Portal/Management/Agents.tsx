@@ -114,7 +114,7 @@ function Agents({ agents, filters, teams, statuses, agentTypes, areas }: AgentsP
                 </Box>
             ),
         },
-        { field: "area", headerName: "Area", width: 130, valueGetter: (_, row) => (row.area ? (areas[row.area] ?? row.area) : "Unassigned") },
+        { field: "area", headerName: "Branch", width: 130, valueGetter: (_, row) => (row.area ? (areas[row.area] ?? row.area) : "Unassigned") },
         { field: "country", headerName: "Country", width: 170, renderCell: ({ row }) => <CountryFlag code={row.country_code} country={row.country} /> },
         { field: "role_label", headerName: "Role", width: 130, valueGetter: (_, row) => row.role_label ?? "—" },
         {

@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Entities\Agent;
+use App\Models\Entities\SubTeam;
 use App\Models\Entities\Team;
+use App\Models\Entities\TeamAgent;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -47,6 +49,24 @@ class TeamDirectoryService
             ->get()
             ->map(fn ($s) => [...(array) $s, 'members_count' => (int) $s->members_count])
             ->all();
+    }
+
+    /**
+     * The Management cards' numbers: agents on a team now, active teams and sub-teams, and transfers this month.
+     *
+     * @return array{agents: int, teams: int, sub_teams: int, transfers: int}
+     */
+    public function overview(): array
+    {
+        $monthStart = now()->startOfMonth()->toDateString();
+
+        return [
+            'agents' => (int) DB::table('team_agents')->where('status', TeamAgent::STATUS_ACTIVE)->distinct()->count('agent_id'),
+            'teams' => Team::where('status', Team::STATUS_ACTIVE)->count(),
+            'sub_teams' => SubTeam::where('status', Team::STATUS_ACTIVE)->count(),
+            // A transfer closes a stint on its date: those closed this month.
+            'transfers' => (int) DB::table('team_agents')->where('transferred_at', '>=', $monthStart)->count(),
+        ];
     }
 
     /**

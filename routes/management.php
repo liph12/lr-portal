@@ -7,13 +7,16 @@ use Illuminate\Support\Facades\Route;
 // Management lives in both the superadmin and admin portals: each portal file calls this with its
 // own name, giving /{portal}/management/... routes named {portal}.management.*.
 return function (string $portal) {
+    // The cards: agents, teams, sub-teams, transfers and the two commission receivings (each card by its permission).
+    Route::get('/management', [ManagementController::class, 'index'])
+        ->middleware('can:open,'.Team::class)
+        ->name("{$portal}.management.index");
+
     Route::prefix('management')
         ->name("{$portal}.management.")
         ->middleware('can:manage,'.Team::class)
         ->controller(ManagementController::class)
-        ->group(function () use ($portal) {
-            // Management opens on Agents.
-            Route::redirect('/', "/{$portal}/management/agents")->name('index');
+        ->group(function () {
             Route::get('/teams', 'teams')->name('teams');
             Route::get('/sub-teams', 'subTeams')->name('sub-teams');
             Route::get('/agents', 'agents')->name('agents');

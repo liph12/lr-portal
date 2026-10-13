@@ -37,7 +37,7 @@ function AgentSales({ agent, ...props }: AgentSalesPageProps) {
                             <DesignationBadges person={agent} />
                         </Box>
                         <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
-                            {agent.area ?? "No area"}
+                            {agent.area ?? "No branch"}
                         </Typography>
                     </Box>
                 </Box>

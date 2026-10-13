@@ -49,6 +49,8 @@ Route::middleware(['auth', 'active'])->group(function(){
     // Superadmin "sign in as" a specific user; leaving is allowed for whoever is being impersonated.
     Route::post('/impersonate/{user}', [ImpersonationController::class, 'store'])->name('impersonate.start');
     Route::delete('/impersonate', [ImpersonationController::class, 'destroy'])->name('impersonate.stop');
+    // Only reached from a stale history entry or a refresh (the page itself never links here): just go home.
+    Route::get('/impersonate', fn () => redirect()->route('dashboard.index'));
 
     Route::prefix('superadmin')->middleware('role:superadmin')->group(function(){
 

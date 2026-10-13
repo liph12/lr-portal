@@ -28,7 +28,8 @@ class UpdateValidatedSaleRequest extends FormRequest
         $area = ['nullable', 'numeric', 'gt:0', 'max:99999999'];
 
         $rules = [
-            'status' => ['required', Rule::in(SaleValidationService::STATUSES)],
+            // Editing the details is separate from validating (PATCH …/{sale}); a status here is still applied if sent.
+            'status' => ['sometimes', Rule::in(SaleValidationService::STATUSES)],
             'client_first_name' => ['required', 'string', 'max:255'],
             'client_middle_name' => ['nullable', 'string', 'max:100'],
             // Legacy sales keep the client's full name in client_first_name (salesreport.clientfamilyname).

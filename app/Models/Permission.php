@@ -23,7 +23,7 @@ class Permission extends Model
         'Reports' => ['view_reports', 'create_report', 'view_genealogy', 'view_natcon'],
         'Statistics' => ['view_statistics', 'view_global_partner_statistics'],
         'Documentation' => ['manage_documents'],
-        'Management' => ['edit_designation', 'transfer_agents', 'change_agent_status', 'edit_teams', 'change_team_status'],
+        'Management' => ['edit_designation', 'transfer_agents', 'change_agent_status', 'edit_teams', 'change_team_status', 'edit_agent_profile'],
         'Users & settings' => ['view_profile', 'search_user', 'edit_user', 'edit_settings', 'use_preferences'],
     ];
 

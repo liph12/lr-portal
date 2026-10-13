@@ -30,41 +30,62 @@ class ProfileService
      */
     public function update(User $user, array $data): Agent
     {
-        $agent = DB::transaction(function () use ($user, $data) {
-            $agent = $this->agentFor($user);
-
-            $agent->update([
-                'first_name' => $data['first_name'],
-                'middle_name' => $data['middle_name'] ?? null,
-                'last_name' => $data['last_name'],
-                'email' => $data['email'],
-                'mobile' => $data['mobile'] ?? null,
-                'phone' => $data['phone'] ?? null,
-                'gender' => ($data['gender'] ?? 'Male') === 'Male',
-                'marital_status' => $data['marital_status'] ?? null,
-                'address' => $data['address'] ?? null,
-                'city' => $data['city'] ?? null,
-                'state' => $data['state'] ?? null,
-            ]);
-
-            $agent->profile()->updateOrCreate([], [
-                'about' => $data['about'] ?? null,
-                'facebook' => $data['facebook'] ?? null,
-                'linkedin' => $data['linkedin'] ?? null,
-                'whatsapp' => $data['whatsapp'] ?? null,
-            ]);
-
-            // The account and the agent record describe the same person; keep them in step.
-            $user->update([
-                'name' => trim("{$data['first_name']} {$data['last_name']}"),
-                'email' => $data['email'],
-            ]);
-
-            return $agent;
-        });
+        $agent = DB::transaction(fn () => $this->write($this->agentFor($user), $user, $data));
 
         $this->activity->describe('profile.updated', 'Updated profile details', $agent, [
             'changed' => array_keys($agent->getChanges()),
+        ]);
+
+        return $agent;
+    }
+
+    /**
+     * Someone else's profile, from the agent profile page (edit_agent_profile).
+     *
+     * @param  array<string, mixed>  $data  validated UpdateAgentProfileRequest input
+     */
+    public function updateAgent(Agent $agent, array $data): Agent
+    {
+        $agent = DB::transaction(fn () => $this->write($agent, $agent->user, $data));
+
+        $name = trim("{$data['first_name']} {$data['last_name']}");
+        $this->activity->describe('agent.profile_updated', "Updated {$name}'s profile", $agent, [
+            'changed' => array_keys($agent->getChanges()),
+        ]);
+
+        return $agent;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function write(Agent $agent, ?User $user, array $data): Agent
+    {
+        $agent->update([
+            'first_name' => $data['first_name'],
+            'middle_name' => $data['middle_name'] ?? null,
+            'last_name' => $data['last_name'],
+            'email' => $data['email'],
+            'mobile' => $data['mobile'] ?? null,
+            'phone' => $data['phone'] ?? null,
+            'gender' => ($data['gender'] ?? 'Male') === 'Male',
+            'marital_status' => $data['marital_status'] ?? null,
+            'address' => $data['address'] ?? null,
+            'city' => $data['city'] ?? null,
+            'state' => $data['state'] ?? null,
+        ]);
+
+        $agent->profile()->updateOrCreate([], [
+            'about' => $data['about'] ?? null,
+            'facebook' => $data['facebook'] ?? null,
+            'linkedin' => $data['linkedin'] ?? null,
+            'whatsapp' => $data['whatsapp'] ?? null,
+        ]);
+
+        // The account and the agent record describe the same person; keep them in step.
+        $user?->update([
+            'name' => trim("{$data['first_name']} {$data['last_name']}"),
+            'email' => $data['email'],
         ]);
 
         return $agent;

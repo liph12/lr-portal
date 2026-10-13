@@ -32,7 +32,14 @@ function Recruits({ selection, ...props }: RecruitsPageProps) {
                     onClear={() => router.get("/reports/recruits", { from: props.filters.from, to: props.filters.to })}
                 />
             )}
-            <RecruitmentView {...props} scope={selection ? null : props.scope} />
+            {/* A person opens their own recruits — a team leader's team, a unit manager's sub-team — in the same dates. */}
+            <RecruitmentView
+                {...props}
+                scope={selection ? null : props.scope}
+                onOpen={(t) => router.get("/reports/recruits", { from: props.filters.from, to: props.filters.to, person: t.id })}
+                // A secretary's area (their reach) or a clicked area: every count is that area's.
+                area={props.scope?.type === "area" ? props.scope.name : selection?.type === "area" ? selection.name : null}
+            />
         </Container>
     );
 }

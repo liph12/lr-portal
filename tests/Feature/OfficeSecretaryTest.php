@@ -129,3 +129,29 @@ test('the Sales validation badge counts pending sales: all for the back office, 
     $this->actingAs($this->secretaryUser)->patch("/sales-validation/{$this->davaoSale->id}", ['status' => 'valid']);
     $this->actingAs($this->secretaryUser)->get('/profile')->assertInertia(fn ($page) => $page->where('auth.sales_validation', ['pending' => 0]));
 });
+
+test('a secretary searches the agents of their office\'s area, and only those', function () {
+    $this->actingAs($this->secretaryUser)->get('/dashboard/main')->assertInertia(fn ($page) => $page->where('auth.can.search_users', true));
+
+    $this->actingAs($this->secretaryUser)->getJson('/search/users?q=Dave')
+        ->assertOk()->assertJsonCount(1, 'users')->assertJsonPath('users.0.name', 'Dave Davao')->assertJsonPath('users.0.agent_id', $this->davaoMember);
+    // Cebu's agents aren't theirs to find.
+    $this->actingAs($this->secretaryUser)->getJson('/search/users?q=Carl')->assertOk()->assertJsonCount(0, 'users');
+    $this->actingAs($this->secretaryUser)->get("/agents/{$this->davaoMember}")->assertOk();
+
+    // An agent who is neither a secretary nor a leader can't search people.
+    $this->actingAs($this->otherUser)->getJson('/search/users?q=Dave')->assertForbidden();
+});
+
+test('a secretary\'s Recruits and Recruits Progress stay within their area', function () {
+    DB::table('agents')->update(['created_at' => '2026-09-01 10:00:00']);
+    $range = 'from=2026-09-01&to=2026-09-20';
+
+    $this->actingAs($this->secretaryUser)->get("/reports/recruits-progress?{$range}")
+        ->assertInertia(fn ($page) => $page->where('scope.type', 'area')->where('scope.name', 'Davao'));
+    $this->actingAs($this->secretaryUser)->get("/reports/recruits?{$range}")
+        ->assertInertia(fn ($page) => $page->where('filters.area', 'davao')
+            // Named on the page: the area header (and the cards say "· Davao").
+            ->where('scope.type', 'area')->where('scope.name', 'Davao')
+            ->where('trainees.data', fn ($rows) => collect($rows)->pluck('id')->diff([$this->secretary, $this->otherUser->agent()->value('id'), $this->davaoMember])->isEmpty()));
+});

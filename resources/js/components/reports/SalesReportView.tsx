@@ -72,7 +72,7 @@ const VIEWS: Record<string, { label: string; column: string; search: string }> =
     agents: { label: "Agents", column: "Agent", search: "Search agents" },
     teams: { label: "Teams", column: "Team", search: "Search teams" },
     sub_teams: { label: "Sub-teams", column: "Sub-team", search: "Search sub-teams" },
-    areas: { label: "Areas", column: "Area", search: "Search areas" },
+    areas: { label: "Branches", column: "Branch", search: "Search branches" },
     developers: { label: "Developers", column: "Developer", search: "Search developers" },
     brokerage: { label: "Brokerage", column: "Agent", search: "Search agents" },
     rental: { label: "Rental", column: "Agent", search: "Search agents" },
@@ -85,7 +85,7 @@ const DRILL: Record<string, { key: string; label: string; hint: string }> = {
     teams: { key: "team_id", label: "Team", hint: "Click a team to see its top agents." },
     sub_teams: { key: "sub_team_id", label: "Sub-team", hint: "Click a sub-team to see its top agents." },
     developers: { key: "developer_id", label: "Developer", hint: "Click a developer to see the top agents selling its projects." },
-    areas: { key: "area", label: "Area", hint: "Click an area to see its top agents." },
+    areas: { key: "area", label: "Branch", hint: "Click a branch to see its top agents." },
 };
 const SCOPE_KEYS = { team: "team_id", sub_team: "sub_team_id", developer: "developer_id", area: "area", agent: "agent_id" } as const;
 const NO_SCOPE = { team_id: "", sub_team_id: "", developer_id: "", area: "" };
@@ -152,7 +152,7 @@ export default function SalesReportView({ filters, scope = null, summary, breakd
             ),
         },
         ...(SHOW_AREA.indexOf(filters.view) !== -1
-            ? [{ field: "area", headerName: "Area / location", flex: 1, minWidth: 150, sortable: false, valueGetter: (_: unknown, row: ReportRow) => row.area ?? "—" } as GridColDef<ReportRow>]
+            ? [{ field: "area", headerName: "Branch", flex: 1, minWidth: 150, sortable: false, valueGetter: (_: unknown, row: ReportRow) => row.area ?? "—" } as GridColDef<ReportRow>]
             : []),
         // Inside one team or sub-team every row has the same team, so the column would only repeat it.
         ...(SHOW_TEAM.indexOf(filters.view) !== -1 && scope?.type !== "team" && scope?.type !== "sub_team"
@@ -203,13 +203,13 @@ export default function SalesReportView({ filters, scope = null, summary, breakd
                     <TextField
                         select
                         size="small"
-                        label="Area"
+                        label="Branch"
                         value={filters.area ?? ""}
                         onChange={(e) => table.setFilter("area", e.target.value)}
                         slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
                         sx={selectSx}
                     >
-                        <MenuItem value="">All areas</MenuItem>
+                        <MenuItem value="">All branches</MenuItem>
                         {Object.entries(areaOptions).map(([key, name]) => (
                             <MenuItem key={key} value={key}>
                                 {name}

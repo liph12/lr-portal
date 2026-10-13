@@ -5,6 +5,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\ApplyViewAsRole;
 use App\Http\Middleware\BumpDataVersion;
+use App\Http\Middleware\DropRetiredSessionCookie;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogActivity;
@@ -21,6 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Outside the cookie and session middleware: it drops a finished request's cookie for a replaced session.
+        $middleware->web(prepend: [DropRetiredSessionCookie::class]);
+
         $middleware->web(append: [
             // Before anything reads roles: a superadmin's role preview must apply to the whole request.
             ApplyViewAsRole::class,
@@ -54,6 +58,17 @@ return Application::configure(basePath: dirname(__DIR__))
 
             if ($status === 419) {
                 return back()->withErrors(['email' => 'Your session expired. Please try again.']);
+            }
+
+            // A refused browser write (POST / PUT / PATCH / DELETE) goes back to its page with the reason as a toast. Rendered
+            // as the Error page it would take the write's URL (e.g. /impersonate), and the next reload of "this page" (the
+            // online-users poll, a table) would GET a route that only takes that write: 405.
+            if ($request->header('X-Inertia') && ! $request->isMethod('GET')) {
+                return back(303)->with('error', match ($status) {
+                    403 => "You're not allowed to do that.",
+                    404 => 'That record no longer exists. The page may be out of date; refresh it.',
+                    default => "That didn't go through. Try again.",
+                });
             }
 
             return inertia('Error', ['status' => $status])->toResponse($request)->setStatusCode($status);

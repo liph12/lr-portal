@@ -40,7 +40,8 @@ class NatconService
 
     /**
      * What a reader may see: the back office (superadmin, admin, staff) every board of everyone, with amounts; whoever
-     * leads a team / sub-team (from the data) the qualifiers on it; anyone else nothing (false).
+     * leads a team / sub-team (from the data) the qualifiers on it; anyone else with an agent record only their own NATCON
+     * sales (My NATCON Sales, no boards); nobody else anything (false).
      *
      * @return array{boards: list<string>, lock: array<string, int>, group: ?string, group_type: ?string}|false
      */
@@ -50,7 +51,7 @@ class NatconService
             return ['boards' => array_keys(self::BOARDS), 'lock' => [], 'group' => null, 'group_type' => null];
         }
         if (! $current = $this->leadership->current($user, null, null)) {
-            return false;
+            return $user->agent()->exists() ? ['boards' => [], 'lock' => [], 'group' => null, 'group_type' => null] : false;
         }
 
         return [
@@ -87,6 +88,25 @@ class NatconService
         AppSetting::updateOrCreate(['key' => self::SETTING], ['value' => $value, 'updated_by' => $by->id]);
 
         $this->activity->describe('natcon.settings', "Set the NATCON period to {$value['from']} – {$value['to']} (cutoff {$value['cutoff_month']}, qualifier ".number_format($value['qualifier_amount'])."; rentals {$value['rental_from']} – {$value['rental_to']}, cutoff {$value['rental_cutoff']})", null, $value);
+    }
+
+    /**
+     * One agent's own NATCON sales (My NATCON Sales): their valid sales reserved in the NATCON period and encoded by its
+     * cutoff — the Qualifiers rule, every category — as the sales report's filters, so the My Sales view shows them.
+     *
+     * @param  array<string, mixed>  $input  category, q, page, per_page, sort, dir from the URL
+     * @return array<string, mixed>
+     */
+    public function mineFilters(int $agentId, array $input): array
+    {
+        $period = $this->period('qualifiers');
+        $f = $this->reports->lockedFilters(
+            ['view' => 'agents', 'list' => 'sales', 'from' => $period['from'], 'to' => $period['to'], 'status' => 'valid']
+                + array_intersect_key($input, array_flip(['category', 'q', 'page', 'per_page', 'sort', 'dir'])),
+            ['agent_id' => $agentId],
+        );
+
+        return [...$f, 'encoded_by' => $period['cutoff_at']];
     }
 
     /**

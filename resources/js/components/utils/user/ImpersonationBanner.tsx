@@ -34,7 +34,12 @@ export default function ImpersonationBanner() {
                 size="small"
                 variant="contained"
                 loading={leaving}
-                onClick={() => router.delete("/impersonate", { onStart: () => setLeaving(true), onFinish: () => setLeaving(false) })}
+                disabled={leaving}
+                onClick={() => {
+                    // At once, not on the request's start: a quick double click would otherwise send two.
+                    setLeaving(true);
+                    router.delete("/impersonate", { onFinish: () => setLeaving(false) });
+                }}
                 sx={{ backgroundColor: "var(--lr-primary)", color: "var(--lr-on-primary)", ":hover": { backgroundColor: "var(--lr-primary-hover)" } }}
             >
                 Return to my account

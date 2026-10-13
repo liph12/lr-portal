@@ -1,17 +1,12 @@
 import { FormEvent, ReactNode, useMemo } from "react";
-import { Box, Divider, Grid, Typography } from "@mui/material";
-import { Link, useForm } from "@inertiajs/react";
+import { Box, Grid, Typography } from "@mui/material";
+import { useForm } from "@inertiajs/react";
 import StyledButton from "../utils/StyledButton";
 import StyledTextField from "../utils/StyledTextField";
 import StyledAutocomplete from "../utils/StyledAutocomplete";
 import FieldLabel from "../utils/forms/FieldLabel";
-import UserAvatar from "../utils/user/UserAvatar";
-import SaleFiles from "./SaleFiles";
-import CommissionReceipt from "./CommissionReceipt";
-import { isSlipSale } from "../../helpers/commissionSlip";
 import { condoTypes, countries } from "../../app-data";
 import { showsFloorArea, showsLotArea, showsUnitType } from "../../helpers/projectSaleFields";
-import { formatDate } from "../../helpers/formatDate";
 import { SaleCategory } from "../../types/app-data-types";
 
 type Option = { id: number; label: string };
@@ -47,8 +42,8 @@ export interface EditOptions {
 interface SaleDetailsFormProps {
     detail: SaleDetail;
     options: EditOptions | null;
-    statuses: string[];
-    statusLabels: Record<string, string>;
+    // Back to the read-only view (saved, or cancelled).
+    onDone?: () => void;
     baseUrl: string;
 }
 
@@ -66,11 +61,10 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
     );
 }
 
-// Every detail of one sale, editable: status, client, property, payment; files and history read-only.
-export default function SaleDetailsForm({ detail, options, statuses, statusLabels, baseUrl }: SaleDetailsFormProps) {
+// Editing one sale's details (client, property, payment) — never its status: validating is SaleReview's own buttons.
+export default function SaleDetailsForm({ detail, options, baseUrl, onDone }: SaleDetailsFormProps) {
     const { client: c, property: p, category } = detail;
     const form = useForm({
-        status: detail.sale_status,
         client_first_name: str(c.client_first_name),
         client_middle_name: str(c.client_middle_name),
         client_last_name: str(c.client_last_name),
@@ -155,42 +149,11 @@ export default function SaleDetailsForm({ detail, options, statuses, statusLabel
 
     const submit = (ev: FormEvent) => {
         ev.preventDefault();
-        form.put(`${baseUrl}/${detail.id}`, { preserveScroll: true, preserveState: true });
+        form.put(`${baseUrl}/${detail.id}`, { preserveScroll: true, preserveState: true, onSuccess: () => onDone?.() });
     };
 
     return (
         <Box component="form" onSubmit={submit} noValidate sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-            {detail.agent && (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-                    <UserAvatar name={detail.agent.name ?? "?"} src={detail.agent.avatar} size={36} />
-                    <Box sx={{ minWidth: 0 }}>
-                        <Link href={`/agents/${detail.agent.id}`} style={{ textDecoration: "none" }}>
-                            <Typography variant="body2" sx={{ fontWeight: 500, color: "var(--lr-primary)" }}>
-                                {detail.agent.name}
-                            </Typography>
-                        </Link>
-                        <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
-                            {detail.agent.area}
-                        </Typography>
-                    </Box>
-                </Box>
-            )}
-
-            {/* The evidence first: what the validator checks before setting the status. */}
-            <SaleFiles detail={detail} />
-            {isSlipSale(detail) && <CommissionReceipt detail={detail} />}
-
-            <Section title="Validation">
-                {choice("status", "Status", statuses, statusLabels, 6, true)}
-                <Grid size={{ xs: 12, sm: 6 }} sx={{ display: "flex", alignItems: "flex-end", pb: 1 }}>
-                    <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
-                        Added {detail.created_at ? formatDate(detail.created_at) : "—"}
-                        {detail.recorded_by && ` by ${detail.recorded_by}`}
-                        {detail.validated_at && ` · validated ${formatDate(detail.validated_at)}${detail.validated_by ? ` by ${detail.validated_by}` : ""}`}
-                    </Typography>
-                </Grid>
-            </Section>
-
             <Section title="Client">
                 {/* Legacy sales hold the client's full name here, with no last name. */}
                 {field("client_first_name", data.client_last_name ? "First Name" : "First Name (or Full Name)", 4, { required: true })}
@@ -248,35 +211,14 @@ export default function SaleDetailsForm({ detail, options, statuses, statusLabel
             </Section>
 
             <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
-                <StyledButton disabled={!form.isDirty || form.processing} onClick={() => { form.reset(); form.clearErrors(); }} sx={{ color: "var(--lr-text-secondary)" }}>
-                    Discard
+                <StyledButton disabled={!form.isDirty || form.processing} onClick={() => { form.reset(); form.clearErrors(); onDone?.(); }} sx={{ color: "var(--lr-text-secondary)" }}>
+                    Cancel
                 </StyledButton>
                 <StyledButton type="submit" variant="contained" loading={form.processing} disabled={!form.isDirty} sx={{ px: 3, backgroundColor: "var(--lr-primary)", ":hover": { backgroundColor: "var(--lr-primary-hover)" } }}>
                     Save changes
                 </StyledButton>
             </Box>
 
-            {detail.history.length > 0 && (
-                <>
-                    <Divider />
-                    <Box>
-                        <Typography sx={sectionSx}>History</Typography>
-                        <Box component="ol" sx={{ listStyle: "none", m: 0, p: 0, display: "flex", flexDirection: "column", gap: 1 }}>
-                            {detail.history.map((h, i) => (
-                                <Box component="li" key={i}>
-                                    <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
-                                        {h.updated_at ? formatDate(h.updated_at) : ""}
-                                        {h.user && ` · ${h.user}`}
-                                    </Typography>
-                                    <Typography variant="body2" sx={{ color: "var(--lr-text-body)", overflowWrap: "anywhere" }}>
-                                        {h.description}
-                                    </Typography>
-                                </Box>
-                            ))}
-                        </Box>
-                    </Box>
-                </>
-            )}
         </Box>
     );
 }

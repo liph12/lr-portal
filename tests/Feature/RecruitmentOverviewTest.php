@@ -148,7 +148,7 @@ test('recruits progress: recruits vs recruits who sold, their sales, NAO / FIRE,
 
     $this->actingAs($this->superadmin)->get("/reports/recruits-progress?{$range}")
         ->assertInertia(fn ($page) => $page->component('Portal/Reports/RecruitsProgress')
-            ->where('groups', ['teams', 'sub_teams', 'areas', 'sponsors'])
+            ->where('groups', ['teams', 'sub_teams', 'areas', 'sponsors', 'recruits'])
             ->where('summary.kpis', fn ($k) => $k['recruits'] === 4 && $k['sold'] === 1 && (float) $k['conversion'] === 25.0
                 && (float) $k['value'] === 5_000_000.0 && $k['trainees'] === 3 && (float) $k['nao'] === 66.7 && (float) $k['fire'] === 66.7)
             // Alpha: Ann, Ben, Dee; Cy has no team, so isn't ranked (the KPIs above still count her).
@@ -161,11 +161,11 @@ test('recruits progress: recruits vs recruits who sold, their sales, NAO / FIRE,
 
     // A team leader: their team only, grouped by unit manager or sponsor (not by team).
     $this->actingAs($this->leader)->get("/reports/recruits-progress?{$range}&group=teams")
-        ->assertInertia(fn ($page) => $page->where('groups', ['sub_teams', 'areas', 'sponsors'])->where('filters.group', 'sub_teams')->where('summary.kpis.recruits', 3)->where('scope.name', 'Alpha'));
+        ->assertInertia(fn ($page) => $page->where('groups', ['sub_teams', 'areas', 'sponsors', 'recruits'])->where('filters.group', 'sub_teams')->where('summary.kpis.recruits', 3)->where('scope.name', 'Alpha'));
 
     // A plain agent: the recruits they sponsored (Ben and Cy), grouped by team / unit manager / location, never widened.
     $this->actingAs($this->agents['Ann']['user'])->get("/reports/recruits-progress?{$range}&sponsor_id={$this->agents['Dee']['id']}")
-        ->assertInertia(fn ($page) => $page->where('groups', ['teams', 'sub_teams', 'areas'])->where('summary.kpis.recruits', 2)->where('scope.name', 'Ann'));
+        ->assertInertia(fn ($page) => $page->where('groups', ['recruits', 'teams', 'sub_teams', 'areas'])->where('summary.kpis.recruits', 2)->where('scope.name', 'Ann'));
     $this->actingAs($this->agents['Ann']['user'])->get("/reports/recruits?{$range}")
         ->assertInertia(fn ($page) => $page->where('summary.recruits.total', 2));
 });
@@ -188,14 +188,14 @@ test('the recruits panel counts NAO / FIRE / overall progress, and clicking a te
     $this->actingAs($this->superadmin)->get("/reports/recruits-progress?{$range}&team_id={$team}")
         ->assertInertia(fn ($page) => $page
             ->where('selection.name', 'Alpha')
-            ->where('groups', ['sub_teams', 'areas', 'sponsors'])
+            ->where('groups', ['sub_teams', 'areas', 'sponsors', 'recruits'])
             ->where('summary.kpis.recruits', 3)
             ->where('summary.kpis.trainees', 2)
             ->where('summary.kpis.overall_status', ['not_started' => 0, 'in_progress' => 1, 'finished' => 1]));
 
     // Clicking a sponsor: just their recruits, grouped by anything but sponsor.
     $this->actingAs($this->superadmin)->get("/reports/recruits-progress?{$range}&sponsor_id={$ann}")
-        ->assertInertia(fn ($page) => $page->where('selection.type', 'sponsor')->where('selection.name', 'Ann')->where('groups', ['teams', 'sub_teams', 'areas'])->where('summary.kpis.recruits', 2));
+        ->assertInertia(fn ($page) => $page->where('selection.type', 'sponsor')->where('selection.name', 'Ann')->where('groups', ['recruits', 'teams', 'sub_teams', 'areas'])->where('summary.kpis.recruits', 2));
 
     // "View" opens those same recruits.
     $this->actingAs($this->superadmin)->get("/reports/recruits?{$range}&sponsor_id={$ann}")
@@ -228,7 +228,7 @@ test('recruits progress by location, and clicking a location narrows to it with 
         ->assertInertia(fn ($page) => $page
             ->where('selection.type', 'area')
             ->where('selection.name', 'Cebu')
-            ->where('groups', ['teams', 'sub_teams', 'sponsors'])
+            ->where('groups', ['teams', 'sub_teams', 'sponsors', 'recruits'])
             ->where('summary.kpis.recruits', 2));
 
     $this->actingAs($this->superadmin)->get("/reports/recruits?{$range}&area=cebu")
@@ -242,6 +242,71 @@ test('a drill-down reload brings back the selected team\'s header, tabs and numb
     $this->actingAs($this->superadmin)->get("/reports/recruits-progress?from=2026-01-01&to=2026-10-11&team_id={$team}")
         ->assertInertia(fn ($page) => $page->reloadOnly(['rows', 'filters', 'summary', 'selection', 'groups'], fn ($reload) => $reload
             ->where('selection.name', 'Alpha')
-            ->where('groups', ['sub_teams', 'areas', 'sponsors'])
+            ->where('groups', ['sub_teams', 'areas', 'sponsors', 'recruits'])
             ->where('summary.kpis.recruits', 3)));
+});
+
+test('clicking a person opens their recruits: a team leader\'s team, a unit manager\'s sub-team, an agent\'s own recruits', function () {
+    // Lead › Ann › Ben › Cy; Ann leads a sub-team of Alpha.
+    $id = fn (string $name) => $this->agents[$name]['id'];
+    $leadAgent = DB::table('agents')->where('user_id', $this->leader->id)->value('id');
+    DB::table('agent_attributes')->where('agent_id', $id('Ann'))->update(['referral_id' => $leadAgent]);
+    DB::table('agent_attributes')->where('agent_id', $id('Ben'))->update(['referral_id' => $id('Ann')]);
+    DB::table('agent_attributes')->where('agent_id', $id('Cy'))->update(['referral_id' => $id('Ben')]);
+    $alpha = DB::table('teams')->where('name', 'Alpha')->value('id');
+    $annSub = DB::table('sub_teams')->insertGetId(['name' => 'Ann One', 'team_id' => $alpha, 'agent_id' => $id('Ann'), 'status' => 'active']);
+    $range = 'from=2026-01-01&to=2026-10-11';
+
+    $open = fn (User $reader, int $person) => $this->actingAs($reader)->get("/reports/recruits?{$range}&person={$person}");
+
+    $open($this->superadmin, $leadAgent)->assertInertia(fn ($page) => $page->where('filters.team_id', $alpha)->where('selection.type', 'team')->where('filters.from', '2026-01-01'));
+    $open($this->superadmin, $id('Ann'))->assertInertia(fn ($page) => $page->where('filters.sub_team_id', $annSub)->where('selection.type', 'sub_team'));
+    $open($this->superadmin, $id('Ben'))->assertInertia(fn ($page) => $page->where('filters.sponsor_id', $id('Ben'))
+        ->where('trainees.data', fn ($rows) => collect($rows)->pluck('id')->all() === [$id('Cy')]));
+
+    // Recruits Progress drills the same way.
+    $this->actingAs($this->superadmin)->get("/reports/recruits-progress?{$range}&person={$id('Ben')}")
+        ->assertInertia(fn ($page) => $page->where('filters.sponsor_id', $id('Ben'))->where('selection.type', 'sponsor'));
+
+    // A team leader opens a unit manager inside their team: that sub-team (still within Alpha).
+    $open($this->leader, $id('Ann'))->assertInertia(fn ($page) => $page->where('filters.sub_team_id', $annSub)->where('filters.team_id', $alpha));
+
+    // An agent reading their own recruits goes down their downline, never sideways.
+    $ben = $this->agents['Ben']['user'];
+    $ben->update(['status' => 'active']);
+    $open($ben, $id('Cy'))->assertInertia(fn ($page) => $page->where('filters.sponsor_id', $id('Cy')));
+    $open($ben, $id('Eve'))->assertInertia(fn ($page) => $page->where('filters.sponsor_id', $id('Ben')));
+});
+
+test('only fully registered recruits (registration step 4) count, on both pages', function () {
+    $range = 'from=2026-01-01&to=2026-10-11';
+    $before = fn () => [
+        $this->actingAs($this->superadmin)->get("/reports/recruits?{$range}")->viewData('page')['props']['summary']['recruits']['total'],
+        $this->actingAs($this->superadmin)->get("/reports/recruits-progress?{$range}")->viewData('page')['props']['summary']['kpis']['recruits'],
+    ];
+    [$recruits, $progress] = $before();
+
+    // Signed up in the range but stopped at step 3 of the registration stepper.
+    $user = User::factory()->create(['name' => 'Half Way']);
+    $id = DB::table('agents')->insertGetId(['user_id' => $user->id, 'email' => $user->email, 'created_at' => '2026-05-05 10:00:00']);
+    DB::table('agent_attributes')->insert(['agent_id' => $id, 'registration_status' => 3]);
+
+    expect($before())->toBe([$recruits, $progress]);
+    $this->actingAs($this->superadmin)->get("/reports/recruits?{$range}&q=Half")->assertInertia(fn ($page) => $page->where('trainees.total', 0));
+});
+
+test('inside a sub-team (or one person\'s recruits) the table lists the recruits themselves', function () {
+    $ann = $this->agents['Ann']['id'];
+    $ben = $this->agents['Ben']['id'];
+    $alpha = DB::table('teams')->where('name', 'Alpha')->value('id');
+    $sub = DB::table('sub_teams')->insertGetId(['name' => 'Ann One', 'team_id' => $alpha, 'agent_id' => $ann, 'status' => 'active']);
+    DB::table('sub_team_agents')->insert(['sub_team_id' => $sub, 'agent_id' => $ben, 'joined_at' => '2026-04-01', 'status' => 'active']);
+    DB::table('agent_attributes')->where('agent_id', $ben)->update(['referral_id' => $ann]);
+
+    $this->actingAs($this->superadmin)->get("/reports/recruits-progress?from=2026-01-01&to=2026-10-11&sub_team_id={$sub}")
+        ->assertInertia(fn ($page) => $page->where('filters.group', 'recruits')
+            ->where('groups.0', 'recruits')
+            ->where('rows.total', 1)
+            ->where('rows.data.0', fn ($r) => $r['id'] === $ben && $r['name'] === 'Ben' && $r['sponsor'] === 'Ann'
+                && $r['team'] === 'Alpha' && $r['sub_team'] === 'Ann One' && $r['sold'] === false && $r['nao'] === 40 && $r['fire'] === 1));
 });

@@ -34,6 +34,16 @@ class ManagementController extends Controller
         private TeamManagementService $teams,
     ) {}
 
+    public function index(Request $request)
+    {
+        $manages = $request->user()->can('manage', Team::class);
+
+        return inertia('Portal/Management/Index', [
+            // Null without the Management permissions: only the receiving cards show (their counts are shared in auth).
+            'counts' => $manages ? $this->directory->overview() : null,
+        ]);
+    }
+
     public function teams()
     {
         return inertia('Portal/Management/Teams', [

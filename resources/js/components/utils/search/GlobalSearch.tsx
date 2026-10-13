@@ -173,7 +173,7 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
 
     const showPanel = open && term.length > 0;
     const nothingFound = !loading && !peopleError && items.length === 0 && (term.length >= 2 || !canSearchRemote);
-    const searchesFor = ["pages", canSearchGroups && "teams, areas", canSearchUsers && "people"].filter(Boolean).join(", ");
+    const searchesFor = ["pages", canSearchGroups && "teams, branches", canSearchUsers && "people"].filter(Boolean).join(", ");
 
     return (
         <ClickAwayListener
@@ -351,7 +351,7 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
 
                         {canSearchRemote && term.length === 1 && pages.length === 0 && (
                             <Typography variant="body2" sx={{ px: 2, pt: 1.5, color: "var(--lr-text-secondary)" }}>
-                                Keep typing to search {canSearchUsers ? "people" : "teams and areas"}…
+                                Keep typing to search {canSearchUsers ? "people" : "teams and branches"}…
                             </Typography>
                         )}
 

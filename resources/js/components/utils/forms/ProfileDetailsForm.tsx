@@ -9,6 +9,9 @@ import { ProfileFields } from "../../../types/app-data-types";
 interface ProfileDetailsFormProps {
     profile: ProfileFields;
     maritalStatuses: string[];
+    // Where it saves: your own profile by default; an agent's from their profile page (PUT /agents/{id}).
+    action?: { url: string; method: "post" | "put" };
+    onSaved?: () => void;
 }
 
 const labelSx = { color: "var(--lr-text-secondary)", fontWeight: 500, mb: 0.5, ml: 0.5 };
@@ -39,7 +42,7 @@ function GroupTitle({ children }: { children: string }) {
     );
 }
 
-export default function ProfileDetailsForm({ profile, maritalStatuses }: ProfileDetailsFormProps) {
+export default function ProfileDetailsForm({ profile, maritalStatuses, action = { url: "/profile", method: "post" }, onSaved }: ProfileDetailsFormProps) {
     const form = useForm<ProfileFields>(profile);
     const maritalOptions = maritalStatuses.map((m) => ({ id: m, label: m }));
 
@@ -52,7 +55,13 @@ export default function ProfileDetailsForm({ profile, maritalStatuses }: Profile
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
         // The saved values become the new baseline, so the form stops counting them as unsaved changes.
-        form.post("/profile", { preserveScroll: true, onSuccess: () => form.setDefaults() });
+        form.submit(action.method, action.url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                form.setDefaults();
+                onSaved?.();
+            },
+        });
     };
 
     const text = (name: keyof ProfileFields, label: string, opts: { required?: boolean; type?: string; placeholder?: string; size?: number } = {}) => (
