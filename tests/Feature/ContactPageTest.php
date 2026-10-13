@@ -248,7 +248,7 @@ test('the business profile shows about, social links, my links and the way to th
             ->where('agent.socials.instagram', 'https://instagram.com/marksargado')
             ->where('agent.socials.twitter', null)
             ->where('agent.socials.linkedin', 'https://linkedin.com/in/marksargado')
-            ->where('agent.socials.whatsapp', 'https://wa.me/639101930243')
+            ->where('agent.socials.whatsapp', 'https://api.whatsapp.com/send?phone=639101930243')
             ->where('agent.links', [['label' => 'Listings', 'url' => 'https://listings.example.com/mark']]));
 
     $this->get('/business-profile/nobody')->assertNotFound();

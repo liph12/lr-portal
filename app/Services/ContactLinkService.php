@@ -109,7 +109,8 @@ class ContactLinkService
         return 'https://'.$m[2].($m[3] ?? '');
     }
 
-    // wa.me wants the number in international form; a local 09… number is Philippine.
+    // WhatsApp wants the number in international form; a local 09… number is Philippine. api.whatsapp.com rather than
+    // wa.me: some networks intercept wa.me with their own certificate, and wa.me only redirects there anyway.
     public static function whatsapp(?string $value): ?string
     {
         $digits = preg_replace('/\D+/', '', (string) $value);
@@ -120,7 +121,7 @@ class ContactLinkService
             $digits = '63'.substr($digits, 1);
         }
 
-        return 'https://wa.me/'.$digits;
+        return 'https://api.whatsapp.com/send?phone='.$digits;
     }
 
     // Only agents whose account can still sign in have a public page.

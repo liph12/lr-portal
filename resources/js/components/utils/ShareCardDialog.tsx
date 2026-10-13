@@ -19,7 +19,7 @@ const TARGETS: { label: string; icon: ReactNode; background: string; href: (url:
     { label: "Facebook", icon: <FacebookGlyph />, background: "var(--lr-brand-facebook)", href: (url) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}` },
     { label: "LinkedIn", icon: <LinkedInGlyph />, background: "var(--lr-brand-linkedin)", href: (url) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}` },
     { label: "X", icon: <X fontSize="inherit" />, background: "var(--lr-brand-x)", href: (url, name) => `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(name)}` },
-    { label: "WhatsApp", icon: <WhatsApp fontSize="inherit" />, background: "var(--lr-brand-whatsapp)", href: (url, name) => `https://wa.me/?text=${encodeURIComponent(`${name} ${url}`)}` },
+    { label: "WhatsApp", icon: <WhatsApp fontSize="inherit" />, background: "var(--lr-brand-whatsapp)", href: (url, name) => `https://api.whatsapp.com/send?text=${encodeURIComponent(`${name} ${url}`)}` },
 ];
 
 export default function ShareCardDialog({ open, onClose, url, name }: ShareCardDialogProps) {

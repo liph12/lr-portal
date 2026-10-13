@@ -172,7 +172,7 @@ interface InfoRowProps {
     trailing?: "chevron" | "arrow";
 }
 
-// A tappable card: the whole row opens the dialer, mail app, WhatsApp, the map or the agent's link.
+// A tappable card: the whole row opens the dialer, mail app, the map or the agent's link.
 function InfoRow({
     icon,
     label,
@@ -309,14 +309,6 @@ export default function Show({ slug, agent }: ShowProps) {
             label: "Email",
             value: agent.email,
             href: `mailto:${agent.email}`,
-        });
-    if (agent.socials.whatsapp)
-        rows.push({
-            icon: <WhatsApp />,
-            label: "WhatsApp",
-            value: "Message on WhatsApp",
-            href: agent.socials.whatsapp,
-            external: true,
         });
     if (agent.address) {
         rows.push({
