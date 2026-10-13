@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Dialog, DialogContent, DialogTitle, IconButton, Stack, Tooltip, Typography } from "@mui/material";
-import { CloseRounded, Facebook, LinkedIn, LinkRounded, WhatsApp, X } from "@mui/icons-material";
+import { CloseRounded, LinkRounded, WhatsApp, X } from "@mui/icons-material";
+import { FacebookGlyph, LinkedInGlyph } from "./BrandGlyphs";
 import DotsQrCode from "./DotsQrCode";
 import { toast } from "../../helpers/toast";
 
@@ -14,8 +15,8 @@ interface ShareCardDialogProps {
 
 // Each network's "share this link" page, opened in a new tab.
 const TARGETS: { label: string; icon: ReactNode; background: string; href: (url: string, name: string) => string }[] = [
-    { label: "Facebook", icon: <Facebook fontSize="inherit" />, background: "var(--lr-brand-facebook)", href: (url) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}` },
-    { label: "LinkedIn", icon: <LinkedIn fontSize="inherit" />, background: "var(--lr-brand-linkedin)", href: (url) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}` },
+    { label: "Facebook", icon: <FacebookGlyph />, background: "var(--lr-brand-facebook)", href: (url) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}` },
+    { label: "LinkedIn", icon: <LinkedInGlyph />, background: "var(--lr-brand-linkedin)", href: (url) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}` },
     { label: "X", icon: <X fontSize="inherit" />, background: "var(--lr-brand-x)", href: (url, name) => `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(name)}` },
     { label: "WhatsApp", icon: <WhatsApp fontSize="inherit" />, background: "var(--lr-brand-whatsapp)", href: (url, name) => `https://wa.me/?text=${encodeURIComponent(`${name} ${url}`)}` },
 ];
@@ -72,6 +73,8 @@ export default function ShareCardDialog({ open, onClose, url, name }: ShareCardD
                                     width: 56,
                                     height: 56,
                                     fontSize: 30,
+                                    position: "relative",
+                                    overflow: "hidden",
                                     background: t.background,
                                     color: "var(--lr-brand-ink)",
                                     transition: "transform 0.15s, box-shadow 0.15s",

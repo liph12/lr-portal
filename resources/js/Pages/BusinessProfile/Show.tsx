@@ -1,13 +1,13 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Box, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import {
     ChatBubbleOutlineRounded,
     ChevronRightRounded,
     DownloadRounded,
+    ExpandLessRounded,
+    ExpandMoreRounded,
     EmailRounded,
-    Facebook,
     Instagram,
-    LinkedIn,
     PhoneRounded,
     PlaceRounded,
     ShareRounded,
@@ -17,6 +17,10 @@ import {
 import { Head, Link } from "@inertiajs/react";
 import PublicHeader from "../../components/layouts/PublicHeader";
 import StyledButton from "../../components/utils/StyledButton";
+import {
+    FacebookGlyph,
+    LinkedInGlyph,
+} from "../../components/utils/BrandGlyphs";
 import ShareCardDialog from "../../components/utils/ShareCardDialog";
 import DotsQrCode from "../../components/utils/DotsQrCode";
 import UserAvatar from "../../components/utils/user/UserAvatar";
@@ -57,19 +61,19 @@ const SOCIALS: {
     {
         key: "facebook",
         label: "Facebook",
-        icon: <Facebook fontSize="inherit" />,
+        icon: <FacebookGlyph />,
         background: "var(--lr-brand-facebook)",
     },
     {
         key: "instagram",
         label: "Instagram",
-        icon: <Instagram fontSize="inherit" />,
+        icon: <Instagram sx={{ fontSize: "1.2em" }} />,
         background: "var(--lr-brand-instagram)",
     },
     {
         key: "linkedin",
         label: "LinkedIn",
-        icon: <LinkedIn fontSize="inherit" />,
+        icon: <LinkedInGlyph />,
         background: "var(--lr-brand-linkedin)",
     },
     {
@@ -224,6 +228,21 @@ export default function Show({ slug, agent }: ShowProps) {
 
     const [sharing, setSharing] = useState(false);
 
+    // Phones clamp About Me to ten lines; "Show more" appears only when text is actually cut.
+    const aboutRef = useRef<HTMLElement>(null);
+    const [aboutExpanded, setAboutExpanded] = useState(false);
+    const [aboutClipped, setAboutClipped] = useState(false);
+    useEffect(() => {
+        const el = aboutRef.current;
+        if (!el || aboutExpanded) return;
+        const measure = () =>
+            setAboutClipped(el.scrollHeight > el.clientHeight + 1);
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [aboutExpanded]);
+
     const rows: InfoRowProps[] = [];
     if (agent.mobile)
         rows.push({
@@ -250,7 +269,7 @@ export default function Show({ slug, agent }: ShowProps) {
     if (agent.address) {
         rows.push({
             icon: <PlaceRounded />,
-            label: "Office",
+            label: "Address",
             value: agent.address,
             href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(agent.address)}`,
             external: true,
@@ -380,9 +399,12 @@ export default function Show({ slug, agent }: ShowProps) {
                                 </Box>
                             </Box>
 
+                            {/* From md the text fills whatever room the right column leaves and scrolls
+                                past that, so the left column never grows taller than the right one. */}
                             <Box
                                 sx={{
                                     mt: { xs: 3.5, md: 4 },
+                                    mb: { md: 4.5 },
                                     width: "100%",
                                     display: "flex",
                                     flexDirection: "column",
@@ -390,27 +412,126 @@ export default function Show({ slug, agent }: ShowProps) {
                                         xs: "center",
                                         md: "flex-start",
                                     },
+                                    flex: { md: "1 1 auto" },
+                                    minHeight: { md: 0 },
                                 }}
                             >
                                 <SectionTitle>About Me</SectionTitle>
-                                <Typography
+                                <Box
                                     sx={{
                                         mt: 2.5,
-                                        fontSize: { xs: 16, sm: 18 },
-                                        lineHeight: 1.7,
-                                        color: "var(--lr-text-body)",
-                                        whiteSpace: "pre-line",
-                                        textAlign: "justify",
+                                        width: "100%",
                                         maxWidth: 760,
+                                        position: "relative",
+                                        flex: { md: "1 1 auto" },
+                                        minHeight: { md: 150 },
                                     }}
                                 >
-                                    {agent.about ?? "No About me yet."}
-                                </Typography>
+                                    <Box
+                                        sx={{
+                                            position: { md: "absolute" },
+                                            inset: { md: 0 },
+                                            overflowY: { md: "auto" },
+                                            pr: { md: 1 },
+                                            scrollbarWidth: "thin",
+                                            // Fade that sticks to the bottom edge only while there is more to scroll.
+                                            "::after": {
+                                                content: '""',
+                                                display: {
+                                                    xs: "none",
+                                                    md: "block",
+                                                },
+                                                position: "sticky",
+                                                bottom: 0,
+                                                height: 56,
+                                                background:
+                                                    "linear-gradient(to bottom, transparent, var(--lr-surface))",
+                                                pointerEvents: "none",
+                                            },
+                                        }}
+                                    >
+                                        <Typography
+                                            ref={aboutRef}
+                                            sx={{
+                                                fontSize: { xs: 16, sm: 18 },
+                                                lineHeight: 1.7,
+                                                color: "var(--lr-text-body)",
+                                                whiteSpace: "pre-line",
+                                                textAlign: "justify",
+                                                display: {
+                                                    xs: "-webkit-box",
+                                                    md: "block",
+                                                },
+                                                WebkitBoxOrient: "vertical",
+                                                WebkitLineClamp: {
+                                                    xs: aboutExpanded
+                                                        ? "unset"
+                                                        : 10,
+                                                    md: "unset",
+                                                },
+                                                overflow: {
+                                                    xs: "hidden",
+                                                    md: "visible",
+                                                },
+                                            }}
+                                        >
+                                            {agent.about ?? "No About me yet."}
+                                        </Typography>
+                                    </Box>
+                                    {/* Phone-only fade over the clipped last lines */}
+                                    <Box
+                                        aria-hidden="true"
+                                        sx={{
+                                            position: "absolute",
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 0,
+                                            height: 56,
+                                            pointerEvents: "none",
+                                            background:
+                                                "linear-gradient(to bottom, transparent, var(--lr-surface))",
+                                            display: {
+                                                xs:
+                                                    aboutClipped &&
+                                                    !aboutExpanded
+                                                        ? "block"
+                                                        : "none",
+                                                md: "none",
+                                            },
+                                        }}
+                                    />
+                                </Box>
+                                <StyledButton
+                                    variant="text"
+                                    onClick={() => setAboutExpanded((v) => !v)}
+                                    endIcon={
+                                        aboutExpanded ? (
+                                            <ExpandLessRounded />
+                                        ) : (
+                                            <ExpandMoreRounded />
+                                        )
+                                    }
+                                    sx={{
+                                        mt: 1,
+                                        px: 1,
+                                        fontSize: 15,
+                                        fontWeight: 600,
+                                        color: "var(--lr-primary)",
+                                        display: {
+                                            xs: aboutClipped
+                                                ? "inline-flex"
+                                                : "none",
+                                            md: "none",
+                                        },
+                                    }}
+                                >
+                                    {aboutExpanded ? "Show less" : "Show more"}
+                                </StyledButton>
                             </Box>
 
                             <Box
                                 sx={{
-                                    mt: { xs: 3.5, md: 4.5 },
+                                    mt: { xs: 3.5, md: "auto" },
                                     width: "100%",
                                     maxWidth: 760,
                                     display: "grid",
@@ -457,7 +578,11 @@ export default function Show({ slug, agent }: ShowProps) {
                         {/* QR + socials panel (overlaps the cover on desktop), then the contact rows */}
                         <Stack
                             gap={3.5}
-                            sx={{ mt: { md: -2 }, position: "relative" }}
+                            sx={{
+                                mt: { md: -2 },
+                                position: "relative",
+                                justifyContent: { md: "space-between" },
+                            }}
                         >
                             <Box
                                 component="section"
@@ -525,6 +650,8 @@ export default function Show({ slug, agent }: ShowProps) {
                                                         width: 50,
                                                         height: 50,
                                                         fontSize: 26,
+                                                        position: "relative",
+                                                        overflow: "hidden",
                                                         background:
                                                             s.background,
                                                         color: "var(--lr-brand-ink)",
