@@ -47,6 +47,8 @@ class ProfileController extends Controller
                 'whatsapp' => $agent?->profile?->whatsapp ?? '',
             ],
             'maritalStatuses' => Agent::MARITAL_STATUSES,
+            // To share with people they invite (agents only).
+            'referralLink' => $agent ? Agent::referralLink($agent) : null,
             // Photos are compressed in the browser first; this is the ceiling PHP will actually accept.
             'maxPhotoKb' => min(UpdateProfilePhotoRequest::MAX_FILE_KB, intdiv(UploadedFile::getMaxFilesize(), 1024)),
         ]);

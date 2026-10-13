@@ -1,6 +1,10 @@
+import { AnchorHTMLAttributes } from "react";
 import { Button, ButtonProps } from "@mui/material";
 
-export default function StyledButton({ children, sx, ...props }: ButtonProps) {
+// With `href` MUI renders a link: let it take a link's target / rel too.
+type StyledButtonProps = ButtonProps & Pick<AnchorHTMLAttributes<HTMLAnchorElement>, "target" | "rel">;
+
+export default function StyledButton({ children, sx, ...props }: StyledButtonProps) {
     return (
         <Button
             {...props}

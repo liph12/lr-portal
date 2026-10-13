@@ -109,7 +109,8 @@ export default function AppSidebar() {
                                     component="div"
                                     variant="body2"
                                 >
-                                    <r.icon fontSize="small" /> {r.name}
+                                    {/* Every top-level menu item has an icon; children (breadcrumbs, search) may not. */}
+                                    {r.icon && <r.icon fontSize="small" />} {r.name}
                                     {!!r.badge && (
                                         <Box
                                             component="span"

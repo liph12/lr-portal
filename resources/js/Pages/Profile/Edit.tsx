@@ -3,6 +3,7 @@ import { Box, Container, Grid } from "@mui/material";
 import AppLayout from "../../components/layouts/AppLayout";
 import SectionTitle from "../../components/utils/SectionTitle";
 import SectionCard from "../../components/cards/SectionCard";
+import ReferralLinkCard from "../../components/registration/ReferralLinkCard";
 import ProfilePhotoCard from "../../components/cards/ProfilePhotoCard";
 import ProfileDetailsForm from "../../components/utils/forms/ProfileDetailsForm";
 import ChangePasswordForm from "../../components/utils/forms/ChangePasswordForm";
@@ -12,10 +13,12 @@ import { ProfileFields } from "../../types/app-data-types";
 interface EditProfileProps {
     profile: ProfileFields;
     maritalStatuses: string[];
+    // Their link for inviting new agents (null without an agent record).
+    referralLink: string | null;
     maxPhotoKb: number;
 }
 
-function Edit({ profile, maritalStatuses, maxPhotoKb }: EditProfileProps) {
+function Edit({ profile, maritalStatuses, maxPhotoKb, referralLink }: EditProfileProps) {
     const user = useAuthUser();
 
     return (
@@ -32,6 +35,7 @@ function Edit({ profile, maritalStatuses, maxPhotoKb }: EditProfileProps) {
                             avatar={user?.avatar ?? null}
                             maxPhotoKb={maxPhotoKb}
                         />
+                        {referralLink && <ReferralLinkCard link={referralLink} />}
                     </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 8 }} sx={{ display: "flex", flexDirection: "column", gap: 3 }}>

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Portal\ImpersonationController;
 use App\Http\Controllers\Portal\ViewAsController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\UserController;
 
 // Signed-in visitors go to their own portal; everyone else to sign-in.
@@ -11,9 +12,14 @@ Route::get('/', fn () => auth()->check() ? redirect()->route('home') : redirect(
 Route::middleware('guest')->group(function(){
 
     Route::get('/login', [UserController::class, 'login']) ->name('login');
-    Route::get('/register', [UserController::class, 'register']);
+    // Local agent registration from a sponsor's referral link (/register?ref={agent id}).
+    Route::get('/register', [RegistrationController::class, 'start'])->name('register');
+    Route::post('/register/code', [RegistrationController::class, 'sendCode'])->middleware('throttle:6,1')->name('register.code');
+    Route::post('/register/verify', [RegistrationController::class, 'verifyCode'])->middleware('throttle:12,1')->name('register.verify');
+    Route::get('/register/details', [RegistrationController::class, 'details'])->name('register.details');
+    Route::post('/register', [RegistrationController::class, 'store'])->name('register.store');
     Route::get('/verify', [UserController::class, 'verify'])->name('verify');
-    Route::get('/createaccount', [UserController::class, 'createAccount'])->name('create.account');
+    Route::redirect('/createaccount', '/register')->name('create.account');
     Route::get('/create-password', [UserController::class, 'createPassword'])->name('create.password');
     Route::get('/password-reset', [UserController::class, 'passwordReset']);
     Route::post('/login-attempt', [UserController::class, 'loginAttempt']); 

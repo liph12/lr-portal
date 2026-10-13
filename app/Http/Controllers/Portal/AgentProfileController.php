@@ -84,7 +84,7 @@ class AgentProfileController extends Controller
                 'tin_hidden' => ! $seesPrivate && filled($credentials?->tax_identification_no),
                 'prc_expiration' => $credentials?->prc_expiration,
                 'dhsud_expiration' => $credentials?->dhsud_expiration,
-                'referral_link' => $attributes?->referral_link,
+                'referral_link' => $attributes?->referral_link ?: Agent::referralLink($agent),
                 'date_activated' => $agent->activated_at?->toDateString(),
                 'nao' => min((int) ($attributes?->nao_video_tracker ?? 0), RecruitmentService::NAO_COMPLETE),
                 'nao_attendance_status' => $attributes?->nao_attendance_status ?: null,

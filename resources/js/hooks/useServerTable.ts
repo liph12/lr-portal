@@ -26,7 +26,7 @@ export default function useServerTable<R>(prop: string, page: ServerPage<R>, giv
 
     const visit = (changes: TableFilters, scrollToTop = false) => {
         const query = Object.fromEntries(
-            Object.entries({ ...filters, page: page.page, per_page: page.per_page, ...changes }).filter(([, v]) => v !== "" && v !== null && v !== undefined),
+            Object.entries<TableFilters[string]>({ ...filters, page: page.page, per_page: page.per_page, ...changes }).filter(([, v]) => v !== "" && v !== null && v !== undefined),
         );
 
         router.get(window.location.pathname, query, {

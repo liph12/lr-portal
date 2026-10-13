@@ -264,8 +264,9 @@ function RecruitsProgress({ filters, groups, scope, selection, summary, rows }: 
                     </Typography>
                     <TableToolbar search={table.search} onSearch={table.setSearch} placeholder={label.search} />
                     <DataTable
-                        {...(table.gridProps as never)}
-                        columns={(filters.group === "recruits" ? recruitColumns : columns) as never}
+                        {...table.gridProps}
+                        // The Recruits tab's rows are people (RecruitRow); the grid only passes them back to the columns.
+                        columns={filters.group === "recruits" ? (recruitColumns as unknown as GridColDef<ProgressRow>[]) : columns}
                         getRowHeight={() => 68}
                         onRowClick={({ row }) => open(row as ProgressRow)}
                         sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}

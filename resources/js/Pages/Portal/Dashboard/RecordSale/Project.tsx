@@ -107,7 +107,7 @@ function Project({ developers, projects, propertyTypes, maxFileKb, encoding, cut
 
     const validateStep = (step: number) => {
         // Re-check from scratch so warnings that no longer apply (e.g. a field the property type dropped) go away.
-        form.clearErrors(...(REQUIRED[step] ?? []).map(([key]) => key), ...(step === 1 ? [...MEASUREMENT_KEYS, "project", "project_name"] : []));
+        form.clearErrors(...(REQUIRED[step] ?? []).map(([key]) => key), ...(step === 1 ? [...MEASUREMENT_KEYS, "project" as const, "project_name" as const] : []));
 
         const missing = (REQUIRED[step] ?? []).filter(([key]) => {
             const value = form.data[key];

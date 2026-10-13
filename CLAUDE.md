@@ -31,7 +31,8 @@ resources/js/
 ```
 composer setup        # first run: install, .env, key, migrate, npm build
 composer dev          # serve + queue + pail logs + vite; serve loads dev/php/*.ini (20MB uploads)
-npm run build         # production build — the only frontend check (no tsc/eslint installed)
+npm run build         # production build (doesn't type-check)
+npx -y -p typescript@5.9 tsc --noEmit -p tsconfig.json --strictNullChecks   # type-check, as strict as VS Code (0 errors)
 composer test         # Pest (tests/ holds only the default examples)
 php artisan migrate --seed   # MySQL db `lr_portal`; seeders: roles, permissions, users, developers
 ```
@@ -162,6 +163,22 @@ at the matching path. Nothing else.
   property type** (`ProjectPropertyType::WITH_*`, mirrored in `helpers/projectSaleFields.ts`): condo →
   unit type + floor area, house & lot / townhouse → floor + lot area, lot only → lot area; required
   when shown, nulled otherwise; UI via `forms/PropertyMeasurementFields.tsx`. Tests use `Storage::fake('s3')`.
+- **Agent registration** (guests; `RegistrationController`, `RegistrationService`, `Requests/Auth/*`) — **"Become a Salesperson"**,
+  or with `&type=international` **"Become a Global Partner"** (same steps + a required country outside PH; creates agent_type
+  `global_partner`, role `global_partner`, branch `abroad`, sponsor not yet confirmed — it shows as pending in Global Partners;
+  `type` kept in the session; dashboard Global Referral = the same link + `&type=international`): from a sponsor's referral
+  link `/register?ref={code}` — `agents.referral_code`, 8 random characters made on first use (`Agent::referralCode`), **not** the agent
+  id, so counting through ids can't list every agent on the public page (migration `000050`). Shared as `auth.referral_url`
+  (Dashboard › Local Referral card, /profile, the agent's profile page; built from `APP_URL`). The
+  page shows the sponsor (`SponsorCard`: branch, the team / sub-team they'll join); the visitor ticks "this is my sponsor /
+  upline", gives an email (unique) → a **6-digit code** by email (`RegistrationCodeMail`, cached hashed 10 min, 5 tries, resend
+  after 60 s, `throttle` on the routes) → `/register/details`: one `useForm` stepper — 1 Basic info, 2 Contact, 3 Address, 4 About
+  (education / professions / hobbies from `helpers/registrationOptions.ts` via `StyledMultiAutocomplete`, skills…), 5 Password.
+  Creates a **fully registered (4) agent** — local with role `agent`, or a global partner — `referral_id` = sponsor, on the sponsor's team and sub-team
+  from today (`AgentUplineService::placementOf`), then signs them in. Progress lives in the session (`registration` = ref, email,
+  verified), never in the page. New columns: `agents.birthdate / citizenship / barangay / postal_code`,
+  `agent_profiles.education / professions / hobbies` (JSON) — migration `000049`. Mail goes out through `MAIL_MAILER`, or the older `MAIL_DRIVER`
+  this project's `.env` uses (`config/mail.php`; port 465 → SSL automatically); without either it's `log`.
 - **Profile / avatars**: `/profile` is shared by every role (`routes/profile.php`, required inside the
   `auth` group; `Portal\ProfileController`). A user's agent record is created on first use by
   `ProfileService::agentFor()`. Photos are cropped to 512px WebP by `ProfilePhotoService` and the full
@@ -434,11 +451,10 @@ at the matching path. Nothing else.
 - **My Team** (`/my-team`, `MyTeamController`, `TeamLeadershipService`): for whoever leads a team (`teams.agent_id`) or
   sub-team (`sub_teams.agent_id`) — leadership comes from the data, not the role; shared as `auth.leads` (drives the
   menu item + switcher). Overview = the report locked to their group (opens on last month); Members (server-paged —
-  teams reach 12k members); Sub-teams. Team leaders: add agents with no team, move members between their sub-teams,
-  create/edit sub-teams led by their members (all via `TeamManagementService::transfer`, history kept). Unit managers:
-  monitor only. The Sub-teams page shows, for a date range (default last month), each sub-team's sales and its unit
+  teams reach 12k members); Sub-teams. **My Team is view-only for every leader**: adding members, moving them between
+  sub-teams and creating / editing sub-teams are Management's (superadmin / admin) — the old My Team write routes were removed. The Sub-teams page shows, for a date range (default last month), each sub-team's sales and its unit
   manager's own sales, ranked either way (`SalesReportService::totals`). A team leader can open any sub-team of their team (`?sub_team=`, read-only, `group.parent` set).
-  Menus treat leaders as holding the pseudo-permission `_leader` (`helpers/permissions.ts`). Every write goes through `Requests/Portal/MyTeam/*` (`leadsTeam` on the `{team}` in the URL). Leaders
+  Menus treat leaders as holding the pseudo-permission `_leader` (`helpers/permissions.ts`). Leaders
   can open their active members' `/agents/{agent}` profiles.
 - **View as role** (superadmin testing): profile menu → "View the portal as …" (`POST/DELETE /view-as`,
   `ViewAsService`, encrypted cookie `lr_view_as` — **not** the session: the database session is rewritten whole by
@@ -615,8 +631,7 @@ from its controller (Accounting, Human Resource, Inbox) — never a placeholder 
 
 ## 5. Do not imitate
 
-- The form pattern that never submits: `useState` + `window.location.href` (`Pages/User/Auth/Stepper/CreateAccount.tsx:180`,
-  `Pages/User/Auth/CreatePassword.tsx:32`, `Pages/User/Auth/Register.tsx:239`).
+- The form pattern that never submits: `useState` + `window.location.href` (`Pages/User/Auth/CreatePassword.tsx:32`).
 - Also: per-page
   `'user' => Auth::user()` props (7 controllers), lowercase page filenames.
 

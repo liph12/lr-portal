@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Entities\Team;
 use App\Models\Role;
+use App\Models\Entities\Agent;
 use App\Models\User;
 use App\Services\CommissionReceivingService;
 use App\Services\ContactLinkService;
@@ -94,6 +95,8 @@ class HandleInertiaRequests extends Middleware
                 'agent_id' => $request->user()->agent()->value('id'),
                 // The public contact page's path (Your links); null until the account has an agent record.
                 'contact_url' => app(ContactLinkService::class)->urlFor($request->user()),
+                // Their referral link (Dashboard › Local Referral, /profile); null without an agent record.
+                'referral_url' => ($agent = $request->user()->agent) ? Agent::referralLink($agent) : null,
                 // Settings › Preferences (links, theme, text size); null without use_preferences = defaults.
                 'preferences' => app(UserPreferenceService::class)->sharedFor($request->user()),
                 'can' => [

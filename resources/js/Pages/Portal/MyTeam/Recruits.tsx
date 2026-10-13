@@ -7,15 +7,15 @@ import MyTeamNav, { MyTeamGroup } from "../../../components/myteam/MyTeamNav";
 
 interface RecruitsProps extends RecruitmentViewProps {
     group: MyTeamGroup;
-    canManage: boolean;
+    isTeam: boolean;
 }
 
 // My Team › Recruits: the dashboard Overview for this team or sub-team.
-function Recruits({ group, canManage, ...props }: RecruitsProps) {
+function Recruits({ group, isTeam, ...props }: RecruitsProps) {
     return (
         <Container maxWidth="xl" sx={{ py: { xs: 3, sm: 4 } }}>
             <SectionTitle title={`My Team · ${group.name}`} subtitle="Members, recruits and how new sign-ups are doing with NAO and FIRE." />
-            <RecruitmentView {...props} keep={{ [group.type === "team" ? "team" : "sub_team"]: group.id }} header={<MyTeamNav group={group} canManage={canManage} />} />
+            <RecruitmentView {...props} keep={{ [group.type === "team" ? "team" : "sub_team"]: group.id }} header={<MyTeamNav group={group} isTeam={isTeam} />} />
         </Container>
     );
 }

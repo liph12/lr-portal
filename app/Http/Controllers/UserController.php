@@ -22,21 +22,11 @@ class UserController extends Controller
         return inertia('User/Auth/Login');
     }
 
-    public function register()
-    {
-        return inertia('User/Auth/Register');
-    }
-
     public function verify()
     {
         return inertia('User/Auth/Verify');
     }
   
-    public function CreateAccount()
-    {
-        return inertia('User/Auth/Stepper/CreateAccount');
-    }
-
     public function createPassword()
     {
         return inertia('User/Auth/CreatePassword');

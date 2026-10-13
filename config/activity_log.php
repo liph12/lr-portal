@@ -25,6 +25,8 @@ return [
     'redact' => [
         'password',
         'password_confirmation',
+        // The emailed sign-up code (agent registration).
+        'code',
         'current_password',
         'new_password',
         '_token',

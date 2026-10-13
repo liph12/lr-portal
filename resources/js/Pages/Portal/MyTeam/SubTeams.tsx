@@ -32,7 +32,6 @@ interface SubTeamsProps {
     isTeam: boolean;
     subTeams: SubTeamRow[];
     filters: { from: string; to: string; status: string };
-    statuses: string[];
 }
 
 type Rank = "sub_teams" | "unit_managers";

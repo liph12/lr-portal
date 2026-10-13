@@ -95,6 +95,29 @@ class Agent extends Model
     // finished signing up (mostly no team yet), so member and recruit statistics leave them out.
     public const FULLY_REGISTERED = 4;
 
+    // An agent's referral link: new agents register under them from it (RegistrationController). Made of a random code,
+    // not the agent id, so nobody can walk through the ids and see every agent on the registration page.
+    public static function referralLink(Agent $agent): string
+    {
+        return url('/register?ref='.$agent->referralCode());
+    }
+
+    // The agent's referral code, made the first time it's needed. Lowercase letters and digits without look-alikes (0/o,
+    // 1/l), so it reads aloud and types cleanly.
+    public function referralCode(): string
+    {
+        if ($this->referral_code) {
+            return $this->referral_code;
+        }
+        do {
+            $code = collect(range(1, 8))->map(fn () => 'abcdefghjkmnpqrstuvwxyz23456789'[random_int(0, 30)])->implode('');
+        } while (static::where('referral_code', $code)->exists());
+
+        $this->forceFill(['referral_code' => $code])->saveQuietly();
+
+        return $code;
+    }
+
     public static function fullyRegisteredIds(): Builder
     {
         return DB::table('agent_attributes')->where('registration_status', self::FULLY_REGISTERED)->select('agent_id');
@@ -136,6 +159,10 @@ class Agent extends Model
         'gender',
         'avatar',
         'marital_status',
+        'birthdate',
+        'citizenship',
+        'barangay',
+        'postal_code',
     ];
 
     protected function casts(): array

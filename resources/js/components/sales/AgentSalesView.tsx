@@ -57,7 +57,7 @@ export default function AgentSalesView({ filters, summary, totals, saleList, sal
             {header}
 
             <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5, mb: 3 }}>
-                {!fixedPeriod && <DateRangeField value={{ from: filters.from, to: filters.to }} presets={reportPresets()} onChange={(range) => change(range)} />}
+                {!fixedPeriod && <DateRangeField value={{ from: filters.from, to: filters.to }} presets={reportPresets()} onChange={(range) => change({ ...range })} />}
                 <TextField select size="small" label="Category" value={filters.category ?? ""} onChange={(e) => change({ category: e.target.value })} slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }} sx={selectSx}>
                     <MenuItem value="">All categories</MenuItem>
                     {options.categories.map((c) => (

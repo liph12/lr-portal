@@ -212,7 +212,7 @@ function CommissionReceiving({ category, sales, filters, counts, areas, rentRate
             </Typography>
 
             <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "center", mb: 2 }}>
-                <DateRangeField value={{ from: filters.from, to: filters.to }} presets={reportPresets()} onChange={(range) => table.setFilters(range)} />
+                <DateRangeField value={{ from: filters.from, to: filters.to }} presets={reportPresets()} onChange={(range) => table.setFilters({ ...range })} />
                 <FilterSelect label="Branches" value={filters.area ?? ""} options={areas} onChange={(v) => table.setFilter("area", v)} />
             </Box>
             <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mb: 2 }}>

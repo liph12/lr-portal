@@ -14,7 +14,8 @@ return [
     |
     */
 
-    'default' => env('MAIL_MAILER', 'log'),
+    // MAIL_DRIVER is the pre-Laravel-7 name some environments still use (this project's .env does).
+    'default' => env('MAIL_MAILER', env('MAIL_DRIVER', 'log')),
 
     /*
     |--------------------------------------------------------------------------

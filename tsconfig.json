@@ -4,8 +4,8 @@
         "moduleResolution": "bundler",
         "jsx": "react-jsx",
         "types": ["vite/client"],
-        "target": "es2015",
-        "lib": ["dom", "es2015"],
+        "target": "es2020",
+        "lib": ["dom", "dom.iterable", "es2022"],
 
         "resolveJsonModule": true,
         "esModuleInterop": true

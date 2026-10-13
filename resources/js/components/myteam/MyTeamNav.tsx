@@ -20,11 +20,11 @@ export const groupQuery = (g: Pick<MyTeamGroup, "type" | "id">) => `${g.type ===
 
 interface MyTeamNavProps {
     group: MyTeamGroup;
-    canManage: boolean;
+    isTeam: boolean;
 }
 
 // Tabs for My Team, plus a switcher when the user leads more than one team / sub-team.
-export default function MyTeamNav({ group, canManage }: MyTeamNavProps) {
+export default function MyTeamNav({ group, isTeam }: MyTeamNavProps) {
     const leads = useAuthUser()?.leads ?? { teams: [], sub_teams: [] };
     const path = usePage().url.split("?")[0];
     const q = groupQuery(group);
@@ -33,7 +33,7 @@ export default function MyTeamNav({ group, canManage }: MyTeamNavProps) {
         { name: "Overview", path: "/my-team", icon: InsightsRounded },
         { name: "Members", path: "/my-team/members", icon: BadgeRounded },
         { name: "Recruits", path: "/my-team/recruits", icon: SchoolRounded },
-        ...(canManage ? [{ name: "Sub-teams", path: "/my-team/sub-teams", icon: AccountTreeRounded }] : []),
+        ...(isTeam ? [{ name: "Sub-teams", path: "/my-team/sub-teams", icon: AccountTreeRounded }] : []),
     ];
     const options = [
         ...leads.teams.map((t) => ({ value: `team=${t.id}`, label: `${t.name} (team)` })),

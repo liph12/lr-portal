@@ -1,400 +1,133 @@
-import { useState } from "react";
-import {
-    Box,
-    Stack,
-    Typography,
-    FormControlLabel,
-    Checkbox,
-    FormControl,
-    FormHelperText,
-    Link as MuiLink,
-} from "@mui/material";
-import { Form, Link } from "@inertiajs/react";
-import EmailIcon from "@mui/icons-material/Email";
-import AppLogo from "../../../components/utils/AppLogo";
+import { FormEvent } from "react";
+import { Box, Checkbox, FormControlLabel, FormHelperText, Typography } from "@mui/material";
+import { MarkEmailReadRounded, PersonSearchRounded } from "@mui/icons-material";
+import { Link, useForm } from "@inertiajs/react";
+import AuthShell from "../../../components/layouts/AuthShell";
 import StyledButton from "../../../components/utils/StyledButton";
 import StyledTextField from "../../../components/utils/StyledTextField";
+import FieldLabel from "../../../components/utils/forms/FieldLabel";
+import SponsorCard, { Sponsor } from "../../../components/registration/SponsorCard";
 
-export default function Register() {
-    const [termsChecked, setTermsChecked] = useState(false);
-    const [termsError, setTermsError] = useState(false);
+interface RegisterProps {
+    // The referral link's agent id (?ref=).
+    referral: number | null;
+    // Who the referral link points to; null when the link is missing or not valid.
+    sponsor: Sponsor | null;
+    // Set once a code was sent: the page asks for it.
+    email: string | null;
+    // A salesperson (local) or a Global Partner (international, from a &type=international link).
+    type: "local" | "international";
+}
 
-    const handleSubmit = (e: React.FormEvent) => {
-        if (!termsChecked) {
-            e.preventDefault();
-            setTermsError(true);
-        }
+const primarySx = {
+    backgroundColor: "var(--lr-primary)",
+    color: "var(--lr-on-primary)",
+    ":hover": { backgroundColor: "var(--lr-primary-hover)" },
+    "&.Mui-disabled": { backgroundColor: "var(--lr-surface-container)", color: "var(--lr-text-secondary)" },
+};
+
+// Agent registration, before the four steps: confirm the sponsor from the referral link, then confirm the email with the
+// 6-digit code it receives.
+function Register({ referral, sponsor, email, type }: RegisterProps) {
+    const global = type === "international";
+    const start = useForm({ ref: referral ?? "", type, confirm_sponsor: false, email: "" });
+    const verify = useForm({ code: "" });
+    const resend = useForm({ ref: referral ?? "", type, confirm_sponsor: true, email: email ?? "" });
+
+    const sendCode = (e: FormEvent) => {
+        e.preventDefault();
+        start.post("/register/code", { preserveScroll: true });
+    };
+    const verifyCode = (e: FormEvent) => {
+        e.preventDefault();
+        verify.post("/register/verify", { preserveScroll: true });
     };
 
+    if (!sponsor) {
+        return (
+            <AuthShell>
+                <Box sx={{ textAlign: "center" }}>
+                    <PersonSearchRounded sx={{ fontSize: 48, color: "var(--lr-text-secondary)" }} />
+                    <Typography sx={{ fontSize: 24, color: "var(--lr-text-primary)", mt: 1 }}>Registration starts with your sponsor</Typography>
+                    <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)", mt: 1 }}>
+                        {referral ? "This referral link isn't valid." : "You need a referral link."} Ask the agent who invited you (your sponsor / upline) for their Leuterio Realty referral link, then open
+                        it to register.
+                    </Typography>
+                </Box>
+            </AuthShell>
+        );
+    }
+
     return (
-        <Box
-            sx={{
-                height: "100vh",
-                "@supports (height: 100dvh)": { height: "100dvh" },
-                // Self-scrolling: outside AppLayout, and html/body may be overflow-locked
-                overflowY: "auto",
-                backgroundImage: "var(--lr-auth-bg)",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                backgroundRepeat: "no-repeat",
-            }}
-        >
-            <Box
-                sx={{
-                    minHeight: "100%",
-                    width: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    px: { xs: 2, sm: 3 },
-                    pt: { xs: 2, sm: 16 },
-                    pb: { xs: 4, sm: 16 },
-                    position: "relative",
-                }}
-            >
-                {/* LOGO + SIGN IN LINK — in flow on phones so they can't overlap each other or the card */}
-                <Box
-                    sx={{
-                        position: { xs: "static", sm: "absolute" },
-                        top: { sm: 16 },
-                        left: { sm: 16 },
-                        right: { sm: 16 },
-                        width: { xs: "100%", sm: "auto" },
-                        display: "flex",
-                        flexWrap: "wrap",
-                        alignItems: { xs: "center", sm: "flex-start" },
-                        justifyContent: "space-between",
-                        columnGap: 2,
-                        rowGap: 1,
-                        mb: { xs: 3, sm: 0 },
-                    }}
-                >
-                    <AppLogo
-                        sx={{ width: { xs: 96, sm: 160 }, height: "auto" }}
-                    />
+        <AuthShell>
+            <Typography sx={{ fontSize: 28, color: "var(--lr-text-primary)" }}>{global ? "Become a Global Partner" : "Become a Salesperson"}</Typography>
+            <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)", mt: 0.5, mb: 3 }}>
+                {global ? "Sell Philippine property from where you live, with Leuterio Realty. " : ""}Confirm your sponsor and your email, then fill in four short steps.
+            </Typography>
 
-                    <Typography variant="body2" sx={{ color: "var(--lr-text-body)" }}>
-                        Already have an account?{" "}
-                        <Link href="/login" style={{ textDecoration: "none" }}>
-                            <Typography
-                                component="span"
-                                sx={{
-                                    fontWeight: 500,
-                                    color: "var(--lr-primary)",
-                                    ":hover": { textDecoration: "underline" },
-                                }}
-                            >
-                                Sign in here
-                            </Typography>
-                        </Link>
-                    </Typography>
-                </Box>
+            <SponsorCard sponsor={sponsor} />
 
-                <Box
-                    sx={{
-                        flex: 1,
-                        width: "100%",
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "center",
-                        alignItems: "center",
-                    }}
-                >
-                    <Typography
-                        sx={{
-                            mb: { xs: 3, sm: 4 },
-                            textAlign: "center",
-                            color: "var(--lr-text-primary)",
-                            fontWeight: 500,
-                            fontSize: { xs: "1.5rem", sm: "2rem", md: "2.25rem" },
-                            lineHeight: 1.2,
-                        }}
-                    >
-                        Sign up as a Salesperson
-                    </Typography>
-
-                    {/* MAIN CONTENT */}
-                    <Box
-                        sx={{
-                            display: "flex",
-                            gap: { xs: 0, md: 6 },
-                            flexDirection: { xs: "column", md: "row" },
-                            alignItems: "center",
-                            width: "100%",
-                            justifyContent: "center",
-                        }}
-                    >
-                        {/* REGISTER CARD */}
-                        <Box
-                            sx={{
-                                width: { xs: "100%", sm: 400, md: 450 },
-                                maxWidth: "100%",
-                                flexShrink: 0,
-                                borderRadius: 4,
-                                p: { xs: 3, sm: 4, md: 5 },
-                                background: "var(--lr-glass)",
-                                backdropFilter: "blur(20px)",
-                                WebkitBackdropFilter: "blur(20px)",
-                                border: "1px solid var(--lr-glass-border)",
-                                boxShadow: "0 4px 24px rgba(60,64,67,.22)",
-                            }}
-                        >
-                            {/* SPONSOR SECTION */}
-                            <Box
-                                sx={{
-                                    mb: 3,
-                                    p: { xs: 2, sm: 2.5 },
-                                    borderRadius: 3,
-                                    backgroundColor: "var(--lr-primary-soft)",
-                                    border: "1px solid var(--lr-primary-soft-strong)",
-                                }}
-                            >
-                                <Typography
-                                    variant="overline"
-                                    sx={{
-                                        fontWeight: 600,
-                                        color: "var(--lr-primary)",
-                                        letterSpacing: 1,
-                                        fontSize: { xs: 10, sm: 11 },
-                                    }}
-                                >
-                                    SPONSOR
+            {!email ? (
+                <Box component="form" onSubmit={sendCode} noValidate sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 3 }}>
+                    <Box>
+                        <FormControlLabel
+                            control={<Checkbox checked={start.data.confirm_sponsor} onChange={(_, v) => start.setData("confirm_sponsor", v)} sx={{ "&.Mui-checked": { color: "var(--lr-primary)" } }} />}
+                            label={
+                                <Typography variant="body2" sx={{ color: "var(--lr-text-primary)" }}>
+                                    I confirm that <strong>{sponsor.name}</strong> is my sponsor / upline.
                                 </Typography>
-
-                                <Typography
-                                    sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 1,
-                                        fontWeight: 500,
-                                        fontSize: { xs: 14, sm: 17 },
-                                        color: "var(--lr-text-primary)",
-                                        mt: 0.5,
-                                    }}
-                                >
-                                    <Box
-                                        component="img"
-                                        src="/assets/ph_flag.png"
-                                        alt="Philippine Flag"
-                                        sx={{
-                                            width: { xs: 20, sm: 28 },
-                                            height: { xs: 10, sm: 14 },
-                                            objectFit: "cover",
-                                            borderRadius: 0.5,
-                                        }}
-                                    />
-                                    Philip M. Libres
-                                </Typography>
-
-                                <Typography
-                                    sx={{
-                                        mt: 1,
-                                        fontSize: { xs: 12, sm: 13 },
-                                        color: "var(--lr-text-secondary)",
-                                        overflowWrap: "anywhere",
-                                    }}
-                                >
-                                    ✉ libresphilip14@gmail.com
-                                </Typography>
-
-                                <Typography
-                                    sx={{
-                                        mt: 0.5,
-                                        fontSize: { xs: 12, sm: 13 },
-                                        color: "var(--lr-text-secondary)",
-                                    }}
-                                >
-                                    📞 09677705320
-                                </Typography>
-                            </Box>
-
-                            {/* CREATE ACCOUNT */}
-                            <Typography
-                                sx={{
-                                    fontWeight: 500,
-                                    fontSize: { xs: "1.05rem", sm: "1.15rem" },
-                                    color: "var(--lr-text-primary)",
-                                    mb: 2,
-                                }}
-                            >
-                                Create Account
-                            </Typography>
-
-                            {/* NATIONAL */}
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 1.5,
-                                    mb: 2,
-                                }}
-                            >
-                                <Box
-                                    component="img"
-                                    src="/assets/profile.png"
-                                    alt="National Logo"
-                                    sx={{
-                                        width: 28,
-                                        height: 28,
-                                        objectFit: "cover",
-                                        borderRadius: 0.5,
-                                    }}
-                                />
-                                <Typography
-                                    sx={{
-                                        fontWeight: 500,
-                                        fontSize: { xs: "1rem", sm: "1.1rem" },
-                                        color: "var(--lr-text-body)",
-                                    }}
-                                >
-                                    National
-                                </Typography>
-                            </Box>
-
-                            <Form
-                                action="/register-attempt"
-                                method="post"
-                                onSubmit={handleSubmit}
-                                onSuccess={() => {
-                                    window.location.href = "/verify";
-                                }}
-                            >
-                                {({ processing }) => (
-                                    <Stack gap={2}>
-                                        <StyledTextField
-                                            name="email"
-                                            placeholder="Email Address"
-                                            props={{
-                                                InputProps: {
-                                                    startAdornment: (
-                                                        <Box
-                                                            sx={{
-                                                                mr: 1,
-                                                                display: "flex",
-                                                            }}
-                                                        >
-                                                            <EmailIcon
-                                                                sx={{
-                                                                    fontSize: 20,
-                                                                    color: "var(--lr-text-secondary)",
-                                                                }}
-                                                            />
-                                                        </Box>
-                                                    ),
-                                                },
-                                            }}
-                                        />
-
-                                        <FormControl error={termsError}>
-                                            <FormControlLabel
-                                                control={
-                                                    <Checkbox
-                                                        checked={termsChecked}
-                                                        onChange={(e) => {
-                                                            setTermsChecked(
-                                                                e.target.checked,
-                                                            );
-                                                            if (e.target.checked) {
-                                                                setTermsError(false);
-                                                            }
-                                                        }}
-                                                        name="terms"
-                                                        sx={{
-                                                            color: "var(--lr-text-secondary)",
-                                                            "&.Mui-checked": {
-                                                                color: "var(--lr-primary)",
-                                                            },
-                                                        }}
-                                                    />
-                                                }
-                                                label={
-                                                    <Typography
-                                                        variant="body2"
-                                                        sx={{ color: "var(--lr-text-body)" }}
-                                                    >
-                                                        I agree to the{" "}
-                                                        <MuiLink
-                                                            href="#"
-                                                            sx={{
-                                                                color: "var(--lr-primary)",
-                                                                textDecoration: "none",
-                                                                ":hover": {
-                                                                    textDecoration:
-                                                                        "underline",
-                                                                },
-                                                            }}
-                                                        >
-                                                            terms and conditions
-                                                        </MuiLink>{" "}
-                                                        of the LR Contract and the
-                                                        website.
-                                                    </Typography>
-                                                }
-                                            />
-                                            {termsError && (
-                                                <FormHelperText
-                                                    sx={{ color: "var(--lr-error)" }}
-                                                >
-                                                    You must agree to the terms and
-                                                    conditions.
-                                                </FormHelperText>
-                                            )}
-                                        </FormControl>
-
-                                        <StyledButton
-                                            type="submit"
-                                            variant="contained"
-                                            loading={processing}
-                                            disabled={!termsChecked || processing}
-                                            fullWidth
-                                            sx={{
-                                                mt: 1,
-                                                py: 1.1,
-                                                backgroundColor: "var(--lr-primary)",
-                                                ":hover": {
-                                                    backgroundColor: "var(--lr-primary-hover)",
-                                                },
-                                            }}
-                                        >
-                                            Proceed
-                                        </StyledButton>
-                                    </Stack>
-                                )}
-                            </Form>
-                        </Box>
-
-                        {/* HERO IMAGE */}
-                        <Box
-                            sx={{
-                                flex: "0 1 800px",
-                                minWidth: 0,
-                                display: { xs: "none", md: "block" },
-                                textAlign: "center",
-                                overflow: "hidden",
-                                img: {
-                                    width: "100%",
-                                    height: "auto",
-                                    display: "block",
-                                    animation: "introLaptop 1.2s ease-out forwards",
-                                    opacity: 0,
-                                },
-                                "@keyframes introLaptop": {
-                                    "0%": {
-                                        opacity: 0,
-                                        transform: "translateY(40px) scale(0.95)",
-                                    },
-                                    "100%": {
-                                        opacity: 1,
-                                        transform: "translateY(0) scale(1)",
-                                    },
-                                },
-                            }}
-                        >
-                            <img src="/assets/lr-laptop.png" alt="Hero Mockup" />
-                        </Box>
+                            }
+                        />
+                        {(start.errors.confirm_sponsor || start.errors.ref) && <FormHelperText error>{start.errors.confirm_sponsor ?? start.errors.ref}</FormHelperText>}
                     </Box>
+                    <Box>
+                        <FieldLabel text="Your email" required />
+                        <StyledTextField type="email" name="email" placeholder="you@example.com" value={start.data.email} error={start.errors.email ?? null} handleChange={(e) => start.setData("email", e.target.value)} />
+                        <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)", ml: 0.5 }}>
+                            We'll send a 6-digit code to confirm it. It becomes your sign-in.
+                        </Typography>
+                    </Box>
+                    <StyledButton type="submit" variant="contained" loading={start.processing} disabled={!start.data.confirm_sponsor || !start.data.email} sx={primarySx}>
+                        Send code
+                    </StyledButton>
                 </Box>
-            </Box>
-        </Box>
+            ) : (
+                <Box component="form" onSubmit={verifyCode} noValidate sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 3 }}>
+                    <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start", p: 1.5, borderRadius: 2, backgroundColor: "var(--lr-primary-soft)" }}>
+                        <MarkEmailReadRounded sx={{ color: "var(--lr-primary)" }} />
+                        <Typography variant="body2" sx={{ color: "var(--lr-text-primary)" }}>
+                            We sent a 6-digit code to <strong>{email}</strong>. It works for 10 minutes.
+                        </Typography>
+                    </Box>
+                    <Box>
+                        <FieldLabel text="Code" required />
+                        <StyledTextField
+                            name="code"
+                            placeholder="123456"
+                            value={verify.data.code}
+                            error={verify.errors.code ?? null}
+                            handleChange={(e) => verify.setData("code", e.target.value.replace(/\D/g, "").slice(0, 6))}
+                            props={{ slotProps: { htmlInput: { inputMode: "numeric", autoComplete: "one-time-code", maxLength: 6 } } }}
+                        />
+                    </Box>
+                    <StyledButton type="submit" variant="contained" loading={verify.processing} disabled={verify.data.code.length !== 6} sx={primarySx}>
+                        Confirm email
+                    </StyledButton>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
+                        <StyledButton size="small" variant="text" disabled={resend.processing} onClick={() => resend.post("/register/code", { preserveScroll: true })} sx={{ px: 1, color: "var(--lr-primary)" }}>
+                            Send a new code
+                        </StyledButton>
+                        <Link href={`/register?ref=${referral}${global ? "&type=international" : ""}&change=1`} style={{ textDecoration: "none" }}>
+                            <StyledButton size="small" variant="text" sx={{ px: 1, color: "var(--lr-primary)" }}>
+                                Use another email
+                            </StyledButton>
+                        </Link>
+                    </Box>
+                    {resend.errors.email && <FormHelperText error>{resend.errors.email}</FormHelperText>}
+                </Box>
+            )}
+        </AuthShell>
     );
 }
+
+export default Register;

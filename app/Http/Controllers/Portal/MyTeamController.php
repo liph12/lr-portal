@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
-use App\Models\Entities\Agent;
 use App\Models\Entities\SubTeam;
 use App\Models\Entities\Team;
 use App\Services\RecruitmentService;

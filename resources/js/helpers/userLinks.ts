@@ -5,15 +5,13 @@ export interface UserLink {
     url: string;
 }
 
-// Personal share links. The referral number is the agent id (an imported agent's legacy member id);
-// accounts without an agent profile fall back to their user id. The contact page is the real
-// /contact/{slug} link the server assigned (it's missing only until the account has an agent record).
+// Personal share links. Local Referral is the registration link the server made (/register?ref={their referral code});
+// Global Referral the same link for a Global Partner (&type=international). The contact page is the /contact/{slug} link
+// the server assigned (both are missing only until the account has an agent record).
 export function buildUserLinks(user: AuthUser): UserLink[] {
-    const ref = user.agent_id ?? user.id;
-
     return [
-        { label: "Local Referral", url: `LR | registration/v2?ref=${ref}` },
-        { label: "Global Referral", url: `LR | registration/v2?ref=${ref}&type=international` },
+        ...(user.referral_url ? [{ label: "Local Referral", url: user.referral_url }] : []),
+        ...(user.referral_url ? [{ label: "Global Referral", url: `${user.referral_url}&type=international` }] : []),
         { label: "Business Profile", url: `LR | business-card?email=${user.email}` },
         ...(user.contact_url ? [{ label: "Contact", url: user.contact_url }] : []),
     ];

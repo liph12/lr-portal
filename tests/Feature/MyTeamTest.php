@@ -50,7 +50,7 @@ test('a team leader sees only their team: last month\'s top agents and totals', 
     $this->actingAs($this->leaderUser)->get('/my-team')
         ->assertInertia(fn ($page) => $page->component('Portal/MyTeam/Index')
             ->where('group.name', 'Alpha')
-            ->where('canManage', true)
+            ->where('isTeam', true)
             ->where('filters.from', '2026-09-01')
             ->where('filters.to', '2026-09-30')
             ->where('summary.kpis.value.value', 7_000_000)
@@ -65,39 +65,30 @@ test('a team leader sees only their team: last month\'s top agents and totals', 
 
 test('a unit manager monitors their sub-team but cannot change anything', function () {
     $this->actingAs($this->umUser)->get('/my-team')
-        ->assertInertia(fn ($page) => $page->where('group.type', 'sub_team')->where('canManage', false)->where('breakdown.data.0.name', 'Mark Member'));
+        ->assertInertia(fn ($page) => $page->where('group.type', 'sub_team')->where('isTeam', false)->where('breakdown.data.0.name', 'Mark Member'));
     $this->actingAs($this->umUser)->get('/my-team/members')->assertInertia(fn ($page) => $page->where('members.total', 1)->where('memberCount', 1)->where('members.data.0.name', 'Mark Member'));
     $this->actingAs($this->leaderUser)->get('/my-team/members?q=mark')->assertInertia(fn ($page) => $page->where('members.total', 1)->where('memberCount', 3));
     $this->actingAs($this->umUser)->get('/my-team/sub-teams')->assertForbidden();
-    $this->actingAs($this->umUser)->patch("/my-team/teams/{$this->team}/members/{$this->member}", ['sub_team_id' => null])->assertForbidden();
 
     [$nobody] = ($this->person)('No Body', 'agent');
     $this->actingAs($nobody)->get('/my-team')->assertForbidden();
 });
 
-test('a team leader adds agents without a team and moves members between their own sub-teams', function () {
-    $this->actingAs($this->leaderUser)->post("/my-team/teams/{$this->team}/members", ['agent_id' => $this->free, 'sub_team_id' => $this->unit])->assertSessionHasNoErrors();
-    expect(DB::table('team_agents')->where('agent_id', $this->free)->value('team_id'))->toBe($this->team)
-        ->and(DB::table('sub_team_agents')->where('agent_id', $this->free)->value('sub_team_id'))->toBe($this->unit);
+test('team leaders can\'t add members, move them between sub-teams or create sub-teams: that is Management\'s', function () {
+    $refused = fn ($response) => expect($response->status())->toBeIn([404, 405]);
 
-    // Someone on another team needs an admin transfer.
-    $this->actingAs($this->leaderUser)->post("/my-team/teams/{$this->team}/members", ['agent_id' => $this->outsider])->assertSessionHasErrors('agent_id');
+    $refused($this->actingAs($this->leaderUser)->post("/my-team/teams/{$this->team}/members", ['agent_id' => $this->free, 'sub_team_id' => $this->unit]));
+    $refused($this->actingAs($this->leaderUser)->patch("/my-team/teams/{$this->team}/members/{$this->member}", ['sub_team_id' => null]));
+    $refused($this->actingAs($this->leaderUser)->post("/my-team/teams/{$this->team}/sub-teams", ['name' => 'Alpha Two', 'agent_id' => $this->member, 'status' => 'active']));
+    $refused($this->actingAs($this->leaderUser)->put("/my-team/teams/{$this->team}/sub-teams/{$this->unit}", ['name' => 'Renamed', 'agent_id' => $this->member, 'status' => 'active']));
 
-    $this->actingAs($this->leaderUser)->patch("/my-team/teams/{$this->team}/members/{$this->member}", ['sub_team_id' => null])->assertSessionHasNoErrors();
-    expect(DB::table('sub_team_agents')->where('agent_id', $this->member)->value('status'))->toBe('inactive');
+    expect(DB::table('team_agents')->where('agent_id', $this->free)->exists())->toBeFalse()
+        ->and(DB::table('sub_team_agents')->where('agent_id', $this->member)->value('status'))->toBe('active')
+        ->and(DB::table('sub_teams')->where('name', 'Alpha Two')->exists())->toBeFalse();
 
-    $this->actingAs($this->leaderUser)->patch("/my-team/teams/{$this->team}/members/{$this->member}", ['sub_team_id' => $this->otherUnit])->assertSessionHasErrors('sub_team_id');
-    $this->actingAs($this->leaderUser)->patch("/my-team/teams/{$this->team}/members/{$this->outsider}", ['sub_team_id' => $this->unit])->assertSessionHasErrors('agent');
-    $this->actingAs($this->leaderUser)->patch("/my-team/teams/{$this->other}/members/{$this->outsider}", ['sub_team_id' => null])->assertForbidden();
-});
-
-test('a team leader creates sub-teams led by their own members', function () {
-    $this->actingAs($this->leaderUser)->post("/my-team/teams/{$this->team}/sub-teams", ['name' => 'Alpha Two', 'agent_id' => $this->member, 'status' => 'active'])->assertSessionHasNoErrors();
-    expect(DB::table('sub_teams')->where('name', 'Alpha Two')->value('team_id'))->toBe($this->team);
-
-    $this->actingAs($this->leaderUser)->post("/my-team/teams/{$this->team}/sub-teams", ['name' => 'Bad', 'agent_id' => $this->outsider, 'status' => 'active'])->assertSessionHasErrors('agent_id');
-    $this->actingAs($this->leaderUser)->put("/my-team/teams/{$this->team}/sub-teams/{$this->otherUnit}", ['name' => 'Mine now', 'agent_id' => $this->member, 'status' => 'active'])->assertForbidden();
-    expect(DB::table('sub_teams')->where('id', $this->otherUnit)->value('name'))->toBe('Bravo Unit');
+    // The pages are still there to look at.
+    $this->actingAs($this->leaderUser)->get('/my-team/members')->assertInertia(fn ($page) => $page->where('isTeam', true)->missing('subTeams'));
+    $this->actingAs($this->leaderUser)->get('/my-team/sub-teams')->assertOk();
 });
 
 test('leaders can open their members\' profiles, not other people\'s', function () {
@@ -112,12 +103,12 @@ test('a team leader opens one of their sub-teams to see its network and sales, b
             ->where('group.type', 'sub_team')
             ->where('group.name', 'Alpha Unit')
             ->where('group.parent', ['id' => $this->team, 'name' => 'Alpha'])
-            ->where('canManage', false)
+            ->where('isTeam', false)
             ->where('summary.kpis.value.value', 7_000_000)
             ->where('breakdown.data.0.name', 'Mark Member'));
 
     $this->actingAs($this->leaderUser)->get("/my-team/members?sub_team={$this->unit}")
-        ->assertInertia(fn ($page) => $page->where('members.total', 1)->where('canManage', false));
+        ->assertInertia(fn ($page) => $page->where('members.total', 1)->where('isTeam', false));
 
     // Another team's sub-team falls back to the leader's own team.
     $this->actingAs($this->leaderUser)->get("/my-team?sub_team={$this->otherUnit}")

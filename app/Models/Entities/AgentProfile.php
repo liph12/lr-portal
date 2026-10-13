@@ -13,7 +13,17 @@ class AgentProfile extends Model
         'facebook',
         'linkedin',
         'whatsapp',
+        'work_experience',
+        'skills',
+        'education',
+        'professions',
+        'hobbies',
     ];
+
+    protected function casts(): array
+    {
+        return ['education' => 'array', 'professions' => 'array', 'hobbies' => 'array'];
+    }
 
     public function agent(): BelongsTo
     {

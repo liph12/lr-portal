@@ -11,7 +11,6 @@ use App\Support\Areas;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 // "My Team": what a team leader (leads a team) or unit manager (leads a sub-team) may see and change.
 // Leadership comes from teams.agent_id / sub_teams.agent_id, not from the role, so it follows the data.
