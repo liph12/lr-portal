@@ -13,7 +13,7 @@ import { DeleteOutlineRounded, PhotoCameraOutlined } from "@mui/icons-material";
 import { router, useForm } from "@inertiajs/react";
 import StyledButton from "../utils/StyledButton";
 import UserAvatar from "../utils/user/UserAvatar";
-import { compressImage } from "../../helpers/compressImage";
+import PhotoCropper from "../utils/user/PhotoCropper";
 
 interface ProfilePhotoCardProps {
     name: string;
@@ -29,16 +29,17 @@ const MAX_ORIGINAL_MB = 20;
 export default function ProfilePhotoCard({ name, email, role, avatar, maxPhotoKb }: ProfilePhotoCardProps) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [localError, setLocalError] = useState<string | null>(null);
-    const [preparing, setPreparing] = useState(false);
     const [preview, setPreview] = useState<string | null>(null);
     const [confirmRemove, setConfirmRemove] = useState(false);
+    // The chosen photo while it's being cropped (every photo is cropped before it's uploaded).
+    const [cropping, setCropping] = useState<File | null>(null);
     const [removing, setRemoving] = useState(false);
     const form = useForm<{ photo: File | null }>({ photo: null });
 
-    const busy = preparing || form.processing || removing;
+    const busy = form.processing || removing;
     const shownError = localError ?? form.errors.photo ?? null;
 
-    const handleSelect = async (file: File | undefined) => {
+    const handleSelect = (file: File | undefined) => {
         if (!file) return;
         setLocalError(null);
         form.clearErrors();
@@ -52,13 +53,14 @@ export default function ProfilePhotoCard({ name, email, role, avatar, maxPhotoKb
             return;
         }
 
-        // The server crops to 512px anyway; shrinking first keeps the upload small on mobile data.
-        setPreparing(true);
-        const photo = await compressImage(file, { maxDimension: 1024, quality: 0.85 });
-        setPreparing(false);
+        setCropping(file);
+    };
 
+    // The crop is a 1024px square JPEG: small enough for mobile data; the server makes its 512px WebP from it.
+    const upload = (photo: File) => {
+        setCropping(null);
         if (photo.size > maxPhotoKb * 1024) {
-            setLocalError("This photo is still too large for the server after compression.");
+            setLocalError("This photo is too large for the server. Try a smaller one.");
             return;
         }
 
@@ -143,7 +145,7 @@ export default function ProfilePhotoCard({ name, email, role, avatar, maxPhotoKb
                         sx={{ borderRadius: 99 }}
                     />
                     <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)", display: "block", mt: 0.5 }}>
-                        {removing ? "Removing photo…" : preparing ? "Compressing photo…" : "Uploading photo…"}
+                        {removing ? "Removing photo…" : "Uploading photo…"}
                     </Typography>
                 </Box>
             )}
@@ -216,6 +218,7 @@ export default function ProfilePhotoCard({ name, email, role, avatar, maxPhotoKb
                     </StyledButton>
                 </DialogActions>
             </Dialog>
+            <PhotoCropper file={cropping} onCancel={() => setCropping(null)} onCrop={upload} />
         </Box>
     );
 }

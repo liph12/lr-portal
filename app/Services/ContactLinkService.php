@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\Entities\Agent;
 use App\Models\User;
+use App\Support\Areas;
+use App\Support\SocialLinks;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Str;
 
@@ -40,12 +42,64 @@ class ContactLinkService
         return $agent->contact_slug;
     }
 
-    // The path shown in "Your links" (no domain); null until the account has an agent record (created on first profile use).
-    public function urlFor(User $user): ?string
+    // The slug behind "Your links" (/contact/{slug}, /business-profile/{slug}); null until the account has an agent
+    // record (created on first profile use).
+    public function slugForUser(User $user): ?string
     {
         $agent = $user->agent;
 
-        return $agent ? '/contact/'.$this->slugFor($agent) : null;
+        return $agent ? $this->slugFor($agent) : null;
+    }
+
+    /**
+     * What the public business profile shows: the contact card plus the About text and social links.
+     *
+     * @return array<string, mixed>
+     */
+    public function profile(Agent $agent): array
+    {
+        $profile = $agent->profile;
+        $joined = $agent->lr_joined_at ?: $agent->created_at;
+
+        return [
+            ...$this->card($agent),
+            'about' => trim((string) $profile?->about) ?: null,
+            'area' => $agent->area ? Areas::name($agent->area) : null,
+            'province' => self::titleCase($agent->state) ?: null,
+            'joined_year' => $joined ? substr((string) $joined, 0, 4) : null,
+            'socials' => [
+                'facebook' => SocialLinks::facebook($profile?->facebook),
+                'instagram' => self::link($profile?->instagram),
+                'twitter' => self::link($profile?->twitter),
+                'linkedin' => self::link($profile?->linkedin),
+                'whatsapp' => self::whatsapp($profile?->whatsapp),
+            ],
+        ];
+    }
+
+    // A pasted profile link, with https:// added when it was left out; anything that isn't a link is dropped.
+    public static function link(?string $value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '' || ! preg_match('~^(https?://)?([a-z0-9.-]+\.[a-z]{2,})(/\S*)?$~i', $value, $m)) {
+            return null;
+        }
+
+        return 'https://'.$m[2].($m[3] ?? '');
+    }
+
+    // wa.me wants the number in international form; a local 09… number is Philippine.
+    public static function whatsapp(?string $value): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $value);
+        if (strlen($digits) < 10) {
+            return null;
+        }
+        if (str_starts_with($digits, '0')) {
+            $digits = '63'.substr($digits, 1);
+        }
+
+        return 'https://wa.me/'.$digits;
     }
 
     // Only agents whose account can still sign in have a public page.
@@ -67,7 +121,7 @@ class ContactLinkService
     {
         return [
             'name' => $this->displayName($agent),
-            'title' => $agent->is_broker ? 'Licensed Real Estate Broker' : 'Real Estate Professional',
+            'title' => $agent->is_broker ? 'Licensed Real Estate Broker' : 'Real Estate Salesperson',
             'avatar' => $agent->avatar,
             'mobile' => $agent->mobile ?: $agent->phone,
             'email' => $agent->email ?: $agent->user?->email,
@@ -113,9 +167,10 @@ class ContactLinkService
         return mb_convert_case(trim(preg_replace('/\s+/', ' ', (string) $value)), MB_CASE_TITLE, 'UTF-8');
     }
 
+    // First and last name only: the middle name stays out of the public card (it is still in the vCard's N field).
     public function displayName(Agent $agent): string
     {
-        $name = self::titleCase("{$agent->first_name} {$agent->middle_name} {$agent->last_name}");
+        $name = self::titleCase("{$agent->first_name} {$agent->last_name}");
 
         return $name !== '' ? $name : self::titleCase($agent->user?->name);
     }

@@ -91,6 +91,22 @@
     --lr-paper-ink: #1a3a8a;
     --lr-paper-muted: #9aa1ad;
     --lr-paper-rule: #e5e8ef;
+
+
+    /* Social network brand colours (business profile): the same in both schemes. */
+    --lr-brand-facebook: #1877f2;
+    --lr-brand-instagram: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285aeb 90%);
+    --lr-brand-linkedin: #0a66c2;
+    --lr-brand-x: #000000;
+    --lr-brand-whatsapp: #25d366;
+    --lr-brand-ink: #ffffff;
+
+    /* Over photos (onboarding slideshow): a dark wash with white marks, the same in both schemes. */
+    --lr-photo-scrim: linear-gradient(to top, rgba(0, 10, 30, 0.78) 0%, rgba(0, 10, 30, 0.25) 40%, transparent 65%);
+    --lr-photo-ink: #ffffff;
+    --lr-photo-ink-muted: rgba(255, 255, 255, 0.5);
+    /* Behind a video (webinar player letterbox), in both schemes. */
+    --lr-video-bg: #000000;
 }
 
 body {

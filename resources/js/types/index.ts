@@ -43,8 +43,9 @@ export interface AuthUser {
     name: string;
     first_name: string;
     agent_id: number | null;
-    // Public contact page path (/contact/{slug}, no domain); null until the account has an agent record.
-    contact_url: string | null;
+    // Slug of the public contact page and business profile (/contact/{slug}, /business-profile/{slug}); null until the
+    // account has an agent record.
+    contact_slug: string | null;
     // Their referral link (/register?ref={code}) for inviting new agents; null without an agent record.
     referral_url: string | null;
     // Null without the use_preferences permission: everything stays at its default.
@@ -65,6 +66,8 @@ export interface AuthUser {
     office_areas: string[];
     // Null when the user sees no global partners (not back office, never invited one); pending = waiting to be confirmed.
     global_partners: { pending: number } | null;
+    // Null when there's nobody whose NAO attendance this user approves; pending = waiting for approval (menu badge).
+    nao_approvals: { pending: number } | null;
     // Pending sales this user can validate (menu badge); null when they don't validate sales.
     sales_validation: { pending: number } | null;
     // Commission slips waiting to be received (the Commission receiving badge), in total and per category the user

@@ -6,6 +6,8 @@ import StyledButton from "../StyledButton";
 import useAuthUser from "../../../hooks/useAuthUser";
 import UserAvatar from "./UserAvatar";
 
+const linkSx = { fontSize: 12, fontWeight: 500, color: "var(--lr-primary)", textDecoration: "none", ":hover": { textDecoration: "underline" } };
+
 export default function SidebarProfile() {
     const user = useAuthUser();
 
@@ -71,20 +73,22 @@ export default function SidebarProfile() {
                 >
                     {user.email}
                 </Typography>
-                <MuiLink
-                    component={Link}
-                    href="/profile"
-                    sx={{
-                        mt: 0.5,
-                        fontSize: 12,
-                        fontWeight: 500,
-                        color: "var(--lr-primary)",
-                        textDecoration: "none",
-                        ":hover": { textDecoration: "underline" },
-                    }}
-                >
-                    Edit profile
-                </MuiLink>
+                {/* Their profile as others see it (agents only), and the form to change it. */}
+                <Box sx={{ mt: 0.5, display: "flex", gap: 1, alignItems: "center", fontSize: 12 }}>
+                    {user.agent_id && (
+                        <>
+                            <MuiLink component={Link} href={`/agents/${user.agent_id}`} sx={linkSx}>
+                                My profile
+                            </MuiLink>
+                            <Box component="span" aria-hidden sx={{ color: "var(--lr-text-secondary)" }}>
+                                ·
+                            </Box>
+                        </>
+                    )}
+                    <MuiLink component={Link} href="/profile" sx={linkSx}>
+                        Edit profile
+                    </MuiLink>
+                </Box>
                 {hasAnyPermission(user.permissions, RECORD_PERMISSIONS) && (
                     <StyledButton
                         variant="contained"

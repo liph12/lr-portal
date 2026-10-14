@@ -179,9 +179,46 @@ at the matching path. Nothing else.
   verified), never in the page. New columns: `agents.birthdate / citizenship / barangay / postal_code`,
   `agent_profiles.education / professions / hobbies` (JSON) — migration `000049`. Mail goes out through `MAIL_MAILER`, or the older `MAIL_DRIVER`
   this project's `.env` uses (`config/mail.php`; port 465 → SSL automatically); without either it's `log`.
+- **Onboarding** (new local agents; `OnboardingService`, `RedirectToOnboarding` = route middleware `onboarding` on
+  `/dashboard/main` only, `Portal\OnboardingController`, `routes/onboarding.php`, pages `Portal/Onboarding/*` in
+  `layouts/OnboardingShell`): a **local, non-back-office agent, fully registered (4), NAO 0, FIRE 0, with no sale at all** (local
+  any status, or international) lands on the step they're on (`OnboardingService::nextUrl`) until they finish the steps built so
+  far — `OnboardingService::STEPS` (`photo`, `nao`; FIRE comes next), stored as `agents.onboarding_step` (migration `000051`);
+  once started they stay in it even though watching raises their NAO %. Welcome (the old
+  leuteriorealty.com/welcome copy beside its NATCON 2025 / 2024 / 2023 slideshow, with the Rent.ph / Leuterio Realty / Filipino Homes
+  white logos fading in turn over a `--lr-photo-scrim`; no founder; `resources/assets/onboarding/*`; still under reduced motion) → Get Started → `/welcome/photo`
+  (`ProfilePhotoCard`, so the photo is cropped; Continue = `POST /welcome/photo`, needs `agents.avatar`) → **`/welcome/nao`**
+  (`Pages/Portal/Onboarding/Nao`, `NaoService`, prop `nao`): attended a face-to-face NAO? **Yes** → proof (photo / selfie /
+  screenshot, `UploadPOTForm`, stored by `SaleFileStorage` under `nao-proofs/`) + date (`POST …/nao/attendance`,
+  `StoreNaoAttendanceRequest`) → `agent_attributes.nao_attendance_status = yes` (the legacy value: a proof was sent) +
+  `nao_attendance_submitted_at`, step done, and the page shows the sponsor (`referral_id`) with mobile + email to ask for approval.
+  **Status values are legacy's — never add new ones**: `yes` = proof sent (waiting until `nao_attendance_reviewed_at` is set,
+  then approved, which sets `nao_video_tracker` 100 so statistics read it as finished), `disapproved`; the webinar leaves it
+  **NULL** and only moves the %. The page's view comes from `NaoService::state()['stage']` (choose / awaiting / disapproved / webinar /
+  done; "chose the webinar" = `nao_video_saved_at` set).
+  **NAO Approvals** (`/nao-approvals`, every role, `routes/nao-approvals.php`, `Portal\NaoApprovalController`,
+  `NaoApprovalService`, page `Portal/NaoApprovals/Index`): every `yes` / `disapproved` row — sent from onboarding or imported
+  from legacy (no `nao_attendance_submitted_at`), newest NAO date first. Filters (in the URL): status tabs, search, `team_id`,
+  `sub_team_id` (labelled by unit manager) — choices from the agents in reach (`groupOptions`, cached) — and `person` (an agent,
+  or everyone they sponsored; typeahead = optional prop `personOptions` via a partial reload with `?person_q=`, within reach;
+  `components/utils/tables/FilterAutocomplete` = FilterSelect's searchable sibling). Reach from the data (`reach`): back office nationwide; anyone else = their recruits + current members of the
+  teams / sub-teams they lead + an office secretary's branch areas, never their own; nobody → 403. Waiting / approved /
+  disapproved = `yes` below 100% and unreviewed / `yes` reviewed or at 100% (how legacy recorded approval) / `disapproved`
+  (`STATUS_SQL`). Approve (confirm) → reviewed +
+  `nao_video_tracker` 100; disapprove needs a reason (`nao_attendance_remarks`, shown to the agent) and puts them back on the NAO
+  step; `nao_attendance_reviewed_by/_at` (migration `000053`, `ReviewNaoAttendanceRequest` checks the reach). Shared
+  `auth.nao_approvals = {pending}` (null = nobody) → menu pseudo-grant `_nao_approver` + the item's badge. **No** (`POST …/nao/webinar`, status stays NULL) → the New Agents Webinar (`config/nao.php`: YouTube id + its
+  length in seconds, which decides the % server-side) in `components/onboarding/WebinarPlayer` — YouTube IFrame API, no YouTube
+  controls, our play / back 10 s / mute / full screen; a jump past the furthest point watched is sent back. Progress
+  (`nao_video_seconds` = furthest point, resumes there; `nao_video_tracker` = %) saves every 30 s, on pause / end, by "Save
+  progress", and on leaving (a `keepalive` fetch → 204 — the one non-Inertia write here) via `PUT …/nao/progress`; a save may move
+  at most the time since the last one (≤ 2 min) + 20 s ahead (`nao_video_saved_at`, migration `000052`); 100% finishes the step.
+  That route is in `data_cache.ignore_paths` and `activity_log.except_paths` (it fires every 30 s). "Skip for now"
+  (`POST /welcome/skip`) stops the redirect for the session; never while impersonating.
 - **Profile / avatars**: `/profile` is shared by every role (`routes/profile.php`, required inside the
   `auth` group; `Portal\ProfileController`). A user's agent record is created on first use by
-  `ProfileService::agentFor()`. Photos are cropped to 512px WebP by `ProfilePhotoService` and the full
+  `ProfileService::agentFor()`. Photos are **cropped in the browser first** (`components/utils/user/PhotoCropper`: square, round guide, drag / scroll /
+  pinch / slider / arrow keys, 1024px JPEG; used by `ProfilePhotoCard` everywhere), then made 512px WebP by `ProfilePhotoService` and the full
   URL is stored in `agents.avatar` (shared as `auth.avatar`). Render people with
   `components/utils/user/UserAvatar.tsx` (photo, falling back to initials). Titled panels: `components/cards/SectionCard.tsx`.
 - **Feedback (every page, nothing to add per form)**: `components/utils/feedback/AppFeedback.tsx`, mounted once in `app.tsx`, listens
@@ -190,17 +227,27 @@ at the matching path. Nothing else.
   — `->with('success' | 'warning' | 'error', '…')`, shared as `flash` — validation errors ("Please check the form: …"), a write
   landing on the Error page, network / server failures. Client-side ones: `toast.success / error / warning / info` from
   `helpers/toast.ts`. There's no inline flash banner any more — don't add one.
-- **Contact page** (public `/contact/{slug}`, `routes/contact.php` required **outside** the `auth` group; `Portal\ContactController`,
-  `Pages/Contact/Show.tsx` — outside `AppLayout`, scrolls itself like the auth pages): the agent card (name, title — "Licensed Real
+- **Business profile & contact page** (public, `routes/contact.php` required **outside** the `auth` group; `Portal\ContactController`;
+  pages outside `AppLayout` that scroll themselves like the auth pages, with the reduced navbar `components/layouts/PublicHeader.tsx`
+  — logo, Dashboard / Sign out for a signed-in user, Sign in otherwise). **Business profile** `/business-profile/{slug}`
+  (`Pages/BusinessProfile/Show.tsx`, `ContactLinkService::profile`): a social-media-style profile — cover, avatar, name, title,
+  area, year joined, About me (`agent_profiles.about`, text), contact details, social buttons (`agent_profiles.facebook`
+  cleaned by `SocialLinks::facebook`, `instagram` / `twitter` / `linkedin` by `ContactLinkService::link`, `whatsapp` → `wa.me`
+  with `whatsapp()`; edited on its own page `/profile/business` — `ProfileController::business/updateBusiness`,
+  `UpdateBusinessProfileRequest`, `ProfileService::updateBusiness` (logged `profile.business_updated`), `Pages/Profile/Business.tsx` +
+  `forms/BusinessProfileForm.tsx` (About me, mobile, Facebook/Instagram/X/LinkedIn links, WhatsApp) — the same fields also stay in the main `/profile` form (`ProfileDetailsForm` › Business profile group); both write the same columns, so they are always in sync), Save contact + Send inquiry.
+  **Contact page** `/contact/{slug}` (`Pages/Contact/Show.tsx`): the agent card (name, title — "Licensed Real
   Estate Broker" when `is_broker` —, avatar, mobile, email, city + province, "Save contact" = `GET …/vcard`) and the inquiry form
   (`POST …`, throttled, `StoreContactInquiryRequest`, consent box `accepted`) → `contact_inquiries` (`ContactInquiry`, `ROLES` /
   `TYPES` constants are the two dropdowns; `ContactInquiryService::submit`, logged `contact.inquiry`) and **emailed to the agent**
   (`Mail\ContactInquiryReceived`, queued, markdown `views/mail/contact-inquiry`, reply-to = the sender; needs `MAIL_MAILER` — the
   legacy `MAIL_DRIVER` key is ignored). Nobody reads inquiries in the app yet (Inbox is under construction). **Slug** = `agents.contact_slug` (unique), made by
   `ContactLinkService::slugFor` from first + last name the first time it's needed, `-2`, `-3`… on duplicates, and **never changed
-  afterwards** (shared links keep working after a rename). Shared as `auth.contact_url` (null until the account has an agent record —
-  `DashboardController::index` creates one like `/profile`), shown in Dashboard › Your links (`helpers/userLinks.ts`; the card's
-  Copy / Share buttons work). Only agents whose account is `active` resolve; others 404.
+  afterwards** (shared links keep working after a rename). Shared as `auth.contact_slug` (null until the account has an agent record —
+  `DashboardController::index` creates one like `/profile`); Dashboard › Your links shows both as `LR | route` like the referral links
+  (`helpers/userLinks.ts`: `url` is the shown text, `href` the real path that Copy / Share prefix with the origin, `settings` adds a gear
+  button → `/profile/business`). Only agents whose account is `active` resolve; others 404.
+  The public name is first + last only (`ContactLinkService::displayName`; the middle name stays in the vCard `N` field). The business profile follows the Leuterio mock: blue `--lr-primary*` accent, two columns from `md` (avatar with red ring + name + verified mark + chips "Leuterio Realty & Brokerage" / province (`profile()['province']` = title-cased `agents.state`) / "Filipino Homes", About Me, Contact me / Save card / Share; right: QR + "Connect with me" badges panel, Contact Information cards that open tel: / mailto: / wa.me / Google Maps), stacked on phones. Social badges use the scheme-independent `--lr-brand-*` tokens in app.css (official brand colours, white mark); the Twitter field is shown as X. QR codes: `components/utils/DotsQrCode.tsx` (round dots + rounded eyes, module grid from the `qrcode` package). Share opens `ShareCardDialog` (QR + share-to links for Facebook / LinkedIn / X / WhatsApp + copy link).
 - **Settings › Preferences** (`/settings/preferences`, `routes/settings.php`, `Portal\PreferencesController`,
   `UserPreferenceService`; every user, gated by permission `use_preferences` — migration `000036` gave it to every role, a
   role made later has it only if ticked): `users.preferences` = `{theme, font_size, links: {default, sections}}`

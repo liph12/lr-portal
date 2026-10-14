@@ -57,7 +57,8 @@ export default function GlobalSearch({ autoFocus = false, onDone }: GlobalSearch
     const [pending, setPending] = useState<UserSearchItem | null>(null);
 
     const portalRoutes = usePortalRoutes();
-    const pageIndex = useMemo(() => buildPageIndex(portalRoutes), [portalRoutes]);
+    const agentId = user?.agent_id;
+    const pageIndex = useMemo(() => buildPageIndex(portalRoutes, agentId), [portalRoutes, agentId]);
     const pages = useMemo(() => searchPages(pageIndex, query), [pageIndex, query]);
     const term = query.trim();
     const items: ({ type: "page"; page: PageResult } | { type: "group"; group: GroupSearchItem } | { type: "user"; user: UserSearchItem })[] = [

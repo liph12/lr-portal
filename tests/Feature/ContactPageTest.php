@@ -70,7 +70,7 @@ test('the dashboard shares the contact link and creates the agent record if need
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('Portal/Dashboard/Index')
-            ->where('auth.contact_url', '/contact/philip-libres'));
+            ->where('auth.contact_slug', 'philip-libres'));
 
     expect($user->agent()->value('contact_slug'))->toBe('philip-libres');
 });
@@ -90,6 +90,19 @@ test('the public contact page shows the agent card without signing in', function
             ->where('agent.mobile', '09171234567')
             ->where('agent.address', 'Cebu City, Cebu')
             ->where('options.roles', ContactInquiry::ROLES));
+});
+
+test('the public card leaves the middle name out', function () {
+    $agent = contactAgent('Juan', 'Cruz', ['middle_name' => 'Dela']);
+    app(ContactLinkService::class)->slugFor($agent);
+
+    $this->get('/contact/juan-cruz')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('agent.name', 'Juan Cruz'));
+
+    expect($this->get('/contact/juan-cruz/vcard')->getContent())
+        ->toContain('FN:Juan Cruz')
+        ->toContain('N:Cruz;Juan;Dela;;');
 });
 
 test('the agent card is shown in Title Case whatever the record holds', function () {
@@ -209,4 +222,38 @@ test('save contact downloads a vCard', function () {
         ->toContain('FN:Mark Sargado')
         ->toContain('TEL;TYPE=CELL:09171234567')
         ->toContain('ADR;TYPE=WORK:;;Cebu City\\, Cebu;;;;');
+});
+
+test('the business profile shows about, social links and the way to the inquiry form', function () {
+    $agent = contactAgent('mark', 'SARGADO');
+    $agent->profile()->create([
+        'about' => 'Web Developer of Filipinohomes',
+        'facebook' => 'facebook.com/mark.sargado',
+        'instagram' => 'instagram.com/marksargado',
+        'twitter' => '',
+        'linkedin' => 'https://linkedin.com/in/marksargado',
+        'whatsapp' => '0910 193 0243',
+    ]);
+    app(ContactLinkService::class)->slugFor($agent);
+
+    $this->get('/business-profile/mark-sargado')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('BusinessProfile/Show')
+            ->where('slug', 'mark-sargado')
+            ->where('agent.name', 'Mark Sargado')
+            ->where('agent.about', 'Web Developer of Filipinohomes')
+            ->where('agent.socials.facebook', 'https://facebook.com/mark.sargado')
+            ->where('agent.socials.instagram', 'https://instagram.com/marksargado')
+            ->where('agent.socials.twitter', null)
+            ->where('agent.socials.linkedin', 'https://linkedin.com/in/marksargado')
+            ->where('agent.socials.whatsapp', 'https://wa.me/639101930243'));
+
+    $this->get('/business-profile/nobody')->assertNotFound();
+});
+
+test('the dashboard links use the slug for both public pages', function () {
+    $this->actingAs(User::factory()->create(['name' => 'Philip Libres']))
+        ->get('/dashboard/main')
+        ->assertInertia(fn ($page) => $page->where('auth.contact_slug', 'philip-libres'));
 });

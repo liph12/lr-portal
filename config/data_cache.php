@@ -16,6 +16,7 @@ return [
         'view-as',
         'impersonate*',
         'dashboard/record-sale/*/slip-preview',
+        'welcome/nao/progress',
     ],
 
     // Artisan commands that change data (imports, activity refresh, migrations) bump the version when they finish.

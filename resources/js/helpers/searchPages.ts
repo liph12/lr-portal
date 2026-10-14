@@ -1,5 +1,5 @@
 import { ElementType } from "react";
-import { AccountCircleOutlined } from "@mui/icons-material";
+import { AccountCircleOutlined, BadgeOutlined } from "@mui/icons-material";
 
 export interface PageResult {
     name: string;
@@ -31,8 +31,11 @@ function flatten(nodes: RouteNode[], parents: string[] = [], parentIcon?: Elemen
 
 // `routes` is the user's own portal menu (already permission-filtered), so search never offers a
 // page they'd be refused.
-export function buildPageIndex(routes: RouteNode[]): PageResult[] {
-    return [...flatten(routes), ...SHARED_PAGES];
+// `agentId`: the reader's own agent record, for "My profile" (their profile as others see it).
+export function buildPageIndex(routes: RouteNode[], agentId?: number | null): PageResult[] {
+    const mine = agentId ? [{ name: "My profile", path: `/agents/${agentId}`, trail: "Account", icon: BadgeOutlined }] : [];
+
+    return [...flatten(routes), ...mine, ...SHARED_PAGES];
 }
 
 export function searchPages(index: PageResult[], query: string, limit = 6): PageResult[] {

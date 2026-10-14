@@ -21,9 +21,10 @@ export interface PortalRoute {
 export default function usePortalRoutes(): PortalRoute[] {
     const user = useAuthUser();
     const portal = user?.portal ?? null;
-    const permissions = grantedWithLeadership(user?.permissions, user?.leads, user?.portal, user?.office_areas, user?.global_partners, user?.agent_id).join(",");
+    const permissions = grantedWithLeadership(user?.permissions, user?.leads, user?.portal, user?.office_areas, user?.global_partners, user?.agent_id, user?.nao_approvals).join(",");
     // Counters on menu items, by path (e.g. global partners waiting for confirmation).
     const partnersPending = user?.global_partners?.pending ?? 0;
+    const naoPending = user?.nao_approvals?.pending ?? 0;
     const salesPending = user?.sales_validation?.pending ?? 0;
     const brokerageAwaiting = user?.commission_receiving?.brokerage ?? 0;
     const rentalAwaiting = user?.commission_receiving?.rental ?? 0;
@@ -35,6 +36,7 @@ export default function usePortalRoutes(): PortalRoute[] {
             hasAnyPermission(granted, route.permission) && (route.requires ?? []).every((p) => granted.indexOf(p) !== -1);
         const badges: Record<string, number> = {
             "/global-partners": partnersPending,
+            "/nao-approvals": naoPending,
             // The receivings sit inside Management (its tabs / cards show each); its menu item carries their total.
             ...Object.fromEntries(["/superadmin", "/admin", "/staff"].map((p) => [`${p}/management`, brokerageAwaiting + rentalAwaiting])),
             // Sales validation lives in each back-office portal and, for office secretaries, at the shared path.
@@ -48,5 +50,5 @@ export default function usePortalRoutes(): PortalRoute[] {
 
         // Leaders of a team or sub-team get My Team right after the dashboard.
         return leads ? [routes[0], myTeamRoute as PortalRoute, ...routes.slice(1)].filter(Boolean) : routes;
-    }, [portal, permissions, leads, partnersPending, salesPending, brokerageAwaiting, rentalAwaiting]);
+    }, [portal, permissions, leads, partnersPending, naoPending, salesPending, brokerageAwaiting, rentalAwaiting]);
 }

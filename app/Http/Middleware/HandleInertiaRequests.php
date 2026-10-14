@@ -11,6 +11,7 @@ use App\Services\ContactLinkService;
 use App\Services\GlobalPartnerService;
 use App\Services\GroupSearchService;
 use App\Services\ImpersonationService;
+use App\Services\NaoApprovalService;
 use App\Services\OfficeService;
 use App\Services\TeamLeadershipService;
 use App\Services\UserPreferenceService;
@@ -73,6 +74,11 @@ class HandleInertiaRequests extends Middleware
                 'global_partners' => ($gp = app(GlobalPartnerService::class))->reach($request->user()) === false
                     ? null
                     : ['pending' => $gp->pendingCount($request->user())],
+                // Face-to-face NAO attendances waiting within reach (nationwide / branch / team / recruits): the NAO approvals
+                // menu item and its badge. Null when there's nobody whose attendance they approve.
+                'nao_approvals' => ($naoPending = app(NaoApprovalService::class)->pendingCount($request->user())) === null
+                    ? null
+                    : ['pending' => $naoPending],
                 // Pending sales this user can validate (all for the back office, their area's for a secretary), any date:
                 // the Sales validation menu badge. Null when they don't validate sales.
                 'sales_validation' => ($pending = app(SaleValidationService::class)->pendingCount($request->user())) === null
@@ -93,9 +99,10 @@ class HandleInertiaRequests extends Middleware
                 'avatar' => $request->user()->agent()->value('avatar'),
                 // Imported agents keep their legacy member id, which is also their referral number.
                 'agent_id' => $request->user()->agent()->value('id'),
-                // The public contact page's path (Your links); null until the account has an agent record.
-                'contact_url' => app(ContactLinkService::class)->urlFor($request->user()),
-                // Their referral link (Dashboard › Local Referral, /profile); null without an agent record.
+                // The slug of the public contact page and business profile (Your links); null until the account has an
+                // agent record.
+                'contact_slug' => app(ContactLinkService::class)->slugForUser($request->user()),
+                // Their referral link (Dashboard › Local / Global Referral, /profile); null without an agent record.
                 'referral_url' => ($agent = $request->user()->agent) ? Agent::referralLink($agent) : null,
                 // Settings › Preferences (links, theme, text size); null without use_preferences = defaults.
                 'preferences' => app(UserPreferenceService::class)->sharedFor($request->user()),

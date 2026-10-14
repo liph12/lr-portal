@@ -47,6 +47,8 @@ return [
     // Routes too noisy or sensitive to log at all.
     'except_paths' => [
         'up',
+        // The webinar player saves every 30 s; finishing it is logged by NaoService.
+        'welcome/nao/progress',
     ],
 
 ];

@@ -18,6 +18,8 @@ export const BACKOFFICE = "_backoffice";
 export const SECRETARY = "_secretary";
 // Sees global partners (auth.global_partners): the back office, or a sponsor who invited some.
 export const PARTNERS = "_partners";
+// Approves NAO attendances (auth.nao_approvals): the back office, office secretaries, leaders and sponsors with recruits.
+export const NAO_APPROVER = "_nao_approver";
 // Has an agent record (auth.agent_id): their own sales (My Sales).
 export const AGENT = "_agent";
 
@@ -28,6 +30,7 @@ export function grantedWithLeadership(
     officeAreas?: string[],
     globalPartners?: { pending: number } | null,
     agentId?: number | null,
+    naoApprovals?: { pending: number } | null,
 ): string[] {
     const granted = [...(permissions ?? [])];
     if (leads && (leads.teams.length || leads.sub_teams.length)) granted.push(LEADER);
@@ -36,5 +39,6 @@ export function grantedWithLeadership(
     if (officeAreas?.length) granted.push(SECRETARY);
     if (globalPartners) granted.push(PARTNERS);
     if (agentId) granted.push(AGENT);
+    if (naoApprovals) granted.push(NAO_APPROVER);
     return granted;
 }

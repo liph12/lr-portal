@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Profile;
 
 use App\Models\Entities\Agent;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,7 +16,7 @@ class UpdateProfileRequest extends FormRequest
     }
 
     /**
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -39,8 +40,10 @@ class UpdateProfileRequest extends FormRequest
             'address' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:100'],
             'state' => ['nullable', 'string', 'max:100'],
-            'about' => ['nullable', 'string', 'max:255'],
+            'about' => ['nullable', 'string', 'max:1000'],
             'facebook' => ['nullable', 'url', 'max:255'],
+            'instagram' => ['nullable', 'url', 'max:255'],
+            'twitter' => ['nullable', 'url', 'max:255'],
             'linkedin' => ['nullable', 'url', 'max:255'],
             'whatsapp' => ['nullable', 'string', 'max:30'],
         ];
@@ -54,6 +57,8 @@ class UpdateProfileRequest extends FormRequest
         return [
             'state' => 'province',
             'facebook' => 'Facebook link',
+            'instagram' => 'Instagram link',
+            'twitter' => 'Twitter link',
             'linkedin' => 'LinkedIn link',
         ];
     }

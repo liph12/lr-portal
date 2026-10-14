@@ -131,6 +131,19 @@ export interface ProfileFields {
     state: string;
     about: string;
     facebook: string;
+    instagram: string;
+    twitter: string;
+    linkedin: string;
+    whatsapp: string;
+}
+
+// Profile › Business profile: what the public business profile shows beyond the agent's basic details.
+export interface BusinessProfileFields {
+    about: string;
+    mobile: string;
+    facebook: string;
+    instagram: string;
+    twitter: string;
     linkedin: string;
     whatsapp: string;
 }
@@ -314,3 +327,19 @@ export type InternationalSaleFormData = ClientFields &
     InternationalFields & {
         proof_of_transaction: File | null;
     };
+
+// Onboarding › NAO (NaoService::state). status keeps the legacy values: yes = sent a proof (approved once reviewed),
+// disapproved; the webinar leaves it null. stage is what the page shows.
+export interface NaoState {
+    stage: "choose" | "awaiting" | "disapproved" | "webinar" | "done";
+    approved: boolean;
+    status: "yes" | "no" | "disapproved" | null;
+    progress: number;
+    seconds: number;
+    attended_on: string | null;
+    proof: string | null;
+    submitted_at: string | null;
+    remarks: string | null;
+    video: { id: string; seconds: number };
+    sponsor: { name: string; avatar: string | null; mobile: string | null; email: string | null } | null;
+}

@@ -19,7 +19,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
     const { users: onlineUsers, live } = useOnlineUsers(showOnlineStrip);
     const { url } = usePage();
     // Tabs the role may open; `tab: false` pages (Record Your Sale) are reached another way.
-    const tabs = dashboardRoute.children.filter((r: { permission?: string | string[]; tab?: boolean }) => r.tab !== false && hasAnyPermission(grantedWithLeadership(authUser?.permissions, authUser?.leads, authUser?.portal, authUser?.office_areas, authUser?.global_partners, authUser?.agent_id), r.permission));
+    const tabs = dashboardRoute.children.filter((r: { permission?: string | string[]; tab?: boolean }) => r.tab !== false && hasAnyPermission(grantedWithLeadership(authUser?.permissions, authUser?.leads, authUser?.portal, authUser?.office_areas, authUser?.global_partners, authUser?.agent_id, authUser?.nao_approvals), r.permission));
 
     return (
         <AppLayout>

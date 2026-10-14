@@ -10,7 +10,8 @@ use Illuminate\Support\Facades\Route;
 // One dashboard for every role (like /profile); each user's home. Recording sales needs `record_sales`.
 Route::prefix('dashboard')->name('dashboard.')->group(function () {
     Route::get('/', fn () => redirect()->route('dashboard.index'));
-    Route::get('/main', [DashboardController::class, 'index'])->name('index');
+    // New agents with onboarding to do land on /welcome instead.
+    Route::get('/main', [DashboardController::class, 'index'])->middleware('onboarding')->name('index');
     Route::get('/overview', [DashboardController::class, 'overview'])->name('overview');
     // Everyone with an agent record: their own sales one by one, with statistics.
     Route::get('/my-sales', [DashboardController::class, 'mySales'])->name('my-sales');

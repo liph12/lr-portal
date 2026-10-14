@@ -27,7 +27,7 @@ const publish = (next: Partial<PresenceSnapshot>) => {
     listeners.forEach((listener) => listener());
 };
 
-const readCookie = (name: string) =>
+export const readCookie = (name: string) =>
     decodeURIComponent(document.cookie.split("; ").find((c) => c.startsWith(`${name}=`))?.split("=")[1] ?? "");
 
 // Laravel rotates the CSRF token at sign-in without a full page load, so a token captured at boot

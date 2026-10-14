@@ -8,6 +8,7 @@ import {
     Stack,
     Tooltip,
 } from "@mui/material";
+import { Link } from "@inertiajs/react";
 import DashboardLayout from "../../../components/layouts/DashboardLayout";
 import DashboardCardApp from "../../../components/cards/DashboardCardApp";
 import PropertyQrIcon from "../../../../assets/icons/property-qr-gray.png";
@@ -21,16 +22,17 @@ import {
     ContentCopyRounded,
     Android,
     LinkRounded,
+    SettingsRounded,
 } from "@mui/icons-material";
 import SectionTitle from "../../../components/utils/SectionTitle";
 import useAuthUser from "../../../hooks/useAuthUser";
-import { buildUserLinks } from "../../../helpers/userLinks";
+import { buildUserLinks, UserLink } from "../../../helpers/userLinks";
 import StyledButton from "../../../components/utils/StyledButton";
 import { toast } from "../../../helpers/toast";
 
-function LinkCard({ label, url }: { label: string; url: string }) {
-    // The card shows the route only; what's copied or shared must open, so a path gets this site's origin.
-    const shareable = url.startsWith("/") ? `${window.location.origin}${url}` : url;
+function LinkCard({ label, url, href, settings }: UserLink) {
+    // The card shows the "LR | route" shorthand; what's copied or shared must open, so the real path gets this site's origin.
+    const shareable = href ? `${window.location.origin}${href}` : url;
     const copy = async () => {
         try {
             await navigator.clipboard.writeText(shareable);
@@ -104,6 +106,19 @@ function LinkCard({ label, url }: { label: string; url: string }) {
                 </Typography>
             </Box>
             <Stack direction="row" spacing={0.5}>
+                {settings && (
+                    <Tooltip title="Edit business profile">
+                        <IconButton
+                            size="small"
+                            component={Link}
+                            href={settings}
+                            aria-label="Edit business profile"
+                            sx={{ color: "var(--lr-text-secondary)" }}
+                        >
+                            <SettingsRounded fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                )}
                 <Tooltip title="Copy">
                     <IconButton
                         size="small"
@@ -202,7 +217,7 @@ function Dashboard() {
                 <Grid container columnSpacing={2} mb={3}>
                     {links.map((link) => (
                         <Grid key={link.label} size={{ md: 6, xs: 12 }}>
-                            <LinkCard label={link.label} url={link.url} />
+                            <LinkCard {...link} />
                         </Grid>
                     ))}
                 </Grid>

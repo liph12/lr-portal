@@ -14,6 +14,7 @@ import {
     AssessmentRounded,
     Diversity3Rounded,
     FactCheckRounded,
+    HowToRegRounded,
     PublicRounded,
     ReceiptLongRounded,
     AccountTreeRounded,
@@ -22,7 +23,7 @@ import {
 import { REPORTS } from "./components/reports/reportCatalog";
 import { NATCON_BOARDS } from "./components/natcon/natconCatalog";
 import { MANAGEMENT_SECTIONS } from "./components/management/managementCatalog";
-import { AGENT, BACKOFFICE, LEADER, PARTNERS, SECRETARY, TEAM_LEADER } from "./helpers/permissions";
+import { AGENT, BACKOFFICE, LEADER, NAO_APPROVER, PARTNERS, SECRETARY, TEAM_LEADER } from "./helpers/permissions";
 
 // The dashboard is the same for every role (shared /dashboard routes); Record Your Sale needs a recording permission.
 export const dashboardRoute = {
@@ -134,6 +135,16 @@ export const globalPartnersRoute = {
     ],
 };
 
+// Face-to-face NAO attendances to approve (NaoApprovalService::reach): nationwide for the back office, a secretary's branches,
+// a leader's team / sub-team, a sponsor's recruits.
+export const naoApprovalsRoute = {
+    name: "NAO Approvals",
+    path: "/nao-approvals",
+    icon: HowToRegRounded,
+    permission: NAO_APPROVER,
+    children: [],
+};
+
 // Who may open a report beyond Reports itself (ReportsController::available): Top Teams only with the whole system in
 // reach, Top Sub-teams also inside a team. Recruits follow Reports (an agent sees the recruits they sponsored).
 const REPORT_ACCESS: Record<string, string[]> = {
@@ -174,6 +185,7 @@ export const useAppRoutes = [
     reportsRoute,
     natconRoute,
     globalPartnersRoute,
+    naoApprovalsRoute,
     genealogyRoute,
     {
         name: "Statistics",
@@ -255,6 +267,7 @@ export const adminRoutes = [
     reportsRoute,
     natconRoute,
     globalPartnersRoute,
+    naoApprovalsRoute,
     genealogyRoute,
     { name: "Statistics", path: "/admin/statistics", icon: BarChartRounded, permission: "view_statistics", children: [] },
     { name: "Sales validation", path: "/admin/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
@@ -268,6 +281,7 @@ export const staffRoutes = [
     reportsRoute,
     natconRoute,
     globalPartnersRoute,
+    naoApprovalsRoute,
     genealogyRoute,
     { name: "Statistics", path: "/staff/statistics", icon: BarChartRounded, permission: "view_statistics", children: [] },
     { name: "Sales validation", path: "/staff/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
@@ -303,6 +317,7 @@ export const memberRoutes = [
     reportsRoute,
     natconRoute,
     globalPartnersRoute,
+    naoApprovalsRoute,
     genealogyRoute,
     { name: "Sales validation", path: "/sales-validation", icon: FactCheckRounded, permission: SECRETARY, requires: ["sales_validation"], children: [] },
     settingsRoute,

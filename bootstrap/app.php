@@ -9,6 +9,7 @@ use App\Http\Middleware\DropRetiredSessionCookie;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogActivity;
+use App\Http\Middleware\RedirectToOnboarding;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Http\Request;
@@ -36,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'active' => EnsureUserIsActive::class,
+            'onboarding' => RedirectToOnboarding::class,
             'guest' => RedirectIfAuthenticated::class,
         ]);
     })
