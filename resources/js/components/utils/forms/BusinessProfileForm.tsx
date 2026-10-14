@@ -31,8 +31,14 @@ const adornment = (icon: ReactNode) => ({
 
 // Profile › Business profile: only what the public business profile shows (POST /profile/business).
 const MAX_LINKS = 10;
+const EMPTY_LINK: BusinessLink = { label: "", url: "" };
+const isBlankLink = (link: BusinessLink) => link.label.trim() === "" && link.url.trim() === "";
 export default function BusinessProfileForm({ business }: BusinessProfileFormProps) {
-    const form = useForm<BusinessProfileFields>(business);
+    // With nothing saved yet one empty row is shown, so its placeholders suggest what a link looks like.
+    const form = useForm<BusinessProfileFields>({
+        ...business,
+        links: business.links.length > 0 ? business.links : [EMPTY_LINK],
+    });
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         const key = e.target.name as keyof BusinessProfileFields;
@@ -49,7 +55,7 @@ export default function BusinessProfileForm({ business }: BusinessProfileFormPro
         );
         form.clearErrors(`links.${index}.${key}` as keyof BusinessProfileFields);
     };
-    const addLink = () => form.setData("links", [...form.data.links, { label: "", url: "" }]);
+    const addLink = () => form.setData("links", [...form.data.links, EMPTY_LINK]);
     const removeLink = (index: number) => {
         form.setData(
             "links",
@@ -60,11 +66,16 @@ export default function BusinessProfileForm({ business }: BusinessProfileFormPro
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
+        // Rows left entirely empty (such as the example row) are not links: they are dropped rather than
+        // rejected. The rows on screen are trimmed too, so any validation errors line up with them.
+        const links = form.data.links.filter((link) => !isBlankLink(link));
+        if (links.length > 0 && links.length !== form.data.links.length) form.setData("links", links);
+        form.transform((data) => ({ ...data, links }));
         // The saved values become the new baseline, so the form stops counting them as unsaved changes.
         form.post("/profile/business", { preserveScroll: true, onSuccess: () => form.setDefaults() });
     };
 
-    const field = (name: keyof BusinessProfileFields, label: string, icon: ReactNode, opts: { type?: string; placeholder?: string; helper?: string } = {}) => (
+    const field = (name: Exclude<keyof BusinessProfileFields, "links">, label: string, icon: ReactNode, opts: { type?: string; placeholder?: string; helper?: string } = {}) => (
         <Grid size={12}>
             <Label text={label} />
             <StyledTextField
@@ -123,7 +134,7 @@ export default function BusinessProfileForm({ business }: BusinessProfileFormPro
                             >
                                 <StyledTextField
                                     name={`links.${index}.label`}
-                                    placeholder="Label, e.g. My website"
+                                    placeholder="My Filipinohomes Website"
                                     value={link.label}
                                     error={linkError(index, "label")}
                                     handleChange={(e) => setLink(index, "label", e.target.value)}
@@ -133,7 +144,7 @@ export default function BusinessProfileForm({ business }: BusinessProfileFormPro
                                     <StyledTextField
                                         name={`links.${index}.url`}
                                         type="url"
-                                        placeholder="https://"
+                                        placeholder="https://filipinohomes.com/website/sample-website"
                                         value={link.url}
                                         error={linkError(index, "url")}
                                         handleChange={(e) => setLink(index, "url", e.target.value)}
