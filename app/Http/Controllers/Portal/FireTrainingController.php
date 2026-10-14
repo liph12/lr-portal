@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\Fire\SubmitFireExamRequest;
+use App\Http\Requests\Portal\Fire\UploadEndorsementRequest;
+use Illuminate\Http\UploadedFile;
 use App\Models\Entities\Agent;
 use App\Services\FireTrainingService;
 use Illuminate\Http\Request;
@@ -23,7 +25,7 @@ class FireTrainingController extends Controller
             $modules = $member['requires_endorsement'] ? [] : $this->fire->modules($agent);
             $this->fire->syncPasses($agent, $modules);
         } catch (RuntimeException $e) {
-            return inertia('Portal/Fire/Index', ['modules' => [], 'endorsement' => false, 'error' => $e->getMessage(), 'passScore' => FireTrainingService::PASS_SCORE]);
+            return inertia('Portal/Fire/Index', ['modules' => [], 'endorsement' => false, 'error' => $e->getMessage(), 'passScore' => FireTrainingService::PASS_SCORE] + $this->endorsementProps());
         }
 
         return inertia('Portal/Fire/Index', [
@@ -32,7 +34,32 @@ class FireTrainingController extends Controller
             'endorsement' => $member['requires_endorsement'],
             'error' => null,
             'passScore' => FireTrainingService::PASS_SCORE,
-        ]);
+        ] + $this->endorsementProps());
+    }
+
+    // The signed endorsement letter, before FIRE opens for an account the training site flagged.
+    public function uploadEndorsement(UploadEndorsementRequest $request)
+    {
+        try {
+            $stillRequired = $this->fire->uploadEndorsement($request->user()->agent, $request->file('endorsementLetter'));
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('fire.index')->with($stillRequired ? 'warning' : 'success', $stillRequired
+            ? 'Your letter was sent. FIRE opens once the training team accepts it.'
+            : 'Thank you! Your endorsement letter is in — FIRE is open.');
+    }
+
+    /**
+     * @return array{endorsementTemplate: string, maxFileKb: int}
+     */
+    private function endorsementProps(): array
+    {
+        return [
+            'endorsementTemplate' => (string) config('services.fire.endorsement_template'),
+            'maxFileKb' => min(UploadEndorsementRequest::MAX_FILE_KB, intdiv(UploadedFile::getMaxFilesize(), 1024)),
+        ];
     }
 
     public function show(Request $request, int $module)
@@ -49,6 +76,9 @@ class FireTrainingController extends Controller
     public function submit(SubmitFireExamRequest $request, int $module)
     {
         try {
+            if ($this->fire->resolve($request->user()->agent)['requires_endorsement']) {
+                return redirect()->route('fire.index');
+            }
             $result = $this->fire->submit($request->user()->agent, $module, $request->validated('answers'));
         } catch (RuntimeException $e) {
             return back()->with('error', $e->getMessage());
@@ -61,6 +91,10 @@ class FireTrainingController extends Controller
     {
         $agent = $this->agent($request);
         try {
+            // Locked until the endorsement letter is in.
+            if ($this->fire->resolve($agent)['requires_endorsement']) {
+                return redirect()->route('fire.index');
+            }
             $exam = $this->fire->exam($agent, $module);
             // Where "Next module" goes: the next one in the list, if any.
             $ids = array_column($this->fire->modules($agent), 'id');

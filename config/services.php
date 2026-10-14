@@ -18,6 +18,8 @@ return [
     'fire' => [
         'url' => env('FIRE_API_URL', 'https://realestatetraining.ph/api/integration/agent'),
         'key' => env('FIRE_API_KEY'),
+        // The endorsement letter agents download, sign and upload before FIRE opens for them.
+        'endorsement_template' => env('FIRE_ENDORSEMENT_TEMPLATE', "https://realestatetraining.ph/Agent's%20Endorsement%20Letter.pdf"),
     ],
 
     // FIRE training certificates by email (FireCertificateService).

@@ -229,10 +229,17 @@ at the matching path. Nothing else.
   `AgentProfileController::myJourney/journey`, `AgentJourneyService`, page `Portal/Agents/Journey` — a focused page in
   `layouts/OnboardingShell` (no sidebar / menus / banners; `exit` = back to the dashboard, or to the profile it was opened from)): a time-of-day greeting with the agent's photo (no role: it's about
   their journey), "x / 5 milestones", a horizontal journey bar (vertical on phones) and **one invitation card for the next step** — FIRE with
-  its logo, "modules passed x of 3" and Start / Continue FIRE once the NAO is done; photo / NAO / first sale otherwise. Milestones — Registered (`lr_joined_at`, else `created_at`) → Profile photo
+  its logo, "modules passed x of 3" and Start / Continue FIRE once the NAO is done; photo / NAO / activation otherwise. Milestones — Registered (`lr_joined_at`, else `created_at`) → Profile photo
   (first `profile.photo_updated` log) → NAO (approved: `nao_attendance_reviewed_at` + who; webinar: `nao.webinar_finished` log; `yes`
-  unreviewed = waiting) → FIRE (`fire_certificates` of 3; "Take FIRE" under the headline and "Start / Continue FIRE training" on the card → `/fire`, on one's own journey) → First sale. The
-  first unfinished one is "Next up"; dates come from the data and readable activity-log entries whose subject is the agent. Linked
+  unreviewed = waiting) → FIRE (`fire_certificates` of 3; "Take FIRE" under the headline and "Start / Continue FIRE training" on the card → `/fire`, on one's own journey) → Activation. The
+  first unfinished one is "Next up"; dates come from the data and readable activity-log entries whose subject is the agent.
+  **Activation** (milestone `activation`, done = the first sale): the LR account is activated with the first sale, so until a sale exists its card explains it
+  and uploads a **request for activation** + the sale's **proof of transaction** (+ optional notes) — `components/onboarding/ActivationRequestForm`,
+  `POST /my-journey/activation-request` (`StoreActivationRequestRequest`, `ActivationRequestController`, `ActivationRequestService`,
+  files via `SaleFileStorage` under `activation-requests/`, logged `agent.activation_requested`) → `activation_requests` (migration
+  `000055`, one row per submission, the newest counts; legacy kept it as `members.activationForm`). Sent → the step is "waiting"
+  (files shown, "Send again"); others opening the journey see the files; once done, an "account is active" card. Nobody reviews them in the app yet. The certificates list
+  always shows Rent.ph's Rent Manager on one's own journey — a download once passed, else a link to its exam (`/fire/12`). Linked
   from the finished NAO screen, the profile menu ("My journey") and the profile page ("Journey").
 - **FIRE** (Filipinohomes Institute of Real Estate — itself the training, so never "FIRE training"; logo `components/fire/FireLogo`,
   white lettering in dark mode; `/fire`, `/fire/{module}`, `/fire/{module}/exam`; `routes/fire.php`, `Portal\FireTrainingController`,
@@ -249,6 +256,16 @@ at the matching path. Nothing else.
   (after an exam, and synced up when /fire opens), so the journey (FIRE done at 3), Recruits and stats follow. The video may be
   skipped; the exam opens any time and can be retaken, in a new question order each time (shuffled in `FireTrainingController::exam`;
   answers keep their question numbers, results are numbered by `position` as shown). Site down / no key → a readable warning, never an error page.
+  **Endorsement letter first**: when `register-or-resolve` says `requires_endorsement` (resolve isn't cached then), /fire shows
+  `EndorsementStep` — download the template (`services.fire.endorsement_template`, the site's PDF, a plain link) and upload the signed one
+  (`POST /fire/endorsement`, `UploadEndorsementRequest`, field `endorsementLetter`, PDF / image / Word ≤ 20MB) → multipart
+  `POST {member_id}/reupload-endorsement`; modules and exams redirect to /fire until it's in. `client()` must not force `asJson()` — it would mislabel the multipart upload.
+  **Certificates** (`FireCertificateImage`, GD + `resources/fonts/LibreBaskerville-Bold.ttf` (OFL) / Roboto): one template per module in
+  `resources/certificates/` (`TEMPLATES`: 1 RESA Law, 2 Documentation & Titling, 3 Code of Ethics — course title printed on the template —, 12 Rent
+  Manager; modules 4–11 get theirs when the templates arrive). FIRE: name + "Given this {nth} day of {Month YYYY}" (the pass date). Rent Manager:
+  name, date issued (pass date, else today), valid until (+1 year), No. `RM-{year}-{member #}` (assumed — confirm with Rent.ph). Download
+  `GET /agents/{agent}/certificates/{module}` (`AgentProfileController::certificate`: profile readers, passed modules only → JPEG attachment);
+  the journey lists them as a deferred prop `certificates` (`Inertia::defer` — the training site is asked after the page shows).
 - **Profile / avatars**: `/profile` is shared by every role (`routes/profile.php`, required inside the
   `auth` group; `Portal\ProfileController`). A user's agent record is created on first use by
   `ProfileService::agentFor()`. Photos are **cropped in the browser first** (`components/utils/user/PhotoCropper`: square, round guide, drag / scroll /
@@ -677,7 +694,9 @@ at the matching path. Nothing else.
   (`legacy:import-members`; legacy SUPERVISOR = `team_leader`, there is no supervisor role; **Broker is not a role** —
   `agents.is_broker`, from legacy `members.membertype = 'broker'` whatever the account's role, `legacy:import-brokers` backfills
   it and retired the old Broker role (its holders → team leader / unit manager by leadership, else agent)): idempotent by email, `--dry-run` rolls back, rejects go to
-  `storage/app/private/legacy-import/`. Mapping and decisions: `docs/legacy-migration/`.
+  `storage/app/private/legacy-import/`. Accounts that already existed in the portal (the seeded team) keep their account and get
+  only the legacy id — `legacy:fill-existing-accounts` (`--dry-run`) then fills in what they lack from their own member (agent_attributes,
+  credentials / profile if missing, empty agent fields; never overwrites). Mapping and decisions: `docs/legacy-migration/`.
   `agents.agent_type` is `Agent::TYPES` (local, global_partner): global = legacy `national_intern` international
   + joined ≥ 2024-02-01 + country not PH (`Agent::typeFromLegacy`, `LegacyAgentOrigin`, `legacy:import-agent-types`
   re-applies it and syncs the `global_partner` role). `agents.lr_joined_at` = joined Leuterio Realty (legacy

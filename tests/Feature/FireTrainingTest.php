@@ -5,6 +5,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
@@ -94,6 +95,52 @@ test('module 12 is Rent.ph\'s Become a Rent Manager: its videos, its own exam (e
         ->assertSessionHas('fire_result', fn ($r) => $r['score'] === 1 && $r['total'] === 2 && ! $r['passed'] && $r['results'][0] === ['question' => 32, 'position' => 1, 'correct' => true]);
     Http::assertSent(fn (Request $r) => str_ends_with($r->url(), 'submit-rent-exam') && $r['email'] === 'juan@example.test'
         && $r['answers'] === [['id' => 32, 'question' => 'Where are rentals listed?', 'answer' => 'Rent.ph'], ['id' => 31, 'question' => 'What does a Rent Manager do?', 'answer' => 'All of these']]);
+});
+
+test('certificates: a passed module downloads as an image drawn on its template; others and strangers get nothing', function () {
+    $response = $this->actingAs($this->user)->get("/agents/{$this->agent}/certificates/1");
+    $response->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+    expect($response->headers->get('Content-Disposition'))->toContain('FIRE-Certificate-module-1-juan-cruz.jpg')
+        ->and(getimagesizefromstring($response->getContent())[2])->toBe(IMAGETYPE_JPEG);
+
+    // Module 2 isn't passed; module 5 has no template yet; the Rent.ph exam isn't passed (rental-score 403).
+    $this->actingAs($this->user)->get("/agents/{$this->agent}/certificates/2")->assertNotFound();
+    $this->actingAs($this->user)->get("/agents/{$this->agent}/certificates/5")->assertNotFound();
+    $this->actingAs($this->user)->get("/agents/{$this->agent}/certificates/12")->assertNotFound();
+
+    $stranger = User::factory()->create();
+    $stranger->roles()->attach(Role::where('name', 'agent')->first());
+    $this->actingAs($stranger)->get("/agents/{$this->agent}/certificates/1")->assertNotFound();
+
+    // The journey lists it, loaded after the page.
+    $this->actingAs($this->user)->get('/my-journey')->assertInertia(fn ($page) => $page->missing('certificates')
+        ->loadDeferredProps(fn ($reload) => $reload->where('certificates.items.0.module', 1)->where('certificates.items.0.url', route('agents.certificate', [$this->agent, 1]))->has('certificates.items', 1)));
+});
+
+test('an account the training site flags uploads its endorsement letter first; FIRE stays locked until then', function () {
+    config(['services.fire.url' => 'https://flagged.test/api/integration/agent']);
+    $accepted = false;
+    Http::fake(function (Request $r) use (&$accepted) {
+        return match (true) {
+            str_ends_with($r->url(), 'register-or-resolve') => Http::response(['member' => ['id' => 77], 'requires_endorsement' => ! $accepted]),
+            str_ends_with($r->url(), '77/reupload-endorsement') => Http::response(['member' => ['id' => 77, 'endorsement' => ($accepted = true) ? 'letter.pdf' : null]]),
+            default => Http::response(['data' => []]),
+        };
+    });
+
+    $this->actingAs($this->user)->get('/fire')->assertInertia(fn ($page) => $page
+        ->where('endorsement', true)->where('modules', [])
+        ->where('endorsementTemplate', config('services.fire.endorsement_template'))->has('maxFileKb'));
+    $this->actingAs($this->user)->get('/fire/1')->assertRedirect(route('fire.index'));
+    $this->actingAs($this->user)->get('/fire/1/exam')->assertRedirect(route('fire.index'));
+
+    $this->actingAs($this->user)->post('/fire/endorsement', [])->assertSessionHasErrors('endorsementLetter');
+    $this->actingAs($this->user)->post('/fire/endorsement', ['endorsementLetter' => UploadedFile::fake()->create('letter.pdf', 120, 'application/pdf')])
+        ->assertRedirect(route('fire.index'))->assertSessionHas('success');
+    Http::assertSent(fn (Request $r) => str_ends_with($r->url(), '77/reupload-endorsement') && $r->isMultipart()
+        && collect($r->data())->contains(fn ($part) => $part['name'] === 'endorsementLetter' && $part['filename'] === 'letter.pdf'));
+
+    $this->actingAs($this->user)->get('/fire')->assertInertia(fn ($page) => $page->where('endorsement', false));
 });
 
 test('when the training site is down the page says so instead of failing', function () {

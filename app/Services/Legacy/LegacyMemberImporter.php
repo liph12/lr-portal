@@ -164,6 +164,65 @@ class LegacyMemberImporter
         ];
     }
 
+    /**
+     * Portal accounts that existed before the import (e.g. the seeded team) kept their account, so their agent row got the
+     * legacy id but nothing else. This fills in what they lack, from their own legacy member: the agent_attributes row
+     * (sponsor, registration, NAO, FIRE), the profile and credentials if missing, and agent columns that are still empty —
+     * never overwriting what's there. Agents whose id is no legacy member are left alone.
+     *
+     * @return array{filled: array<int, array{agent_id: int, email: string, columns: array<int, string>, tables: array<int, string>}>, rejects: array<int, array{0: int|string, 1: string, 2: string}>}
+     */
+    public function fillExistingAccounts(bool $dryRun = false): array
+    {
+        $targets = DB::table('agents as a')->leftJoin('agent_attributes as at', 'at.agent_id', '=', 'a.id')
+            ->whereNull('at.id')->pluck('a.id')->map(fn ($id) => (int) $id)->all();
+        $members = $targets ? $this->legacy->table('members')->select(self::MEMBER_COLUMNS)->whereIn('id', $targets)->get() : collect();
+        if ($members->isEmpty()) {
+            return ['filled' => [], 'rejects' => []];
+        }
+
+        $this->loadLegacyAccounts();
+        $filled = [];
+        $now = now();
+
+        DB::beginTransaction();
+        try {
+            foreach ($members as $m) {
+                $email = $this->normaliseEmail($m->email);
+                // This member is the agent's own record (the id matched), whatever newer duplicate the email may have.
+                if ($email) {
+                    $this->chosenMember[$email] = (int) $m->id;
+                }
+                $row = $this->transform($m);
+                if (! $row) {
+                    continue;
+                }
+                $agent = DB::table('agents')->where('id', $m->id)->first();
+                $tables = ['agent_attributes'];
+                DB::table('agent_attributes')->insert($row['attributes'] + ['agent_id' => $m->id, 'created_at' => $now, 'updated_at' => $now]);
+                foreach ([['agent_profiles', $row['profile']], ['agent_credentials', $row['credentials']]] as [$table, $data]) {
+                    if (array_filter($data) && ! DB::table($table)->where('agent_id', $m->id)->exists()) {
+                        DB::table($table)->insert($data + ['agent_id' => $m->id, 'created_at' => $now, 'updated_at' => $now]);
+                        $tables[] = $table;
+                    }
+                }
+                // Only empty columns; a broker mark is the one flag that may turn on.
+                $updates = collect($row['agent'])->filter(fn ($value, $column) => $value !== null && $value !== ''
+                    && property_exists($agent, $column) && ($agent->{$column} === null || $agent->{$column} === '' || ($column === 'is_broker' && $value && ! $agent->is_broker)))->all();
+                if ($updates) {
+                    DB::table('agents')->where('id', $m->id)->update($updates + ['updated_at' => $now]);
+                }
+                $filled[] = ['agent_id' => (int) $m->id, 'email' => (string) $agent->email, 'columns' => array_keys($updates), 'tables' => $tables];
+            }
+            $dryRun ? DB::rollBack() : DB::commit();
+        } catch (Throwable $e) {
+            DB::rollBack();
+            throw $e;
+        }
+
+        return ['filled' => $filled, 'rejects' => $this->rejects];
+    }
+
     private function loadLegacyAccounts(): void
     {
         $this->legacy->table('users')

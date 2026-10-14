@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Entities\Agent;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -45,7 +46,12 @@ class FireTrainingService
         $agent->loadMissing('user:id,name,email');
         $email = $this->email($agent);
 
-        return Cache::remember('fire-member:'.sha1($email), now()->addDay(), function () use ($agent, $email) {
+        $key = 'fire-member:'.sha1($email);
+        if ($cached = Cache::get($key)) {
+            return $cached;
+        }
+
+        $member = (function () use ($agent, $email) {
             $sponsorId = DB::table('agent_attributes')->where('agent_id', $agent->id)->value('referral_id');
             $sponsor = $sponsorId ? Agent::with('user:id,name')->find($sponsorId) : null;
             $body = $this->call(fn () => $this->client()->post('register-or-resolve', [
@@ -57,7 +63,34 @@ class FireTrainingService
             ]));
 
             return ['member_id' => isset($body['member']['id']) ? (int) $body['member']['id'] : null, 'requires_endorsement' => (bool) ($body['requires_endorsement'] ?? false)];
-        });
+        })();
+        // Remembered once the account is clear to train; while an endorsement is due, asked again each time (it may arrive).
+        if (! $member['requires_endorsement']) {
+            Cache::put($key, $member, now()->addDay());
+        }
+
+        return $member;
+    }
+
+    /**
+     * The signed endorsement letter, sent on to the training site (multipart field endorsementLetter). Returns whether the
+     * site still wants one (its member's `endorsement` stays empty until it's accepted).
+     */
+    public function uploadEndorsement(Agent $agent, UploadedFile $letter): bool
+    {
+        $member = $this->resolve($agent);
+        if (! $member['member_id']) {
+            throw new RuntimeException("Your FIRE account couldn't be found. Please try again in a moment.");
+        }
+        $body = $this->call(fn () => $this->client()->asMultipart()
+            ->attach('endorsementLetter', $letter->get(), $letter->getClientOriginalName() ?: 'endorsement-letter.'.$letter->extension())
+            ->post("{$member['member_id']}/reupload-endorsement"));
+
+        $stillRequired = ! empty($body['member']) && ($body['member']['endorsement'] ?? null) === null;
+        Cache::forget('fire-member:'.sha1($this->email($agent)));
+        $this->activity->describe('fire.endorsement_uploaded', 'Uploaded the FIRE endorsement letter', $agent, ['file' => $letter->getClientOriginalName()]);
+
+        return $stillRequired;
     }
 
     /**
@@ -70,6 +103,17 @@ class FireTrainingService
         $body = $this->call(fn () => $this->client()->get('current-courses', ['email' => $this->email($agent)]));
 
         return [...array_map(fn (array $course) => $this->module($course), $body['data'] ?? []), $this->rentModule($agent)];
+    }
+
+    /**
+     * The certificates the agent has earned: every passed module that has a certificate template.
+     *
+     * @return array<int, array{module: int, title: string, brand: ?string, taken_on: ?string}>
+     */
+    public function certificates(Agent $agent): array
+    {
+        return array_values(array_map(fn ($m) => ['module' => $m['id'], 'title' => $m['title'], 'brand' => $m['brand'] ?? null, 'taken_on' => $m['taken_on']],
+            array_filter($this->modules($agent), fn ($m) => $m['passed'] && FireCertificateImage::has($m['id']))));
     }
 
     // Passes made on the training site before (or outside) the portal count too: agents.fire_certificates follows them.
@@ -196,8 +240,11 @@ class FireTrainingService
         try {
             $response = $this->client()->get('rental-score', ['email' => $this->email($agent)]);
             $score = $response->successful() ? $response->json('score') : null;
+            // When it was passed (for the certificate's date issued), under whichever name the site uses.
+            $takenOn = $response->successful() ? collect(['dateTaken', 'date_taken', 'date', 'created_at', 'updated_at'])->map(fn ($k) => $response->json($k))->first(fn ($v) => is_string($v) && $v !== '') : null;
         } catch (Throwable) {
             $score = null;
+            $takenOn = null;
         }
 
         return [
@@ -211,7 +258,7 @@ class FireTrainingService
             'video' => null,
             'videos' => array_map(fn ($v) => $v + ['kind' => str_contains($v['src'], 'youtube.com/') ? 'youtube' : 'file'], self::RENT_VIDEOS),
             'best_score' => $score !== null ? (int) $score : null,
-            'taken_on' => null,
+            'taken_on' => $takenOn ?? null,
             'passed' => $score !== null,
         ];
     }
@@ -266,9 +313,10 @@ class FireTrainingService
             throw new RuntimeException('FIRE is not set up yet (FIRE_API_KEY).');
         }
 
+        // JSON bodies by default; an upload switches to multipart (a forced JSON content type would mislabel it).
         return Http::baseUrl(rtrim((string) config('services.fire.url'), '/').'/')
             ->withHeaders(['x-api-key' => $key, 'X-Requested-With' => 'XMLHttpRequest'])
-            ->acceptJson()->asJson()->timeout(20);
+            ->acceptJson()->timeout(20);
     }
 
     // The site's reply, or a readable failure.

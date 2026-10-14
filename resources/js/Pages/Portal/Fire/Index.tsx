@@ -1,11 +1,13 @@
-import { ReactElement } from "react";
+import { ReactElement, useState } from "react";
 import { Alert, Box, Grid, LinearProgress, Typography } from "@mui/material";
-import { CheckCircleRounded, ChevronRightRounded, PlayCircleOutlineRounded } from "@mui/icons-material";
-import { Link } from "@inertiajs/react";
+import { CheckCircleRounded, ChevronRightRounded, DownloadRounded, PlayCircleOutlineRounded, UploadFileRounded } from "@mui/icons-material";
+import { Link, useForm } from "@inertiajs/react";
 import OnboardingShell from "../../../components/layouts/OnboardingShell";
 import FireLogo from "../../../components/fire/FireLogo";
 import ModuleLogo from "../../../components/fire/ModuleLogo";
 import UserAvatar from "../../../components/utils/user/UserAvatar";
+import StyledButton from "../../../components/utils/StyledButton";
+import UploadPOTForm from "../../../components/utils/forms/UploadPOTForm";
 import { FireModule } from "../../../types/app-data-types";
 
 interface FireIndexProps {
@@ -14,10 +16,79 @@ interface FireIndexProps {
     endorsement: boolean;
     error: string | null;
     passScore: number;
+    // The letter to download, sign and upload; the upload's size ceiling.
+    endorsementTemplate: string;
+    maxFileKb: number;
+}
+
+// Before FIRE opens (for accounts the training site flags): download the endorsement letter, sign it, upload it here.
+function EndorsementStep({ template, maxFileKb }: { template: string; maxFileKb: number }) {
+    const form = useForm<{ endorsementLetter: File | null }>({ endorsementLetter: null });
+    const [compressing, setCompressing] = useState(false);
+    const step = (n: number, title: string, text: string) => (
+        <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+            <Box sx={{ width: 28, height: 28, flexShrink: 0, borderRadius: "50%", display: "grid", placeItems: "center", fontSize: 14, fontWeight: 700, color: "var(--lr-on-primary)", backgroundColor: "var(--lr-primary)" }}>{n}</Box>
+            <Box>
+                <Typography sx={{ fontWeight: 600, color: "var(--lr-text-primary)" }}>{title}</Typography>
+                <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)" }}>
+                    {text}
+                </Typography>
+            </Box>
+        </Box>
+    );
+
+    return (
+        <Box sx={{ p: { xs: 2.5, sm: 3.5 }, borderRadius: 4, border: "1px solid var(--lr-primary-soft-strong)", backgroundColor: "var(--lr-primary-soft)" }}>
+            <Typography component="h2" sx={{ fontSize: { xs: 20, sm: 22 }, fontWeight: 700, color: "var(--lr-text-primary)" }}>
+                One step before FIRE: your endorsement letter
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.75, mb: 2.5, color: "var(--lr-text-body)", maxWidth: 640, lineHeight: 1.7 }}>
+                The Filipinohomes Institute of Real Estate needs a signed endorsement letter before your modules open. It only takes a minute.
+            </Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+                {step(1, "Download the endorsement letter", "Print it or fill it in, then have it signed.")}
+                {/* A file for reference, from the training site: a plain link. */}
+                <a href={template} target="_blank" rel="noopener" style={{ textDecoration: "none", alignSelf: "flex-start", marginLeft: 40 }}>
+                    <StyledButton variant="outlined" startIcon={<DownloadRounded />} sx={{ color: "var(--lr-primary)", borderColor: "var(--lr-outline)", backgroundColor: "var(--lr-surface)" }}>
+                        Endorsement letter (PDF)
+                    </StyledButton>
+                </a>
+                {step(2, "Upload your signed letter", "A scan or a clear photo works — PDF, image or Word file.")}
+                <Box
+                    component="form"
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        form.post("/fire/endorsement", { forceFormData: true, preserveScroll: true, onSuccess: () => form.reset() });
+                    }}
+                    sx={{ ml: { sm: 5 } }}
+                >
+                    <UploadPOTForm
+                        value={form.data.endorsementLetter}
+                        onChange={(file) => form.setData("endorsementLetter", file)}
+                        error={form.errors.endorsementLetter ?? null}
+                        maxFileKb={maxFileKb}
+                        onCompressingChange={setCompressing}
+                        fileNoun="endorsement letter"
+                        instructions={<></>}
+                    />
+                    <StyledButton
+                        type="submit"
+                        variant="contained"
+                        startIcon={<UploadFileRounded />}
+                        loading={form.processing}
+                        disabled={compressing || !form.data.endorsementLetter}
+                        sx={{ mt: 2, px: 3, backgroundColor: "var(--lr-primary)", color: "var(--lr-on-primary)", ":hover": { backgroundColor: "var(--lr-primary-hover)" }, "&.Mui-disabled": { backgroundColor: "var(--lr-surface-container)", color: "var(--lr-text-secondary)" } }}
+                    >
+                        Send my endorsement letter
+                    </StyledButton>
+                </Box>
+            </Box>
+        </Box>
+    );
 }
 
 // FIRE (Filipinohomes Institute of Real Estate): the modules from realestatetraining.ph, how far the agent is, and each module's status (best score of 10).
-function FireIndex({ modules, endorsement, error, passScore }: FireIndexProps) {
+function FireIndex({ modules, endorsement, error, passScore, endorsementTemplate, maxFileKb }: FireIndexProps) {
     const passed = modules.filter((m) => m.passed).length;
     const next = modules.find((m) => !m.passed);
 
@@ -58,9 +129,9 @@ function FireIndex({ modules, endorsement, error, passScore }: FireIndexProps) {
                 </Alert>
             )}
             {endorsement && (
-                <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-                    Your FIRE account needs an endorsement letter before you can start. Please ask your sponsor or your branch office for one.
-                </Alert>
+                <Box sx={{ mb: 3 }}>
+                    <EndorsementStep template={endorsementTemplate} maxFileKb={maxFileKb} />
+                </Box>
             )}
 
             <Grid container spacing={2}>

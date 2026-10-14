@@ -7,14 +7,14 @@ use App\Support\Areas;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
-// An agent's onboarding journey, milestone by milestone: registered → profile photo → NAO → FIRE → first sale. Dates come
+// An agent's onboarding journey, milestone by milestone: registered → profile photo → NAO → FIRE → activation. Dates come
 // from the data (agent_attributes, sales) and the activity log, whose readable entries name the agent as their subject.
 class AgentJourneyService
 {
     // FIRE is complete at three certificates (agent_attributes.fire_certificates, as Recruits counts it).
     public const FIRE_DONE = 3;
 
-    public function __construct(private AgentUplineService $uplines) {}
+    public function __construct(private AgentUplineService $uplines, private ActivationRequestService $activations) {}
 
     /**
      * @return array<string, mixed>
@@ -31,7 +31,7 @@ class AgentJourneyService
             $this->photo($agent),
             $this->nao($agent, $row),
             $this->fire($row),
-            $this->firstSale($agent),
+            $this->activation($agent),
         ];
         // The first one not done yet is where they are; everything after it comes later.
         $current = null;
@@ -108,16 +108,22 @@ class AgentJourneyService
             ['certificates' => $count, 'of' => self::FIRE_DONE]);
     }
 
-    private function firstSale(Agent $agent): array
+    private function activation(Agent $agent): array
     {
         $first = collect([
             DB::table('agent_transactions')->where('agent_id', $agent->id)->min('created_at'),
             DB::table('international_sales')->where('agent_id', $agent->id)->min('created_at'),
         ])->filter()->min();
 
-        return $first
-            ? $this->milestone('first_sale', 'First sale', 'done', $first, 'Your first sale is in. Congratulations!')
-            : $this->milestone('first_sale', 'First sale', 'todo', null, 'Record your first sale — your team will celebrate it with you.');
+        if ($first) {
+            return $this->milestone('activation', 'Activation', 'done', $first, 'Your LR account is active — activated with your first sale.');
+        }
+        // The account is activated with the first sale: a request for activation + that sale's proof of transaction.
+        $request = $this->activations->latest($agent);
+
+        return $request
+            ? $this->milestone('activation', 'Activation', 'waiting', $request['submitted_at'], 'Request for activation sent — the office will activate your account and encode your sale.', ['activation' => $request])
+            : $this->milestone('activation', 'Activation', 'todo', null, 'Your LR account is activated with your first sale: send your request for activation with the sale\'s proof of transaction.', ['activation' => null]);
     }
 
     // When a readable activity-log entry about this agent first happened.

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Portal\ActivationRequestController;
 use App\Http\Controllers\Portal\AgentProfileController;
 use App\Http\Controllers\Portal\ReportsController;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +19,8 @@ Route::prefix('reports')->name('reports.')->group(function () {
 Route::get('/agents/{agent}', [AgentProfileController::class, 'show'])->name('agents.show');
 Route::get('/agents/{agent}/sales', [AgentProfileController::class, 'sales'])->name('agents.sales');
 Route::get('/agents/{agent}/journey', [AgentProfileController::class, 'journey'])->name('agents.journey');
+Route::get('/agents/{agent}/certificates/{module}', [AgentProfileController::class, 'certificate'])->whereNumber('module')->name('agents.certificate');
 Route::get('/my-journey', [AgentProfileController::class, 'myJourney'])->name('my-journey');
+Route::post('/my-journey/activation-request', [ActivationRequestController::class, 'store'])->middleware('throttle:10,1')->name('my-journey.activation-request');
 Route::put('/agents/{agent}', [AgentProfileController::class, 'update'])->middleware('can:edit_agent_profile')->name('agents.update');
 Route::put('/agents/{agent}/upline', [AgentProfileController::class, 'changeUpline'])->middleware('can:edit_agent_profile')->name('agents.upline');

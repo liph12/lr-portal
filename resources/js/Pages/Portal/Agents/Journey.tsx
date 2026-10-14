@@ -1,24 +1,35 @@
-import { ReactElement, ReactNode } from "react";
-import { Box, Container, LinearProgress, Typography } from "@mui/material";
-import { ArrowForwardRounded, CheckRounded, HourglassTopRounded } from "@mui/icons-material";
-import { Link } from "@inertiajs/react";
+import { ReactElement, ReactNode, useState } from "react";
+import { Box, Container, LinearProgress, Skeleton, Typography } from "@mui/material";
+import { ArrowForwardRounded, CheckRounded, DownloadRounded, HourglassTopRounded, LockOutlined, OpenInNewRounded, WorkspacePremiumRounded } from "@mui/icons-material";
+import { Deferred, Link } from "@inertiajs/react";
 import OnboardingShell from "../../../components/layouts/OnboardingShell";
 import StyledButton from "../../../components/utils/StyledButton";
 import FireLogo from "../../../components/fire/FireLogo";
+import ModuleLogo from "../../../components/fire/ModuleLogo";
 import SpotIcon, { SpotName } from "../../../components/utils/SpotIcon";
 import UserAvatar from "../../../components/utils/user/UserAvatar";
+import ActivationRequestForm from "../../../components/onboarding/ActivationRequestForm";
 import { formatDate } from "../../../helpers/formatDate";
 
 type Status = "done" | "current" | "waiting" | "upcoming";
 
 interface Milestone {
-    key: "registered" | "photo" | "nao" | "fire" | "first_sale";
+    key: "registered" | "photo" | "nao" | "fire" | "activation";
     title: string;
     status: Status;
     date: string | null;
     detail: string;
     certificates?: number;
     of?: number;
+    // Activation: the latest request for activation sent (null = none yet).
+    activation?: ActivationRequest | null;
+}
+
+interface ActivationRequest {
+    submitted_at: string;
+    request_form: string;
+    proof_of_transaction: string;
+    notes: string | null;
 }
 
 interface JourneyProps {
@@ -29,10 +40,21 @@ interface JourneyProps {
     };
     // The reader's own journey: speak to them ("you"), and offer the next step.
     own: boolean;
+    maxFileKb: number;
+    // Loaded after the page (asks the training site): the certificates earned, each with its download.
+    certificates?: { items: Certificate[]; error: string | null };
+}
+
+interface Certificate {
+    module: number;
+    title: string;
+    brand: "rentph" | null;
+    taken_on: string | null;
+    url: string;
 }
 
 // Short names for the journey bar.
-const LABELS: Record<Milestone["key"], string> = { registered: "Registered", photo: "Profile photo", nao: "NAO", fire: "FIRE", first_sale: "First sale" };
+const LABELS: Record<Milestone["key"], string> = { registered: "Registered", photo: "Profile photo", nao: "NAO", fire: "FIRE", activation: "Activation" };
 
 const primaryButton = { px: 3, py: 1.1, fontSize: 15, backgroundColor: "var(--lr-primary)", color: "var(--lr-on-primary)", ":hover": { backgroundColor: "var(--lr-primary-hover)" } };
 
@@ -100,7 +122,7 @@ function JourneyBar({ milestones }: { milestones: Milestone[] }) {
                                 {LABELS[m.key]}
                             </Typography>
                             <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
-                                {m.status === "done" ? (m.date ? formatDate(m.date) : "Done") : m.status === "waiting" ? "Waiting for approval" : active ? "Next up" : "Later"}
+                                {m.status === "done" ? (m.date ? formatDate(m.date) : "Done") : m.status === "waiting" ? (m.key === "activation" ? "Waiting for activation" : "Waiting for approval") : active ? "Next up" : "Later"}
                             </Typography>
                         </Box>
                     </Box>
@@ -119,21 +141,88 @@ function nextAction(next: Milestone): { href: string; label: string } | null {
             return { href: "/profile", label: "Add my photo" };
         case "nao":
             return next.status === "waiting" ? null : { href: "/welcome/nao", label: "Continue my NAO" };
-        case "first_sale":
-            return { href: "/dashboard/record-sale", label: "Record a sale" };
+        // Sent from the card itself (the activation request uploader).
+        case "activation":
+            return null;
         default:
             return null;
     }
 }
 
+// What activating the LR account takes, and the uploader — or, once sent, what was sent (with a way to send it again).
+function Activation({ request, own, maxFileKb }: { request: ActivationRequest | null; own: boolean; maxFileKb: number }) {
+    const [resend, setResend] = useState(false);
+    const steps = [
+        "Close your first sale and have it ready for encoding.",
+        "Fill in and sign your request for activation.",
+        "Upload it here with the sale's proof of transaction — the office activates your account and encodes your sale.",
+    ];
+    const file = (href: string, label: string) => (
+        <a href={href} target="_blank" rel="noopener" style={{ textDecoration: "none" }}>
+            <StyledButton variant="outlined" size="small" endIcon={<OpenInNewRounded />} sx={{ color: "var(--lr-primary)", borderColor: "var(--lr-outline)", backgroundColor: "var(--lr-surface)" }}>
+                {label}
+            </StyledButton>
+        </a>
+    );
+
+    return (
+        <Box sx={{ mt: 2.5 }}>
+            {own && !request && (
+                <Box component="ol" sx={{ m: 0, mb: 3, pl: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 1.25 }}>
+                    {steps.map((text, i) => (
+                        <Box component="li" key={i} sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+                            <Box sx={{ width: 26, height: 26, flexShrink: 0, borderRadius: "50%", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 700, color: "var(--lr-on-primary)", backgroundColor: "var(--lr-primary)" }}>{i + 1}</Box>
+                            <Typography variant="body2" sx={{ pt: 0.3, color: "var(--lr-text-body)" }}>
+                                {text}
+                            </Typography>
+                        </Box>
+                    ))}
+                </Box>
+            )}
+            {request ? (
+                <Box sx={{ p: 2, borderRadius: 3, border: "1px solid var(--lr-border)", backgroundColor: "var(--lr-surface)" }}>
+                    <Typography variant="body2" sx={{ display: "flex", alignItems: "center", gap: 1, fontWeight: 600, color: "var(--lr-text-primary)" }}>
+                        <HourglassTopRounded sx={{ fontSize: 18, color: "var(--lr-primary)" }} /> Request for activation sent {formatDate(request.submitted_at)}
+                    </Typography>
+                    {request.notes && (
+                        <Typography variant="body2" sx={{ mt: 0.75, color: "var(--lr-text-secondary)", whiteSpace: "pre-line" }}>
+                            {request.notes}
+                        </Typography>
+                    )}
+                    <Box sx={{ mt: 1.5, display: "flex", gap: 1, flexWrap: "wrap" }}>
+                        {file(request.request_form, "Request for activation")}
+                        {file(request.proof_of_transaction, "Proof of transaction")}
+                        {own && !resend && (
+                            <StyledButton size="small" onClick={() => setResend(true)} sx={{ color: "var(--lr-primary)" }}>
+                                Send again
+                            </StyledButton>
+                        )}
+                    </Box>
+                </Box>
+            ) : (
+                !own && (
+                    <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)" }}>
+                        No request for activation yet.
+                    </Typography>
+                )
+            )}
+            {own && (!request || resend) && (
+                <Box sx={{ mt: request ? 2.5 : 0 }}>
+                    <ActivationRequestForm maxFileKb={maxFileKb} onCancel={request ? () => setResend(false) : undefined} onSent={() => setResend(false)} />
+                </Box>
+            )}
+        </Box>
+    );
+}
+
 // The next step, as an invitation: FIRE gets its own logo and a warm word; the others a short nudge.
-function NextStep({ next, name, own, naoDone }: { next: Milestone; name: string; own: boolean; naoDone: boolean }) {
-    const card = (art: ReactNode, title: string, text: string, action?: ReactNode, extra?: ReactNode) => (
+function NextStep({ next, name, own, naoDone, maxFileKb }: { next: Milestone; name: string; own: boolean; naoDone: boolean; maxFileKb: number }) {
+    const card = (art: ReactNode, title: string, text: string, action?: ReactNode, extra?: ReactNode, alignTop = false) => (
         <Box
             sx={{
                 display: "flex",
                 flexDirection: { xs: "column", md: "row" },
-                alignItems: { md: "center" },
+                alignItems: { md: alignTop ? "flex-start" : "center" },
                 gap: { xs: 2.5, md: 4 },
                 p: { xs: 3, sm: 4 },
                 borderRadius: 4,
@@ -192,23 +281,115 @@ function NextStep({ next, name, own, naoDone }: { next: Milestone; name: string;
             </Box>,
         );
     }
+    if (next.key === "activation") {
+        const waiting = next.status === "waiting";
+        return card(
+            <SpotIcon name="trophy" size={72} />,
+            waiting ? (own ? "Your activation is on its way" : "Activation requested") : own ? "Activate your LR account with your first sale" : `${name}'s activation`,
+            own
+                ? waiting
+                    ? "Thanks! The office will check your request, activate your account and encode your sale. You'll see it here once it's in."
+                    : "Training done — now it's time to close. Your LR account is activated with your first sale: once it's ready for encoding, send your request for activation together with the sale's proof of transaction."
+                : next.detail,
+            undefined,
+            <Activation request={next.activation ?? null} own={own} maxFileKb={maxFileKb} />,
+            // A tall card (the uploader): the trophy stays beside the title.
+            true,
+        );
+    }
     if (next.key === "registered") return null;
-    const steps: Record<"photo" | "nao" | "first_sale", [SpotName, string, string]> = {
+    const steps: Record<"photo" | "nao", [SpotName, string, string]> = {
         photo: ["team", "Add your profile photo", "A clear, friendly photo helps clients and your team recognise you — on your profile and your business card."],
         nao: ["graduation", next.status === "waiting" ? "Your NAO is being reviewed" : "Complete your NAO", next.detail],
-        first_sale: ["trophy", "Go for your first sale", "Training done — now it's time to close. Record your first sale and your team will celebrate it with you."],
     };
     const [art, title, text] = steps[next.key];
     return card(<SpotIcon name={art} size={72} />, title, text, go ?? undefined);
 }
 
+// The certificates earned so far, each downloadable as an image (FIRE modules' Certificates of Completion, Rent.ph's Rent Manager
+// accreditation). Nothing to show until there's at least one.
+function Certificates({ data, own }: { data?: JourneyProps["certificates"]; own: boolean }) {
+    const rentLocked = own && !!data && !data.error && !data.items.some((c) => c.brand === "rentph");
+    if (!data) return null;
+    if (data.error) {
+        return (
+            <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)" }}>
+                Certificates can't be loaded right now: {data.error}
+            </Typography>
+        );
+    }
+    if (!data.items.length && !rentLocked) return null;
+
+    return (
+        <Box>
+            <Typography component="h2" sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: 18, fontWeight: 700, color: "var(--lr-text-primary)", mb: 1.5 }}>
+                <WorkspacePremiumRounded sx={{ color: "var(--lr-accent)" }} /> {own ? "Your certificates" : "Certificates"}
+            </Typography>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+                {data.items.map((c) => (
+                    <Box key={c.module} sx={{ display: "flex", alignItems: "center", gap: 2, p: 2, borderRadius: 3, border: "1px solid var(--lr-border)", backgroundColor: "var(--lr-surface)" }}>
+                        <Box sx={{ width: c.brand === "rentph" ? 92 : 44, flexShrink: 0 }}>
+                            {/* FIRE's shield alone (the wordmark is unreadable this small); Rent.ph's logo as is. */}
+                            {c.brand === "rentph" ? (
+                                <ModuleLogo module={{ brand: "rentph" }} width={150} />
+                            ) : (
+                                <FireLogo sx={{ width: 44, height: 48, objectFit: "cover", objectPosition: "left center" }} />
+                            )}
+                        </Box>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)", fontWeight: 600 }}>
+                                {c.brand === "rentph" ? "Certificate of Accreditation" : "Certificate of Completion"}
+                            </Typography>
+                            <Typography sx={{ fontWeight: 600, color: "var(--lr-text-primary)", lineHeight: 1.3 }}>{c.brand === "rentph" ? "Rent Manager" : c.title}</Typography>
+                            {c.taken_on && (
+                                <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
+                                    {c.taken_on}
+                                </Typography>
+                            )}
+                        </Box>
+                        {/* A file download, not a page: a plain link. */}
+                        <a href={c.url} download style={{ textDecoration: "none", flexShrink: 0 }}>
+                            <StyledButton variant="outlined" size="small" startIcon={<DownloadRounded />} sx={{ color: "var(--lr-primary)", borderColor: "var(--lr-outline)" }}>
+                                Download
+                            </StyledButton>
+                        </a>
+                    </Box>
+                ))}
+                {/* Rent.ph's certificate is open to everyone: until it's earned, the way to it. */}
+                {rentLocked && (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2, p: 2, borderRadius: 3, border: "1px dashed var(--lr-outline)", backgroundColor: "var(--lr-surface)" }}>
+                        <Box sx={{ width: 92, flexShrink: 0 }}>
+                            <ModuleLogo module={{ brand: "rentph" }} width={150} />
+                        </Box>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="caption" sx={{ display: "flex", alignItems: "center", gap: 0.5, color: "var(--lr-text-secondary)", fontWeight: 600 }}>
+                                <LockOutlined sx={{ fontSize: 13 }} /> Certificate of Accreditation
+                            </Typography>
+                            <Typography sx={{ fontWeight: 600, color: "var(--lr-text-primary)", lineHeight: 1.3 }}>Rent Manager</Typography>
+                            <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
+                                Pass Rent.ph's exam to download it.
+                            </Typography>
+                        </Box>
+                        <Link href="/fire/12" style={{ textDecoration: "none", flexShrink: 0 }}>
+                            <StyledButton variant="outlined" size="small" endIcon={<ArrowForwardRounded />} sx={{ color: "var(--lr-primary)", borderColor: "var(--lr-outline)" }}>
+                                Take it
+                            </StyledButton>
+                        </Link>
+                    </Box>
+                )}
+            </Box>
+        </Box>
+    );
+}
+
 // An agent's onboarding journey, as a page of its own: a greeting, the journey at a glance, and an invitation to the next step
 // (FIRE once the NAO is done). Opened from the NAO step, the profile menu ("My journey") or an agent's profile.
-function Journey({ journey, own }: JourneyProps) {
+function Journey({ journey, own, maxFileKb, certificates }: JourneyProps) {
     const { agent, milestones, done } = journey;
     const name = agent.first_name || agent.name;
     const next = milestones.find((m) => m.status !== "done");
     const naoDone = milestones.find((m) => m.key === "nao")?.status === "done";
+    const activation = milestones.find((m) => m.key === "activation");
     const where = [agent.branch && `${agent.branch} branch`, [agent.team, agent.sub_team].filter(Boolean).join(" / ")].filter(Boolean).join(" · ");
     const action = own && next ? nextAction(next) : null;
 
@@ -253,9 +434,33 @@ function Journey({ journey, own }: JourneyProps) {
             {/* The invitation. */}
             {next && (
                 <Box sx={{ order: { xs: 1, sm: 2 }, mt: 3 }}>
-                    <NextStep next={next} name={name} own={own} naoDone={naoDone} />
+                    <NextStep next={next} name={name} own={own} naoDone={naoDone} maxFileKb={maxFileKb} />
                 </Box>
             )}
+
+            {/* Every step done: the account is active. */}
+            {!next && activation && (
+                <Box sx={{ order: { xs: 1, sm: 2 }, mt: 3, display: "flex", alignItems: "center", gap: { xs: 2, sm: 3 }, p: { xs: 2.5, sm: 3.5 }, borderRadius: 4, border: "1px solid var(--lr-border)", backgroundColor: "var(--lr-surface)", boxShadow: "var(--lr-shadow)" }}>
+                    <SpotIcon name="trophy" size={64} />
+                    <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="caption" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, fontWeight: 700, letterSpacing: "0.08em", color: "var(--lr-success)" }}>
+                            <CheckRounded sx={{ fontSize: 16 }} /> ACTIVATION COMPLETE
+                        </Typography>
+                        <Typography component="h2" sx={{ fontSize: { xs: 19, sm: 22 }, fontWeight: 700, color: "var(--lr-text-primary)" }}>
+                            {own ? "Your LR account is active" : `${name}'s LR account is active`}
+                        </Typography>
+                        <Typography variant="body2" sx={{ mt: 0.5, color: "var(--lr-text-body)" }}>
+                            Activated with {own ? "your" : "their"} first sale{activation.date ? ` on ${formatDate(activation.date)}` : ""}.{own ? " Keep closing — your team is behind you." : ""}
+                        </Typography>
+                    </Box>
+                </Box>
+            )}
+
+            <Box sx={{ order: 3, mt: 3 }}>
+                <Deferred data="certificates" fallback={<Skeleton variant="rounded" height={84} sx={{ borderRadius: 3 }} />}>
+                    <Certificates data={certificates} own={own} />
+                </Deferred>
+            </Box>
 
             {agent.sponsor && (
                 <Box sx={{ order: 3, mt: 3, display: "flex", alignItems: "center", gap: 1, color: "var(--lr-text-secondary)" }}>

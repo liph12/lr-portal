@@ -10,6 +10,10 @@ use App\Policies\UserPolicy;
 use App\Http\Requests\Portal\Agents\ChangeUplineRequest;
 use App\Http\Requests\Portal\Agents\UpdateAgentProfileRequest;
 use App\Services\AgentJourneyService;
+use RuntimeException;
+use Illuminate\Support\Str;
+use App\Services\FireCertificateImage;
+use App\Services\FireTrainingService;
 use App\Services\AgentUplineService;
 use App\Services\GlobalPartnerService;
 use App\Services\ProfileService;
@@ -20,6 +24,8 @@ use App\Services\SalesReportService;
 use App\Support\Areas;
 use App\Support\SocialLinks;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use App\Http\Requests\Portal\Sales\SaleRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -205,20 +211,68 @@ class AgentProfileController extends Controller
         ]);
     }
 
-    // An agent's onboarding journey (registered → photo → NAO → FIRE → first sale): the same readers as the profile.
-    public function journey(Request $request, Agent $agent, AgentJourneyService $journeys)
+    // An agent's onboarding journey (registered → photo → NAO → FIRE → activation): the same readers as the profile.
+    public function journey(Request $request, Agent $agent, AgentJourneyService $journeys, FireTrainingService $fire)
     {
         abort_unless($this->canView($request->user(), $agent), 403);
 
-        return inertia('Portal/Agents/Journey', ['journey' => $journeys->for($agent), 'own' => $agent->user_id === $request->user()->id]);
+        return inertia('Portal/Agents/Journey', ['journey' => $journeys->for($agent), 'own' => $agent->user_id === $request->user()->id, 'maxFileKb' => $this->maxFileKb(), 'certificates' => $this->certificatesProp($agent, $fire)]);
     }
 
     // The signed-in agent's own journey.
-    public function myJourney(Request $request, AgentJourneyService $journeys)
+    public function myJourney(Request $request, AgentJourneyService $journeys, FireTrainingService $fire)
     {
         $agent = $request->user()->agent ?? abort(404);
 
-        return inertia('Portal/Agents/Journey', ['journey' => $journeys->for($agent), 'own' => true]);
+        return inertia('Portal/Agents/Journey', ['journey' => $journeys->for($agent), 'own' => true, 'maxFileKb' => $this->maxFileKb(), 'certificates' => $this->certificatesProp($agent, $fire)]);
+    }
+
+    // The FIRE / Rent.ph certificates an agent earned, as a download (JPEG drawn on the module's template): the same readers as
+    // the profile, and only for a module they passed.
+    public function certificate(Request $request, Agent $agent, int $module, FireTrainingService $fire, FireCertificateImage $images)
+    {
+        abort_unless($this->canView($request->user(), $agent) && FireCertificateImage::has($module), 404);
+        try {
+            $passed = collect($fire->modules($agent))->first(fn ($m) => $m['id'] === $module && $m['passed']);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        abort_unless($passed, 404);
+
+        $name = trim(preg_replace('/\s+/', ' ', "{$agent->first_name} {$agent->middle_name} {$agent->last_name}")) ?: (string) $agent->user?->name;
+        $takenOn = rescue(fn () => $passed['taken_on'] ? Carbon::parse($passed['taken_on']) : null, null, false);
+        if ($module === FireTrainingService::RENT_MODULE) {
+            $issued = $takenOn ?? now();
+            $bytes = $images->rentManager($name, $issued, $issued->copy()->addYear(), 'RM-'.$issued->year.'-'.$agent->id);
+            $file = 'Rent-Manager-Certificate';
+        } else {
+            $bytes = $images->fire($module, $name, $takenOn);
+            $file = 'FIRE-Certificate-'.Str::slug($passed['title']);
+        }
+
+        return response($bytes, 200, [
+            'Content-Type' => 'image/jpeg',
+            'Content-Disposition' => 'attachment; filename="'.$file.'-'.Str::slug($name).'.jpg"',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    // The upload ceiling: the app's 20MB, or less if PHP's own limit is lower.
+    private function maxFileKb(): int
+    {
+        return min(SaleRequest::MAX_FILE_KB, intdiv(UploadedFile::getMaxFilesize(), 1024));
+    }
+
+    // Loaded after the page (it asks the training site): each certificate with its download link.
+    private function certificatesProp(Agent $agent, FireTrainingService $fire)
+    {
+        return Inertia::defer(function () use ($agent, $fire) {
+            try {
+                return ['items' => array_map(fn ($c) => $c + ['url' => route('agents.certificate', [$agent, $c['module']])], $fire->certificates($agent)), 'error' => null];
+            } catch (RuntimeException $e) {
+                return ['items' => [], 'error' => $e->getMessage()];
+            }
+        });
     }
 
     // Who may open an agent's profile: the back office, team managers, the agent, their leaders, their office's secretary
