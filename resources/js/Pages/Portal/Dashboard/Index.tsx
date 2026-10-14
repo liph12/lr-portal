@@ -275,6 +275,7 @@ function Dashboard({ posters }: { posters: DashboardPoster[] }) {
                     <Grid size={{ lg: 3, sm: 6, xs: 12 }}>
                         <DashboardCardApp
                             icon={GenerateIdIcon}
+                            href="/dashboard/lr-id"
                             title="Generate LR ID"
                             subTitle="Leuterio Realty"
                             description="Generate, print and preview the front and back portions of your LR ID."

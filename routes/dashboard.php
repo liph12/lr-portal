@@ -1,8 +1,8 @@
 <?php
 
 use App\Http\Controllers\Portal\DashboardController;
-use App\Http\Controllers\Portal\SalesReportController;
 use App\Http\Controllers\Portal\Sales\SaleController;
+use App\Http\Controllers\Portal\SalesReportController;
 use App\Models\Entities\AgentTransaction;
 use App\Models\Entities\InternationalSale;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +18,12 @@ Route::prefix('dashboard')->name('dashboard.')->group(function () {
     // Everything for view_reports; team leaders / unit managers get their own team (the controller decides).
     Route::get('/view-sales', [SalesReportController::class, 'index'])->name('view-sales');
     Route::get('/view-sales/developer', fn () => redirect()->route('dashboard.view-sales', ['view' => 'developers']))->name('view-sales.developer');
+
+    // Generate LR ID: anyone signed in (an agent record is made on first visit, like /profile); the card itself is
+    // drawn in the browser, so the server only supplies the data, the photo and a download log.
+    Route::get('/lr-id', [DashboardController::class, 'lrId'])->name('lr-id');
+    Route::get('/lr-id/photo', [DashboardController::class, 'lrIdPhoto'])->name('lr-id.photo');
+    Route::post('/lr-id/downloaded', [DashboardController::class, 'lrIdDownloaded'])->name('lr-id.downloaded');
 
     // The landing page is for anyone who can record either kind; each form has its own gate.
     Route::get('/record-sale', [DashboardController::class, 'recordSale'])->name('record-sale');

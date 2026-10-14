@@ -3,20 +3,21 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Portal\LogLrIdDownloadRequest;
 use App\Models\Entities\AgentTransaction;
 use App\Models\Entities\InternationalSale;
-use App\Services\SaleValidationService;
 use App\Services\DashboardPosterService;
+use App\Services\LrIdService;
 use App\Services\ProfileService;
-use App\Services\SalesReportService;
 use App\Services\SalesEncodingService;
+use App\Services\SalesReportService;
+use App\Services\SaleValidationService;
 use App\Services\TeamLeadershipService;
 use Illuminate\Http\Request;
 
 // The dashboard every signed-in role shares (/dashboard/...); only Record Your Sale is permission-gated.
 class DashboardController extends Controller
 {
-
     // "Your links" needs an agent record (the contact slug lives on it), so one is created here on first use like /profile.
     public function index(Request $request, ProfileService $profiles, DashboardPosterService $posters)
     {
@@ -24,6 +25,28 @@ class DashboardController extends Controller
 
         // Announcements beside the welcome (Settings › Dashboard posters), as a carousel.
         return inertia('Portal/Dashboard/Index', ['posters' => $posters->showing()]);
+    }
+
+    // Generate LR ID: the official agent ID card, previewed, downloaded and printed from the agent's own record.
+    public function lrId(Request $request, LrIdService $ids)
+    {
+        return inertia('Portal/Dashboard/LrId/Index', ['card' => $ids->card($request->user())]);
+    }
+
+    // The agent's own profile photo from this origin, so the card canvas can draw it.
+    public function lrIdPhoto(Request $request, LrIdService $ids)
+    {
+        $photo = $ids->photo($request->user());
+        abort_unless($photo, 404);
+
+        return response($photo[0], 200, ['Content-Type' => $photo[1], 'Cache-Control' => 'private, max-age=300']);
+    }
+
+    public function lrIdDownloaded(LogLrIdDownloadRequest $request, LrIdService $ids)
+    {
+        $ids->downloaded($request->user());
+
+        return back();
     }
 
     // Sales at a glance: the back office sees the whole system, team leaders / unit managers their own team or

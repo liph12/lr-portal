@@ -1,11 +1,14 @@
 import { Box, Typography } from "@mui/material";
 import { ArrowForwardRounded } from "@mui/icons-material";
+import { Link } from "@inertiajs/react";
 
 interface DashboardCardAppProps {
     title: string;
     subTitle: string;
     description: string;
     icon: string;
+    // Where the card opens; without one it is a placeholder for a tool that is not in the portal yet.
+    href?: string;
 }
 
 export default function DashboardCardApp({
@@ -13,10 +16,15 @@ export default function DashboardCardApp({
     subTitle,
     description,
     icon,
+    href,
 }: DashboardCardAppProps) {
     return (
         <Box
+            component={href ? Link : "div"}
+            href={href}
             sx={{
+                textDecoration: "none",
+                color: "inherit",
                 p: 2.5,
                 border: "1px solid var(--lr-border)",
                 borderRadius: 3,
@@ -48,16 +56,29 @@ export default function DashboardCardApp({
                     flexShrink: 0,
                 }}
             >
-                <Box component="img" src={icon} alt="" sx={{ width: 26, height: "auto" }} />
+                <Box
+                    component="img"
+                    src={icon}
+                    alt=""
+                    sx={{ width: 26, height: "auto" }}
+                />
             </Box>
 
             <Typography
                 variant="body2"
-                sx={{ mt: 2, fontWeight: 500, color: "var(--lr-text-primary)", lineHeight: 1.4 }}
+                sx={{
+                    mt: 2,
+                    fontWeight: 500,
+                    color: "var(--lr-text-primary)",
+                    lineHeight: 1.4,
+                }}
             >
                 {title}
             </Typography>
-            <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)", fontWeight: 500 }}>
+            <Typography
+                variant="caption"
+                sx={{ color: "var(--lr-text-secondary)", fontWeight: 500 }}
+            >
                 {subTitle}
             </Typography>
             <Typography

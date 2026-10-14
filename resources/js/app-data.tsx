@@ -18,6 +18,7 @@ import {
     PublicRounded,
     ReceiptLongRounded,
     AccountTreeRounded,
+    BadgeRounded,
 } from "@mui/icons-material";
 import { REPORTS } from "./components/reports/reportCatalog";
 import { NATCON_BOARDS } from "./components/natcon/natconCatalog";
@@ -87,6 +88,14 @@ export const dashboardRoute = {
                 },
             ],
             icon: NoteAdd,
+        },
+        {
+            name: "Generate LR ID",
+            path: "/dashboard/lr-id",
+            // Opened from the Tools & apps card on Main; kept here for breadcrumbs and search.
+            tab: false,
+            children: [],
+            icon: BadgeRounded,
         },
         {
             name: "View Sales",
