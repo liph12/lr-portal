@@ -312,6 +312,11 @@ export const myTeamRoute = {
 // `parent` is the menu path they sit under (left out when the reader's menu doesn't have it).
 export const pagesOutsideMenu = [
     { name: "Agent profile", path: "/agents/:agent", parent: "/reports" },
+    { name: "Journey", path: "/agents/:agent/journey", parent: "/reports" },
+    { name: "My journey", path: "/my-journey" },
+    { name: "FIRE", path: "/fire" },
+    { name: "FIRE module", path: "/fire/:module", parent: "/fire" },
+    { name: "FIRE exam", path: "/fire/:module/exam", parent: "/fire" },
     { name: "Edit profile", path: "/profile" },
 ];
 

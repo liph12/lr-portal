@@ -207,7 +207,8 @@ at the matching path. Nothing else.
   done; "chose the webinar" = `nao_video_saved_at` set).
   **NAO Approvals** (`/nao-approvals`, every role, `routes/nao-approvals.php`, `Portal\NaoApprovalController`,
   `NaoApprovalService`, page `Portal/NaoApprovals/Index`): every `yes` / `disapproved` row — sent from onboarding or imported
-  from legacy (no `nao_attendance_submitted_at`), newest NAO date first. Filters (in the URL): status tabs, search, `team_id`,
+  from legacy (no `nao_attendance_submitted_at`), newest NAO date first. Filters (in the URL): status tabs, search (any row detail: name, email, mobile by digits, member #, sponsor, current team /
+  sub-team, branch name), `team_id`,
   `sub_team_id` (labelled by unit manager) — choices from the agents in reach (`groupOptions`, cached) — and `person` (an agent,
   or everyone they sponsored; typeahead = optional prop `personOptions` via a partial reload with `?person_q=`, within reach;
   `components/utils/tables/FilterAutocomplete` = FilterSelect's searchable sibling). Reach from the data (`reach`): back office nationwide; anyone else = their recruits + current members of the
@@ -224,6 +225,30 @@ at the matching path. Nothing else.
   at most the time since the last one (≤ 2 min) + 20 s ahead (`nao_video_saved_at`, migration `000052`); 100% finishes the step.
   That route is in `data_cache.ignore_paths` and `activity_log.except_paths` (it fires every 30 s). "Skip for now"
   (`POST /welcome/skip`) stops the redirect for the session; never while impersonating.
+- **Onboarding journey** (`/my-journey` for oneself, `/agents/{agent}/journey` for whoever may open that profile —
+  `AgentProfileController::myJourney/journey`, `AgentJourneyService`, page `Portal/Agents/Journey` — a focused page in
+  `layouts/OnboardingShell` (no sidebar / menus / banners; `exit` = back to the dashboard, or to the profile it was opened from)): a time-of-day greeting with the agent's photo (no role: it's about
+  their journey), "x / 5 milestones", a horizontal journey bar (vertical on phones) and **one invitation card for the next step** — FIRE with
+  its logo, "modules passed x of 3" and Start / Continue FIRE once the NAO is done; photo / NAO / first sale otherwise. Milestones — Registered (`lr_joined_at`, else `created_at`) → Profile photo
+  (first `profile.photo_updated` log) → NAO (approved: `nao_attendance_reviewed_at` + who; webinar: `nao.webinar_finished` log; `yes`
+  unreviewed = waiting) → FIRE (`fire_certificates` of 3; "Take FIRE" under the headline and "Start / Continue FIRE training" on the card → `/fire`, on one's own journey) → First sale. The
+  first unfinished one is "Next up"; dates come from the data and readable activity-log entries whose subject is the agent. Linked
+  from the finished NAO screen, the profile menu ("My journey") and the profile page ("Journey").
+- **FIRE** (Filipinohomes Institute of Real Estate — itself the training, so never "FIRE training"; logo `components/fire/FireLogo`,
+  white lettering in dark mode; `/fire`, `/fire/{module}`, `/fire/{module}/exam`; `routes/fire.php`, `Portal\FireTrainingController`,
+  `FireTrainingService`, pages `Portal/Fire/{Index,Module,Exam}` in `layouts/OnboardingShell`; anyone with an agent record): the
+  realestatetraining.ph integration API (`services.fire` = `FIRE_API_URL` + `FIRE_API_KEY`, sent as `x-api-key` **from the server only** —
+  never to the browser). `register-or-resolve` (email, first / last name, photo, sponsor as `invitedBy`; cached a day) →
+  `current-courses` (11 modules: video — YouTube iframe or a file —, slides PDF, learning points, speaker + photo (file name URL-encoded), scores) + **module 12, Rent.ph's "Become
+  a Rent Manager"** (`RENT_MODULE`, built in the service: Rent.ph logo — `components/fire/ModuleLogo` —, no speaker, its two training
+  videos `RENT_VIDEOS`, passed when `rental-score` answers 200; its exam is `GET rent-exam` (15 questions, 4–5 choice *texts* each,
+  shown A–E, numbered by question id) and `POST submit-rent-exam` `{answers: [{id, question, answer: <choice text>}], email}` →
+  `[{id, question, choice, correct}]`; pass = 70% → 11 of 15, `FireTrainingService::passScore`; it doesn't count toward `fire_certificates`) → `course-exam` (questions + A–D choices, no answers; only modules 1–3 have questions
+  on the site so far, the rest say "exam coming soon") → `store-exam-answers` (`{course_id, answers: [{question, answer}], email}` →
+  `results[].correct`, `totalPassed`). Pass = 7 of 10 (`PASS_SCORE`). `agent_attributes.fire_certificates` = the site's passes
+  (after an exam, and synced up when /fire opens), so the journey (FIRE done at 3), Recruits and stats follow. The video may be
+  skipped; the exam opens any time and can be retaken, in a new question order each time (shuffled in `FireTrainingController::exam`;
+  answers keep their question numbers, results are numbered by `position` as shown). Site down / no key → a readable warning, never an error page.
 - **Profile / avatars**: `/profile` is shared by every role (`routes/profile.php`, required inside the
   `auth` group; `Portal\ProfileController`). A user's agent record is created on first use by
   `ProfileService::agentFor()`. Photos are **cropped in the browser first** (`components/utils/user/PhotoCropper`: square, round guide, drag / scroll /

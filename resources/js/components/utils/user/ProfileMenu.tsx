@@ -1,6 +1,6 @@
 import { MouseEvent, useState } from "react";
 import { Box, ButtonBase, Divider, ListItemIcon, ListItemText, ListSubheader, Menu, MenuItem, Typography } from "@mui/material";
-import { AccountCircleOutlined, BadgeOutlined, LogoutRounded, SettingsOutlined, UndoRounded, VisibilityOutlined } from "@mui/icons-material";
+import { AccountCircleOutlined, BadgeOutlined, LogoutRounded, RouteRounded, SettingsOutlined, UndoRounded, VisibilityOutlined } from "@mui/icons-material";
 import { router } from "@inertiajs/react";
 import useAuthUser from "../../../hooks/useAuthUser";
 import { leavePresence } from "../../../helpers/presence";
@@ -94,6 +94,14 @@ export default function ProfileMenu() {
                             <BadgeOutlined fontSize="small" />
                         </ListItemIcon>
                         <ListItemText primary="My profile" slotProps={itemTextSx} />
+                    </MenuItem>
+                )}
+                {user.agent_id && (
+                    <MenuItem onClick={() => go("/my-journey")}>
+                        <ListItemIcon>
+                            <RouteRounded fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText primary="My journey" slotProps={itemTextSx} />
                     </MenuItem>
                 )}
                 <MenuItem onClick={() => go("/profile")} sx={user.agent_id ? undefined : { mt: 0.5 }}>

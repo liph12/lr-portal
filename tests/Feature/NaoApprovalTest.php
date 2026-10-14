@@ -145,3 +145,18 @@ test('filters: team, unit manager (sub-team) and a sponsor / agent, with choices
     // Someone outside the reader's reach isn't named back.
     $this->actingAs($this->sponsorUser)->get("/nao-approvals?person={$this->davao}")->assertInertia(fn ($page) => $page->where('person', null)->where('submissions.total', 0));
 });
+
+test('search finds an attendance by any detail: name, email, mobile, member #, sponsor, team, sub-team or branch', function () {
+    DB::table('agents')->where('id', $this->davao)->update(['mobile' => '0917 555-1234']);
+    $ids = fn (string $q) => collect($this->actingAs($this->staff)->get('/nao-approvals?status=all&q='.urlencode($q))->viewData('page')['props']['submissions']['data'])->pluck('id')->sort()->values()->all();
+
+    expect($ids('Rita'))->toBe([$this->recruit])
+        ->and($ids('Sam Spon'))->toBe([$this->recruit])
+        ->and($ids('Unit A'))->toBe([$this->unitMember])
+        ->and($ids('Team A'))->toContain($this->teamMember, $this->unitMember)
+        ->and($ids('Davao'))->toBe([$this->davao])
+        ->and($ids('09175551234'))->toBe([$this->davao])
+        ->and($ids((string) $this->recruit))->toContain($this->recruit);
+    // The counts search the same way.
+    $this->actingAs($this->staff)->get('/nao-approvals?q=Davao')->assertInertia(fn ($page) => $page->where('counts.pending', 1));
+});

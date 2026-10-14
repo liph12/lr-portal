@@ -268,9 +268,32 @@ class NaoApprovalService
         if ($f['person']) {
             $query->where(fn ($q) => $q->where('a.id', $f['person'])->orWhere('at.referral_id', $f['person']));
         }
+        // Any detail on the row: the agent's name, email, mobile or member id, their sponsor, current team / sub-team, or branch.
+        // Sub-queries, not joins, so the counts and the table search the same way.
         if ($f['q'] !== null && mb_strlen($f['q']) >= 2) {
-            $like = '%'.addcslashes($f['q'], '%_\\').'%';
-            $query->where(fn ($q) => $q->where('u.name', 'like', $like)->orWhere('u.email', 'like', $like));
+            $term = $f['q'];
+            $like = '%'.addcslashes($term, '%_\\').'%';
+            $digits = preg_replace('/\D/', '', $term);
+            $areas = collect(config('areas'))->filter(fn ($a) => mb_stripos($a['name'], $term) !== false)->keys()->all();
+            $query->where(function ($q) use ($like, $digits, $areas, $term) {
+                $q->where('u.name', 'like', $like)->orWhere('u.email', 'like', $like)
+                    ->orWhereExists(fn ($s) => $s->from('agents as qsp')->join('users as qspu', 'qspu.id', '=', 'qsp.user_id')
+                        ->whereColumn('qsp.id', 'at.referral_id')->where(fn ($w) => $w->where('qspu.name', 'like', $like)->orWhere('qspu.email', 'like', $like)))
+                    ->orWhereExists(fn ($s) => $s->from('team_agents as qta')->join('teams as qt', 'qt.id', '=', 'qta.team_id')
+                        ->whereColumn('qta.agent_id', 'a.id')->where('qta.status', 'active')->where('qt.name', 'like', $like))
+                    ->orWhereExists(fn ($s) => $s->from('sub_team_agents as qsa')->join('sub_teams as qs', 'qs.id', '=', 'qsa.sub_team_id')
+                        ->whereColumn('qsa.agent_id', 'a.id')->where('qsa.status', 'active')->where('qs.name', 'like', $like));
+                // Mobile numbers are stored with spaces / dashes in many shapes: compare digits only.
+                if (strlen($digits) >= 4) {
+                    $q->orWhereRaw("REPLACE(REPLACE(REPLACE(a.mobile, ' ', ''), '-', ''), '+', '') LIKE ?", ['%'.$digits.'%']);
+                }
+                if (ctype_digit($term)) {
+                    $q->orWhere('a.id', (int) $term);
+                }
+                if ($areas) {
+                    $q->orWhereIn('a.area', $areas);
+                }
+            });
         }
 
         return $query;

@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Policies\UserPolicy;
 use App\Http\Requests\Portal\Agents\ChangeUplineRequest;
 use App\Http\Requests\Portal\Agents\UpdateAgentProfileRequest;
+use App\Services\AgentJourneyService;
 use App\Services\AgentUplineService;
 use App\Services\GlobalPartnerService;
 use App\Services\ProfileService;
@@ -202,6 +203,22 @@ class AgentProfileController extends Controller
                 : null,
             'options' => ['categories' => SalesReportService::CATEGORIES, 'statuses' => SalesReportService::STATUSES],
         ]);
+    }
+
+    // An agent's onboarding journey (registered → photo → NAO → FIRE → first sale): the same readers as the profile.
+    public function journey(Request $request, Agent $agent, AgentJourneyService $journeys)
+    {
+        abort_unless($this->canView($request->user(), $agent), 403);
+
+        return inertia('Portal/Agents/Journey', ['journey' => $journeys->for($agent), 'own' => $agent->user_id === $request->user()->id]);
+    }
+
+    // The signed-in agent's own journey.
+    public function myJourney(Request $request, AgentJourneyService $journeys)
+    {
+        $agent = $request->user()->agent ?? abort(404);
+
+        return inertia('Portal/Agents/Journey', ['journey' => $journeys->for($agent), 'own' => true]);
     }
 
     // Who may open an agent's profile: the back office, team managers, the agent, their leaders, their office's secretary

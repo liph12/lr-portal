@@ -14,6 +14,12 @@ return [
     |
     */
 
+    // FIRE training modules and exams (FireTrainingService): the realestatetraining.ph integration API, called from the server only.
+    'fire' => [
+        'url' => env('FIRE_API_URL', 'https://realestatetraining.ph/api/integration/agent'),
+        'key' => env('FIRE_API_KEY'),
+    ],
+
     // FIRE training certificates by email (FireCertificateService).
     'fire_certificates' => [
         'url' => env('FIRE_CERTIFICATES_URL', 'https://realestatetraining.ph/get-certificates'),

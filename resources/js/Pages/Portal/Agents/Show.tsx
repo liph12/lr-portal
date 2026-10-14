@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Box, Container, Grid, LinearProgress, Link as MuiLink, Typography } from "@mui/material";
-import { ArrowBackRounded, EditRounded, LoginRounded, SwapHorizRounded } from "@mui/icons-material";
+import { ArrowBackRounded, EditRounded, LoginRounded, RouteRounded, SwapHorizRounded } from "@mui/icons-material";
 import ConfirmDialog from "../../../components/utils/ConfirmDialog";
 import useAuthUser from "../../../hooks/useAuthUser";
 import { Link, router } from "@inertiajs/react";
@@ -207,6 +207,11 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                         </Typography>
                     </Box>
                 </Box>
+                <Link href={`/agents/${agent.id}/journey`} style={{ textDecoration: "none" }}>
+                    <StyledButton variant="outlined" startIcon={<RouteRounded />} sx={{ color: "var(--lr-primary)", borderColor: "var(--lr-outline)" }}>
+                        Journey
+                    </StyledButton>
+                </Link>
                 {editable && (
                     <StyledButton
                         variant="outlined"

@@ -43,6 +43,7 @@ Route::middleware(['auth', 'active'])->group(function(){
     require base_path('routes/natcon.php');
     require base_path('routes/dashboard.php');
     require base_path('routes/onboarding.php');
+    require base_path('routes/fire.php');
     require base_path('routes/reports.php');
     require base_path('routes/my-team.php');
     require base_path('routes/search.php');

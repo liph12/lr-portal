@@ -76,7 +76,10 @@ function Nao({ nao, maxFileKb }: NaoProps) {
                 <StatusPanel icon={<CheckCircleRounded />} tone="success" title={nao.approved ? "Attendance approved" : "New Agents Webinar finished"}>
                     <Typography variant="body2">This step is done — the rest of the portal is yours to explore.</Typography>
                 </StatusPanel>
-                <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
+                <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end", gap: 1.5, flexWrap: "wrap" }}>
+                    <Link href="/my-journey" style={{ textDecoration: "none" }}>
+                        <StyledButton sx={{ color: "var(--lr-primary)" }}>See my journey</StyledButton>
+                    </Link>
                     <DashboardButton />
                 </Box>
             </>

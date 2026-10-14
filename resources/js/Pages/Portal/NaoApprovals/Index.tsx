@@ -213,7 +213,7 @@ function NaoApprovals({ submissions, filters, counts, scope, groups, person, per
             <TableToolbar
                 search={table.search}
                 onSearch={table.setSearch}
-                placeholder="Search by agent name or email"
+                placeholder="Search name, email, mobile, member #, sponsor, team or branch"
                 filters={
                     <>
                         {groups.teams.length > 1 && (

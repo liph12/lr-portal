@@ -155,3 +155,23 @@ test('skip for now lets them into the portal for the rest of the session', funct
     $this->flushSession();
     $this->actingAs($user)->get('/dashboard/main')->assertRedirect('/welcome');
 });
+
+test('the journey: registered, photo, NAO approved — FIRE is next, then the first sale', function () {
+    [$user, $agent] = ($this->newAgent)(['first_name' => 'Juan', 'last_name' => 'Cruz', 'avatar' => 'https://files.test/me.webp', 'onboarding_step' => 'nao'], [
+        'nao_attendance_status' => 'yes', 'nao_video_tracker' => 100, 'nao_date_of_attendance' => '2026-10-06', 'nao_attendance_reviewed_at' => '2026-10-14 10:00:00', 'fire_certificates' => 1,
+    ]);
+
+    $this->actingAs($user)->get('/my-journey')->assertInertia(fn ($page) => $page
+        ->component('Portal/Agents/Journey')
+        ->where('own', true)
+        ->where('journey.agent.name', 'Juan Cruz')
+        ->where('journey.done', 3)
+        ->where('journey.milestones.2.key', 'nao')->where('journey.milestones.2.status', 'done')
+        ->where('journey.milestones.3.key', 'fire')->where('journey.milestones.3.status', 'current')->where('journey.milestones.3.certificates', 1)
+        ->where('journey.milestones.4.status', 'upcoming'));
+
+    // Someone who may not open the profile doesn't see the journey either.
+    [$stranger] = ($this->newAgent)();
+    $this->actingAs($stranger)->get("/agents/{$agent}/journey")->assertForbidden();
+    $this->actingAs($user)->get("/agents/{$agent}/journey")->assertOk();
+});

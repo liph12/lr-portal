@@ -34,6 +34,8 @@
     --lr-primary-soft: #e9f1fb;
     --lr-primary-soft-strong: #d4e4f7;
     --lr-primary-soft-hover: #f4f8fd;
+    /* Banners behind a person (journey header): the brand blue, deep navy in dark mode. */
+    --lr-hero: #0055b3;
     /* The logo's red, as a highlight only: fills and marks (accent), red text (accent-ink). */
     --lr-accent: #d7141a;
     --lr-accent-ink: #d7141a;
@@ -76,6 +78,7 @@
     --lr-primary-soft: #11233d;
     --lr-primary-soft-strong: #173058;
     --lr-primary-soft-hover: #152a47;
+    --lr-hero: #173058;
     /* Deeper than red text would need, so white reads on it (badges); red text uses accent-ink. */
     --lr-accent: #e0262d;
     --lr-accent-ink: #ff6b70;

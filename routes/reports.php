@@ -17,5 +17,7 @@ Route::prefix('reports')->name('reports.')->group(function () {
 // Read-only agent profile opened from report rows; the controller allows view_reports or team managers.
 Route::get('/agents/{agent}', [AgentProfileController::class, 'show'])->name('agents.show');
 Route::get('/agents/{agent}/sales', [AgentProfileController::class, 'sales'])->name('agents.sales');
+Route::get('/agents/{agent}/journey', [AgentProfileController::class, 'journey'])->name('agents.journey');
+Route::get('/my-journey', [AgentProfileController::class, 'myJourney'])->name('my-journey');
 Route::put('/agents/{agent}', [AgentProfileController::class, 'update'])->middleware('can:edit_agent_profile')->name('agents.update');
 Route::put('/agents/{agent}/upline', [AgentProfileController::class, 'changeUpline'])->middleware('can:edit_agent_profile')->name('agents.upline');

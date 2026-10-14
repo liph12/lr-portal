@@ -366,3 +366,35 @@ export interface ManagedPoster extends DashboardPoster {
     is_active: boolean;
     state: "showing" | "scheduled" | "ended" | "hidden";
 }
+
+// FIRE (FireTrainingService): a module as the training site describes it, and how the agent did.
+export interface FireModule {
+    id: number;
+    title: string;
+    description: string;
+    learning: string[];
+    speaker: { name: string; avatar: string | null } | null;
+    slides: string | null;
+    video: { src: string; kind: "youtube" | "file" } | null;
+    // Rent.ph's "Become a Rent Manager" (module 12): its own brand and several training videos.
+    brand?: "rentph";
+    videos?: { title: string; src: string; kind: "youtube" | "file" }[];
+    best_score: number | null;
+    taken_on: string | null;
+    passed: boolean;
+}
+
+export interface FireQuestion {
+    number: number;
+    question: string;
+    choices: { value: string; text: string }[];
+}
+
+export interface FireResult {
+    score: number;
+    total: number;
+    passed: boolean;
+    // position = where the question was in the (shuffled) exam the agent took.
+    results: { question: number; position: number; correct: boolean }[];
+    total_passed: number;
+}
