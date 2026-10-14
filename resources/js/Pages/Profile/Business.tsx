@@ -21,7 +21,7 @@ function Business({ business, slug }: BusinessProps) {
 
             <Grid container spacing={3}>
                 <Grid size={12}>
-                    <SectionCard title="Business profile details" subtitle="Your About me, mobile number and social links.">
+                    <SectionCard title="Business profile details" subtitle="Your About me, mobile number, social links and My Links.">
                         <BusinessProfileForm business={business} />
                     </SectionCard>
                 </Grid>

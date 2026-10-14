@@ -11,30 +11,37 @@
         "Noto Color Emoji";
 }
 
-/* App color tokens. Light values are the original Google-style palette; .dark is set on <html>
-   by the inline script in app.blade.php (before paint) and kept in sync by MUI's ThemeProvider. */
+/* App color tokens — the Leuterio Realty palette: the brand's deep blue for actions and selection, the logo's red only as a
+   highlight (active markers, badges, the brand line), near-black / charcoal text on white, true near-black surfaces in dark
+   mode. .dark is set on <html> by the inline script in app.blade.php (before paint) and kept in sync by MUI's ThemeProvider;
+   providers/appTheme.ts mirrors these values. */
 :root {
     color-scheme: light;
-    --lr-text-primary: #202124;
-    --lr-text-body: #3c4043;
-    --lr-text-secondary: #5f6368;
+    --lr-text-primary: #0f1419;
+    --lr-text-body: #2b313a;
+    --lr-text-secondary: #5b6472;
     --lr-surface: #ffffff;
-    --lr-surface-dim: #f8f9fa;
-    --lr-surface-container: #f1f3f4;
-    --lr-surface-hover: #eceff1;
-    --lr-border: #e8eaed;
-    --lr-outline: #dadce0;
-    --lr-primary: #1a73e8;
-    --lr-primary-hover: #1765cc;
+    --lr-surface-dim: #f6f7f9;
+    --lr-surface-container: #eef1f5;
+    --lr-surface-hover: #e8ecf2;
+    --lr-border: #e3e7ee;
+    --lr-outline: #cfd6e0;
+    --lr-primary: #0055b3;
+    --lr-primary-hover: #003f87;
     --lr-on-primary: #ffffff;
     /* Brand logos are drawn for white: their tile stays white in both modes. */
     --lr-logo-tile: #ffffff;
-    --lr-primary-soft: #e8f0fe;
-    --lr-primary-soft-strong: #d2e3fc;
-    --lr-primary-soft-hover: #f8fbff;
-    --lr-error: #d93025;
-    --lr-error-strong: #c5221f;
-    --lr-error-soft: #fce8e6;
+    --lr-primary-soft: #e9f1fb;
+    --lr-primary-soft-strong: #d4e4f7;
+    --lr-primary-soft-hover: #f4f8fd;
+    /* The logo's red, as a highlight only: fills and marks (accent), red text (accent-ink). */
+    --lr-accent: #d7141a;
+    --lr-accent-ink: #d7141a;
+    --lr-accent-soft: #fdecec;
+    --lr-on-accent: #ffffff;
+    --lr-error: #c62828;
+    --lr-error-strong: #a61f1f;
+    --lr-error-soft: #fdecec;
     --lr-success: #137333;
     --lr-success-icon: #1e8e3e;
     --lr-success-soft: #e6f4ea;
@@ -44,7 +51,8 @@
     --lr-series-1: #2a78d6;
     --lr-series-2: #eb6834;
     --lr-series-3: #1baf7a;
-    --lr-chart-grid: #ecebe8;
+    --lr-chart-grid: #eceef2;
+    --lr-shadow: 0 1px 2px rgba(15, 20, 25, 0.05), 0 1px 3px rgba(15, 20, 25, 0.04);
     --lr-glass: rgba(255, 255, 255, 0.85);
     --lr-glass-border: rgba(255, 255, 255, 0.7);
     --lr-auth-bg: url(/assets/background.png);
@@ -52,37 +60,43 @@
 
 .dark {
     color-scheme: dark;
-    --lr-text-primary: #e8eaed;
-    --lr-text-body: #dadce0;
-    --lr-text-secondary: #9aa0a6;
-    --lr-surface: #1f1f1f;
-    --lr-surface-dim: #181818;
-    --lr-surface-container: #2d2e30;
-    --lr-surface-hover: #303134;
-    --lr-border: #3c4043;
-    --lr-outline: #5f6368;
-    --lr-primary: #a8c7fa;
-    --lr-primary-hover: #c2d7fb;
-    --lr-on-primary: #062e6f;
+    --lr-text-primary: #f2f4f7;
+    --lr-text-body: #d5dae1;
+    --lr-text-secondary: #9aa4b2;
+    --lr-surface: #121418;
+    --lr-surface-dim: #0c0e11;
+    --lr-surface-container: #1b1f25;
+    --lr-surface-hover: #232831;
+    --lr-border: #262b33;
+    --lr-outline: #3a414c;
+    --lr-primary: #6aa6ff;
+    --lr-primary-hover: #8ebcff;
+    --lr-on-primary: #04152e;
     --lr-logo-tile: #ffffff;
-    --lr-primary-soft: #1f3760;
-    --lr-primary-soft-strong: #004a77;
-    --lr-primary-soft-hover: #253b5c;
-    --lr-error: #f28b82;
-    --lr-error-strong: #f28b82;
-    --lr-error-soft: #3c1f1e;
+    --lr-primary-soft: #11233d;
+    --lr-primary-soft-strong: #173058;
+    --lr-primary-soft-hover: #152a47;
+    /* Deeper than red text would need, so white reads on it (badges); red text uses accent-ink. */
+    --lr-accent: #e0262d;
+    --lr-accent-ink: #ff6b70;
+    --lr-accent-soft: #3a1517;
+    --lr-on-accent: #ffffff;
+    --lr-error: #f87171;
+    --lr-error-strong: #f87171;
+    --lr-error-soft: #3a1a1a;
     --lr-success: #81c995;
     --lr-success-icon: #81c995;
-    --lr-success-soft: #1e3a2a;
+    --lr-success-soft: #173324;
     --lr-warning: #fdd663;
-    --lr-warning-soft: #3d3420;
+    --lr-warning-soft: #3a311b;
     --lr-series-1: #3987e5;
     --lr-series-2: #d95926;
     --lr-series-3: #199e70;
-    --lr-chart-grid: #2e2e2c;
-    --lr-glass: rgba(31, 31, 31, 0.88);
+    --lr-chart-grid: #262a30;
+    --lr-shadow: none;
+    --lr-glass: rgba(18, 20, 24, 0.88);
     --lr-glass-border: rgba(255, 255, 255, 0.08);
-    --lr-auth-bg: linear-gradient(rgba(19, 19, 20, 0.82), rgba(19, 19, 20, 0.82)), url(/assets/background.png);
+    --lr-auth-bg: linear-gradient(rgba(12, 14, 17, 0.84), rgba(12, 14, 17, 0.84)), url(/assets/background.png);
 }
 
 :root {
@@ -101,10 +115,29 @@
     --lr-brand-whatsapp: #25d366;
     --lr-brand-ink: #ffffff;
 
+    /* Partner posters on the dashboard (components/dashboard/PartnerPosters): each brand's own colours, in both schemes. */
+    --lr-brand-fh-bg: linear-gradient(135deg, #0b2f73 0%, #1d4fb0 62%, #2a63cc 100%);
+    --lr-brand-fh-accent: #d42a26;
+    --lr-brand-fh-glow: #e4e13e;
+    /* Deep navy: the Rent.ph logo's own blue lettering has to stand out on it. */
+    --lr-brand-rentph-bg: linear-gradient(135deg, #0c2f5c 0%, #0f3a70 55%, #164887 100%);
+    --lr-brand-rentph-accent: #f7941d;
+    /* The light panel behind the Rent.ph logo, so its blue lettering reads clearly. */
+    --lr-brand-rentph-logo-bg: #eaf2ff;
+    --lr-brand-rentph-on-accent: #1f1300;
+    --lr-brand-ink-muted: rgba(255, 255, 255, 0.82);
+
     /* Over photos (onboarding slideshow): a dark wash with white marks, the same in both schemes. */
     --lr-photo-scrim: linear-gradient(to top, rgba(0, 10, 30, 0.78) 0%, rgba(0, 10, 30, 0.25) 40%, transparent 65%);
     --lr-photo-ink: #ffffff;
     --lr-photo-ink-muted: rgba(255, 255, 255, 0.5);
+    --lr-photo-button: rgba(0, 0, 0, 0.35);
+    --lr-photo-button-hover: rgba(0, 0, 0, 0.55);
+    /* NATCON's card icons (SpotIcon tone="gold"): gold on near-black, like the convention's trophy, in both schemes. */
+    --lr-natcon-tile: #1a1611;
+    --lr-natcon-gold: #e0b54a;
+    --lr-natcon-gold-bright: #f7d774;
+    --lr-natcon-gold-soft: #4a3c1c;
     /* Behind a video (webinar player letterbox), in both schemes. */
     --lr-video-bg: #000000;
 }
@@ -112,6 +145,9 @@
 body {
     background-color: var(--lr-surface);
     color: var(--lr-text-primary);
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* Pairs of images (e.g. the logo) where each scheme needs its own asset. */

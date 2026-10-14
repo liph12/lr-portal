@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Box, Typography } from "@mui/material";
-import { EmojiEventsRounded, EventAvailableRounded, LockClockRounded } from "@mui/icons-material";
+import { EventAvailableRounded, LockClockRounded } from "@mui/icons-material";
+import NatconTrophyIcon from "./NatconTrophyIcon";
 import { formatPeso } from "../../helpers/formatNumber";
 import { formatDate, formatDateTime } from "../../helpers/formatDate";
 import { formatMonthYear } from "../../helpers/salesCutoff";
@@ -55,7 +56,7 @@ export default function NatconPeriod({ period, qualifier, title = "NATCON period
                 label={period.cutoff_month ? `${formatMonthYear(period.cutoff_month)} cutoff — sales encoded by` : "Cutoff — sales encoded by"}
                 value={cutoffLabel(period)}
             />
-            {qualifier !== undefined && <Fact icon={<EmojiEventsRounded fontSize="small" />} label="Qualifier: an agent's valid sales of at least" value={formatPeso(qualifier)} />}
+            {qualifier !== undefined && <Fact icon={<NatconTrophyIcon fontSize="small" />} label="Qualifier: an agent's valid sales of at least" value={formatPeso(qualifier)} />}
         </Box>
     );
 }

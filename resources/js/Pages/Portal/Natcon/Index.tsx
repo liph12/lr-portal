@@ -1,9 +1,10 @@
 import { ReactNode } from "react";
 import { Box, Chip, Container, Grid, Typography } from "@mui/material";
-import { ChevronRightRounded, PersonRounded } from "@mui/icons-material";
+import { ChevronRightRounded } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
 import AppLayout from "../../../components/layouts/AppLayout";
-import SectionTitle from "../../../components/utils/SectionTitle";
+import NatconTrophyIcon from "../../../components/natcon/NatconTrophyIcon";
+import SpotIcon from "../../../components/utils/SpotIcon";
 import NatconPeriod, { NatconBoardPeriod, NatconSettings, cutoffLabel, periodLabel } from "../../../components/natcon/NatconPeriod";
 import { NATCON_BOARDS } from "../../../components/natcon/natconCatalog";
 import { formatCount } from "../../../helpers/formatNumber";
@@ -48,35 +49,40 @@ const cardSx = {
     ":hover": { boxShadow: "0 1px 3px rgba(60,64,67,.15), 0 4px 8px rgba(60,64,67,.1)" },
 };
 
-const iconSx = {
-    width: 44,
-    height: 44,
-    borderRadius: "50%",
-    flexShrink: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "var(--lr-primary)",
-    backgroundColor: "var(--lr-primary-soft)",
-};
-
 // NATCON: one card per board, like Reports, each opening its own ranking for the convention period.
 function Natcon({ settings, period, boards, counts, group, hasMine }: NatconProps) {
     return (
         <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4 } }}>
-            <SectionTitle
-                title="NATCON"
-                subtitle={group ? `Who qualified on ${group.type === "team" ? "your team" : "your sub-team"}, ${group.name}.` : "National convention rankings. Pick a board."}
-            />
+            {/* The NATCON mark beside the title. */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+                <Box sx={{ width: 56, height: 56, flexShrink: 0, display: "grid", placeItems: "center", borderRadius: 3, border: "1px solid var(--lr-border)", backgroundColor: "var(--lr-surface-dim)" }}>
+                    <NatconTrophyIcon sx={{ fontSize: 40 }} />
+                </Box>
+                <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                        component="h1"
+                        sx={{
+                            fontSize: { xs: 22, sm: 26 },
+                            fontWeight: 600,
+                            letterSpacing: "-0.01em",
+                            lineHeight: 1.2,
+                            color: "var(--lr-text-primary)",
+                        }}
+                    >
+                        NATCON
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)", mt: 0.5 }}>
+                        {group ? `Who qualified on ${group.type === "team" ? "your team" : "your sub-team"}, ${group.name}.` : "National convention rankings. Pick a board."}
+                    </Typography>
+                </Box>
+            </Box>
             <NatconPeriod period={period} qualifier={settings.qualifier_amount} />
             <Grid container spacing={2}>
                 {hasMine && (
                     <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
                         <Link href="/natcon/my-sales" style={{ textDecoration: "none", display: "block", height: "100%" }}>
                             <Box sx={cardSx}>
-                                <Box sx={iconSx}>
-                                    <PersonRounded />
-                                </Box>
+                                <SpotIcon name="coins" size={52} tone="gold" />
                                 <Box sx={{ flex: 1, minWidth: 0 }}>
                                     <Typography variant="body1" sx={{ fontWeight: 500, color: "var(--lr-text-primary)" }}>
                                         My NATCON Sales
@@ -91,16 +97,14 @@ function Natcon({ settings, period, boards, counts, group, hasMine }: NatconProp
                     </Grid>
                 )}
                 {boards.map(({ slug, title, description, group, period }) => {
-                    const Icon = NATCON_BOARDS.find((b) => b.slug === slug)?.icon ?? NATCON_BOARDS[0].icon;
+                    const art = NATCON_BOARDS.find((b) => b.slug === slug)?.art ?? NATCON_BOARDS[0].art;
                     const count = counts[slug] ?? 0;
 
                     return (
                         <Grid key={slug} size={{ xs: 12, sm: 6, lg: 4 }}>
                             <Link href={`/natcon/${slug}`} style={{ textDecoration: "none", display: "block", height: "100%" }}>
                                 <Box sx={cardSx}>
-                                    <Box sx={iconSx}>
-                                        <Icon />
-                                    </Box>
+                                    <SpotIcon name={art} size={52} tone="gold" />
                                     <Box sx={{ flex: 1, minWidth: 0 }}>
                                         <Typography variant="body1" sx={{ fontWeight: 500, color: "var(--lr-text-primary)" }}>
                                             {title}

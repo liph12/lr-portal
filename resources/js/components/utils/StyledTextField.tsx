@@ -42,8 +42,8 @@ export default function StyledTextField({
                         backgroundColor: "var(--lr-surface)",
                         borderColor: error ? "var(--lr-error)" : "var(--lr-primary)",
                         boxShadow: error
-                            ? "0 0 0 2px rgba(217,48,37,.15)"
-                            : "0 0 0 2px rgba(26,115,232,.15)",
+                            ? "0 0 0 3px color-mix(in srgb, var(--lr-error) 18%, transparent)"
+                            : "0 0 0 3px color-mix(in srgb, var(--lr-primary) 18%, transparent)",
                     },
                 }}
             >

@@ -100,7 +100,6 @@ export default function SidebarProfile() {
                             mt: 2,
                             py: 1,
                             backgroundColor: "var(--lr-primary)",
-                            boxShadow: "0 1px 3px rgba(26,115,232,.35)",
                             ":hover": { backgroundColor: "var(--lr-primary-hover)" },
                         }}
                     >

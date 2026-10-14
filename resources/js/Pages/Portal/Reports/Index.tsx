@@ -4,6 +4,7 @@ import { ChevronRightRounded } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
 import AppLayout from "../../../components/layouts/AppLayout";
 import SectionTitle from "../../../components/utils/SectionTitle";
+import SpotIcon from "../../../components/utils/SpotIcon";
 import { REPORTS } from "../../../components/reports/reportCatalog";
 
 // Reports: one card per report, so it's obvious where each kind of data lives.
@@ -12,7 +13,7 @@ function Reports({ available }: { available: string[] }) {
         <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4 } }}>
             <SectionTitle title="Reports" subtitle="Pick a report. Each one has its own date range and statistics." />
             <Grid container spacing={2}>
-                {REPORTS.filter((r) => available.indexOf(r.slug) !== -1).map(({ slug, title, description, icon: Icon }) => (
+                {REPORTS.filter((r) => available.indexOf(r.slug) !== -1).map(({ slug, title, description, art }) => (
                     <Grid key={slug} size={{ xs: 12, sm: 6, lg: 4 }}>
                         <Link href={`/reports/${slug}`} style={{ textDecoration: "none" }}>
                             <Box
@@ -29,21 +30,7 @@ function Reports({ available }: { available: string[] }) {
                                     ":hover": { boxShadow: "0 1px 3px rgba(60,64,67,.15), 0 4px 8px rgba(60,64,67,.1)" },
                                 }}
                             >
-                                <Box
-                                    sx={{
-                                        width: 44,
-                                        height: 44,
-                                        borderRadius: "50%",
-                                        flexShrink: 0,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        color: "var(--lr-primary)",
-                                        backgroundColor: "var(--lr-primary-soft)",
-                                    }}
-                                >
-                                    <Icon />
-                                </Box>
+                                <SpotIcon name={art} size={52} />
                                 <Box sx={{ flex: 1, minWidth: 0 }}>
                                     <Typography variant="body1" sx={{ fontWeight: 500, color: "var(--lr-text-primary)" }}>
                                         {title}

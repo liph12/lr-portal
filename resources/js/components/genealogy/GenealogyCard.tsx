@@ -23,7 +23,7 @@ export interface GenealogyNode extends Designations {
 
 // Fixed size, so the canvas can lay the tree out before anything is drawn.
 export const CARD_W = 280;
-export const CARD_H = 152;
+export const CARD_H = 180;
 
 interface GenealogyCardProps {
     node: GenealogyNode;
@@ -56,13 +56,14 @@ export default function GenealogyCard({ node, isRoot = false, expanded, onToggle
                 backgroundColor: isRoot ? "var(--lr-primary-soft)" : "var(--lr-surface)",
             }}
         >
-            <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+            {/* Clipped above the footer, so a long name / chip row / meta line never covers the recruits button. */}
+            <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start", flex: 1, minHeight: 0, overflow: "hidden" }}>
                 <UserAvatar name={node.name} src={node.avatar} size={44} />
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography sx={{ fontWeight: 500, color: "var(--lr-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={node.name}>
                         {node.name}
                     </Typography>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap", mt: 0.25 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", columnGap: 0.75, rowGap: 0.5, flexWrap: "wrap", mt: 0.5 }}>
                         {node.role && (
                             <Typography component="span" variant="caption" sx={{ px: 0.75, borderRadius: 99, color: "var(--lr-primary)", backgroundColor: "var(--lr-surface-container)", fontWeight: 500 }}>
                                 {node.role}
@@ -74,14 +75,14 @@ export default function GenealogyCard({ node, isRoot = false, expanded, onToggle
                     <Typography
                         variant="caption"
                         component="p"
-                        sx={{ mt: 0.5, color: "var(--lr-text-secondary)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+                        sx={{ mt: 0.75, lineHeight: 1.45, color: "var(--lr-text-secondary)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
                     >
                         {[node.area, group || "No team", node.joined ? `Joined ${formatDate(node.joined)}` : null].filter(Boolean).join(" · ")}
                     </Typography>
                 </Box>
             </Box>
 
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mt: "auto", minWidth: 0 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, pt: 1, flexShrink: 0, minWidth: 0 }}>
                 {/* Compact (icon + count) and never wrapping: the row also holds Tree, Profile and Sales. */}
                 <ButtonBase
                     onClick={onToggle}

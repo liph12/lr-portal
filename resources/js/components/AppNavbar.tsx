@@ -8,7 +8,6 @@ import ThemeModeToggle from "./utils/ThemeModeToggle";
 import {
     MenuRounded,
     SearchRounded,
-    MoreVertRounded,
     NotificationsOutlined,
     ArrowBackRounded,
 } from "@mui/icons-material";
@@ -110,11 +109,6 @@ export default function AppNavbar({ onMenuClick }: AppNavbarProps) {
                     <ThemeModeToggle />
                     <IconButton sx={{ color: "var(--lr-text-secondary)" }}>
                         <NotificationsOutlined />
-                    </IconButton>
-                    <IconButton
-                        sx={{ color: "var(--lr-text-secondary)", display: { xs: "none", sm: "inline-flex" } }}
-                    >
-                        <MoreVertRounded />
                     </IconButton>
                     <ProfileMenu />
                 </Box>

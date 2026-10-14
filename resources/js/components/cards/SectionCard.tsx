@@ -17,6 +17,7 @@ export default function SectionCard({ title, subtitle, children, fill = false }:
                 border: "1px solid var(--lr-border)",
                 borderRadius: 3,
                 backgroundColor: "var(--lr-surface)",
+                boxShadow: "var(--lr-shadow)",
                 overflow: "hidden",
                 display: "flex",
                 flexDirection: "column",
@@ -24,7 +25,7 @@ export default function SectionCard({ title, subtitle, children, fill = false }:
             }}
         >
             <Box sx={{ px: { xs: 2, sm: 3 }, pt: 2.5, pb: 2 }}>
-                <Typography sx={{ fontSize: 16, fontWeight: 500, color: "var(--lr-text-primary)" }}>
+                <Typography sx={{ fontSize: 16, fontWeight: 600, color: "var(--lr-text-primary)" }}>
                     {title}
                 </Typography>
                 {subtitle && (

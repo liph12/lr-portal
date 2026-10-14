@@ -4,6 +4,7 @@ import { ChevronRightRounded } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
 import ManagementLayout from "../../../components/layouts/ManagementLayout";
 import StatusChip from "../../../components/utils/StatusChip";
+import SpotIcon from "../../../components/utils/SpotIcon";
 import useAuthUser from "../../../hooks/useAuthUser";
 import { hasAnyPermission } from "../../../helpers/permissions";
 import { formatCount } from "../../../helpers/formatNumber";
@@ -43,7 +44,6 @@ function Management({ counts }: ManagementProps) {
     return (
         <Grid container spacing={2}>
             {MANAGEMENT_SECTIONS.filter((s) => hasAnyPermission(user?.permissions, s.permission)).map((section) => {
-                const Icon = section.icon;
                 const shown = figure(section.name);
 
                 return (
@@ -63,21 +63,7 @@ function Management({ counts }: ManagementProps) {
                                     ":hover": { boxShadow: "0 1px 3px rgba(60,64,67,.15), 0 4px 8px rgba(60,64,67,.1)" },
                                 }}
                             >
-                                <Box
-                                    sx={{
-                                        width: 44,
-                                        height: 44,
-                                        borderRadius: "50%",
-                                        flexShrink: 0,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        color: "var(--lr-primary)",
-                                        backgroundColor: "var(--lr-primary-soft)",
-                                    }}
-                                >
-                                    <Icon />
-                                </Box>
+                                <SpotIcon name={section.art} size={52} />
                                 <Box sx={{ flex: 1, minWidth: 0 }}>
                                     <Typography variant="body1" sx={{ fontWeight: 500, color: "var(--lr-text-primary)" }}>
                                         {section.name}

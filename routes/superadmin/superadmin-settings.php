@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Portal\SuperAdmin\SettingsController;
 use App\Http\Controllers\Portal\SuperAdmin\Settings\NatconController;
 use App\Http\Controllers\Portal\SuperAdmin\Settings\PermissionController;
+use App\Http\Controllers\Portal\SuperAdmin\Settings\PosterController;
 use App\Http\Controllers\Portal\SuperAdmin\Settings\RoleController;
 use App\Http\Controllers\Portal\SuperAdmin\Settings\SalesCutoffController;
 use App\Http\Controllers\Portal\SuperAdmin\Settings\UserRoleController;
@@ -28,6 +29,13 @@ Route::prefix('settings')->group(function(){
 
     Route::get('/natcon', [NatconController::class, 'index'])->name('superadmin.settings.natcon.index');
     Route::put('/natcon', [NatconController::class, 'update'])->name('superadmin.settings.natcon.update');
+
+    Route::get('/posters', [PosterController::class, 'index'])->name('superadmin.settings.posters.index');
+    Route::post('/posters', [PosterController::class, 'store'])->name('superadmin.settings.posters.store');
+    Route::put('/posters/order', [PosterController::class, 'reorder'])->name('superadmin.settings.posters.reorder');
+    Route::put('/posters/{poster}', [PosterController::class, 'update'])->name('superadmin.settings.posters.update');
+    Route::patch('/posters/{poster}/active', [PosterController::class, 'toggle'])->name('superadmin.settings.posters.toggle');
+    Route::delete('/posters/{poster}', [PosterController::class, 'destroy'])->name('superadmin.settings.posters.destroy');
 
     Route::post('/permissions', [PermissionController::class, 'store'])->name('superadmin.settings.permissions.store');
     Route::delete('/permissions/{permission}', [PermissionController::class, 'destroy'])->name('superadmin.settings.permissions.destroy');

@@ -5,7 +5,8 @@ namespace App\Http\Requests\Profile;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
-// The public business profile's own fields (Profile › Business profile): About me, mobile, social links, WhatsApp.
+// The public business profile's own fields (Profile › Business profile): About me, mobile, social links, WhatsApp,
+// and the agent's own "My Links" list.
 class UpdateBusinessProfileRequest extends FormRequest
 {
     public function authorize(): bool
@@ -26,6 +27,9 @@ class UpdateBusinessProfileRequest extends FormRequest
             'twitter' => ['nullable', 'url', 'max:255'],
             'linkedin' => ['nullable', 'url', 'max:255'],
             'whatsapp' => ['nullable', 'string', 'max:30'],
+            'links' => ['nullable', 'array', 'max:10'],
+            'links.*.label' => ['required', 'string', 'max:60'],
+            'links.*.url' => ['required', 'url', 'max:255'],
         ];
     }
 
@@ -41,6 +45,8 @@ class UpdateBusinessProfileRequest extends FormRequest
             'twitter' => 'X link',
             'linkedin' => 'LinkedIn link',
             'whatsapp' => 'WhatsApp number',
+            'links.*.label' => 'link label',
+            'links.*.url' => 'link URL',
         ];
     }
 }

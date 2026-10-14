@@ -138,6 +138,12 @@ export interface ProfileFields {
 }
 
 // Profile › Business profile: what the public business profile shows beyond the agent's basic details.
+// One "My Links" entry on the business profile: a label and where it goes.
+export interface BusinessLink {
+    label: string;
+    url: string;
+}
+
 export interface BusinessProfileFields {
     about: string;
     mobile: string;
@@ -146,6 +152,7 @@ export interface BusinessProfileFields {
     twitter: string;
     linkedin: string;
     whatsapp: string;
+    links: BusinessLink[];
 }
 
 export interface RoleItem {
@@ -342,4 +349,20 @@ export interface NaoState {
     remarks: string | null;
     video: { id: string; seconds: number };
     sponsor: { name: string; avatar: string | null; mobile: string | null; email: string | null } | null;
+}
+
+// A dashboard announcement (DashboardPosterService::showing); link_url is an in-app path or an https address.
+export interface DashboardPoster {
+    id: number;
+    title: string;
+    image_url: string;
+    link_url: string | null;
+}
+
+// The same poster as Settings › Dashboard posters manages it.
+export interface ManagedPoster extends DashboardPoster {
+    starts_on: string | null;
+    ends_on: string | null;
+    is_active: boolean;
+    state: "showing" | "scheduled" | "ended" | "hidden";
 }

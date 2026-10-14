@@ -20,11 +20,12 @@ class AgentProfile extends Model
         'education',
         'professions',
         'hobbies',
+        'links',
     ];
 
     protected function casts(): array
     {
-        return ['education' => 'array', 'professions' => 'array', 'hobbies' => 'array'];
+        return ['education' => 'array', 'professions' => 'array', 'hobbies' => 'array', 'links' => 'array'];
     }
 
     public function agent(): BelongsTo

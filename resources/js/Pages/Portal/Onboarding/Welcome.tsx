@@ -77,7 +77,7 @@ function Welcome() {
                         </Box>
                     </Typography>
                     {/* The accent line under the title, from the old welcome page. */}
-                    <Box sx={{ mt: 2.5, width: 96, height: 4, borderRadius: 99, background: "linear-gradient(90deg, var(--lr-primary), var(--lr-warning))" }} />
+                    <Box sx={{ mt: 2.5, width: 96, height: 4, borderRadius: 99, background: "linear-gradient(90deg, var(--lr-primary), var(--lr-accent))" }} />
                     <Typography sx={{ mt: 2.5, fontSize: 17, lineHeight: 1.7, color: "var(--lr-text-body)", maxWidth: 560 }}>
                         Congratulations! You've successfully accessed the Leuterio Realty Portal. We're excited to support you on your real estate journey and help you
                         achieve your dreams.

@@ -110,6 +110,7 @@ class ProfileService
                 'twitter' => $data['twitter'] ?? null,
                 'linkedin' => $data['linkedin'] ?? null,
                 'whatsapp' => $data['whatsapp'] ?? null,
+                'links' => self::links($data['links'] ?? []),
             ]);
 
             return $agent;
@@ -118,6 +119,26 @@ class ProfileService
         $this->activity->describe('profile.business_updated', 'Updated business profile', $agent);
 
         return $agent;
+    }
+
+    /**
+     * "My Links" as stored: trimmed {label, url} pairs in the order given, blanks dropped.
+     *
+     * @param  array<int, array{label?: string|null, url?: string|null}>  $links
+     * @return array<int, array{label: string, url: string}>
+     */
+    private static function links(array $links): array
+    {
+        $clean = [];
+        foreach ($links as $link) {
+            $label = trim((string) ($link['label'] ?? ''));
+            $url = trim((string) ($link['url'] ?? ''));
+            if ($label !== '' && $url !== '') {
+                $clean[] = ['label' => $label, 'url' => $url];
+            }
+        }
+
+        return $clean;
     }
 
     public function updatePassword(User $user, string $password): void

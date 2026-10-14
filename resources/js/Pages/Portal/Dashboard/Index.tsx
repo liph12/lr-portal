@@ -25,6 +25,8 @@ import {
     SettingsRounded,
 } from "@mui/icons-material";
 import SectionTitle from "../../../components/utils/SectionTitle";
+import PosterCarousel from "../../../components/dashboard/PosterCarousel";
+import { DashboardPoster } from "../../../types/app-data-types";
 import useAuthUser from "../../../hooks/useAuthUser";
 import { buildUserLinks, UserLink } from "../../../helpers/userLinks";
 import StyledButton from "../../../components/utils/StyledButton";
@@ -145,7 +147,7 @@ function LinkCard({ label, url, href, settings }: UserLink) {
 const SAMPLE_PROFILE_PICTURE =
     "https://filipinohomes123.s3.ap-southeast-1.amazonaws.com/filipinohomes-compressed-from-old/cd23c6fa-51a9-40b9-926b-422a97739987.webp";
 
-function Dashboard() {
+function Dashboard({ posters }: { posters: DashboardPoster[] }) {
     const user = useAuthUser();
     const links = user ? buildUserLinks(user) : [];
 
@@ -156,56 +158,74 @@ function Dashboard() {
                 sx={{
                     backgroundColor: "var(--lr-surface-dim)",
                     borderBottom: "1px solid var(--lr-border)",
-                    px: { xs: 2, sm: 4 },
-                    py: { xs: 3, sm: 4 },
+                    display: "flex",
+                    flexDirection: { xs: "column", md: "row" },
+                    alignItems: { md: "stretch" },
                 }}
             >
-                <Typography
-                    sx={{
-                        fontSize: { xs: 22, sm: 28 },
-                        fontWeight: 400,
-                        color: "var(--lr-text-primary)",
-                    }}
-                >
-                    Welcome{user?.first_name ? `, ${user.first_name}` : ""} 👋
-                </Typography>
-                <Typography
-                    variant="body2"
-                    sx={{ color: "var(--lr-text-secondary)", mt: 0.5 }}
-                >
-                    Record your sale, manage and track statistics, access tools
-                    and more.
-                </Typography>
                 <Box
                     sx={{
-                        mt: 2,
-                        display: "flex",
-                        alignItems: "center",
-                        flexWrap: "wrap",
-                        gap: { xs: 1, sm: 2 },
+                        flex: 1,
+                        minWidth: 0,
+                        px: { xs: 2, sm: 4 },
+                        py: { xs: 3, sm: 4 },
+                        alignSelf: { md: "center" },
                     }}
                 >
-                    <StyledButton
-                        variant="outlined"
-                        size="small"
-                        startIcon={<Android />}
+                    <Typography
                         sx={{
-                            px: 2,
-                            color: "var(--lr-text-body)",
-                            borderColor: "var(--lr-outline)",
-                            backgroundColor: "var(--lr-surface)",
-                            "& .MuiButton-startIcon": {
-                                color: "var(--lr-success-icon)",
-                            },
-                            ":hover": {
-                                borderColor: "var(--lr-outline)",
-                                backgroundColor: "var(--lr-surface-dim)",
-                            },
+                            fontSize: { xs: 22, sm: 28 },
+                            fontWeight: 400,
+                            color: "var(--lr-text-primary)",
                         }}
                     >
-                        Download the LR app
-                    </StyledButton>
+                        Welcome{user?.first_name ? `, ${user.first_name}` : ""}{" "}
+                        👋
+                    </Typography>
+                    <Typography
+                        variant="body2"
+                        sx={{ color: "var(--lr-text-secondary)", mt: 0.5 }}
+                    >
+                        Record your sale, manage and track statistics, access
+                        tools and more.
+                    </Typography>
+                    <Box
+                        sx={{
+                            mt: 2,
+                            display: "flex",
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            gap: { xs: 1, sm: 2 },
+                        }}
+                    >
+                        <StyledButton
+                            variant="outlined"
+                            size="small"
+                            startIcon={<Android />}
+                            sx={{
+                                px: 2,
+                                color: "var(--lr-text-body)",
+                                borderColor: "var(--lr-outline)",
+                                backgroundColor: "var(--lr-surface)",
+                                "& .MuiButton-startIcon": {
+                                    color: "var(--lr-success-icon)",
+                                },
+                                ":hover": {
+                                    borderColor: "var(--lr-outline)",
+                                    backgroundColor: "var(--lr-surface-dim)",
+                                },
+                            }}
+                        >
+                            Download the LR app
+                        </StyledButton>
+                    </Box>
                 </Box>
+                {/* Announcements (Settings › Dashboard posters), edge to edge beside the greeting — under it on phones. */}
+                {posters.length > 0 && (
+                    <Box sx={{ width: { xs: "100%", md: 460 }, flexShrink: 0 }}>
+                        <PosterCarousel posters={posters} />
+                    </Box>
+                )}
             </Box>
 
             <Container sx={{ py: { xs: 3, sm: 4 } }} maxWidth="lg">

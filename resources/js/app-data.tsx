@@ -18,10 +18,10 @@ import {
     PublicRounded,
     ReceiptLongRounded,
     AccountTreeRounded,
-    EmojiEventsRounded,
 } from "@mui/icons-material";
 import { REPORTS } from "./components/reports/reportCatalog";
 import { NATCON_BOARDS } from "./components/natcon/natconCatalog";
+import NatconTrophyIcon from "./components/natcon/NatconTrophyIcon";
 import { MANAGEMENT_SECTIONS } from "./components/management/managementCatalog";
 import { AGENT, BACKOFFICE, LEADER, NAO_APPROVER, PARTNERS, SECRETARY, TEAM_LEADER } from "./helpers/permissions";
 
@@ -115,7 +115,7 @@ export const genealogyRoute = {
 export const natconRoute = {
     name: "NATCON",
     path: "/natcon",
-    icon: EmojiEventsRounded,
+    icon: NatconTrophyIcon,
     permission: [BACKOFFICE, LEADER, AGENT],
     requires: ["view_natcon"],
     children: [
@@ -238,6 +238,11 @@ export const useAppRoutes = [
             {
                 name: "NATCON",
                 path: "/superadmin/settings/natcon",
+                children: [],
+            },
+            {
+                name: "Dashboard posters",
+                path: "/superadmin/settings/posters",
                 children: [],
             },
             {

@@ -4,6 +4,7 @@ import { usePage } from "@inertiajs/react";
 import AppSidebar from "../AppSidebar";
 import AppNavbar from "../AppNavbar";
 import SideRail from "./SideRail";
+import PartnerPosters from "../dashboard/PartnerPosters";
 import ViewAsBanner from "../utils/user/ViewAsBanner";
 import ImpersonationBanner from "../utils/user/ImpersonationBanner";
 import useAuthUser from "../../hooks/useAuthUser";
@@ -38,6 +39,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             }}
         >
             <AppNavbar onMenuClick={() => setDrawerOpen((o) => !o)} />
+            <PartnerPosters />
             <ImpersonationBanner />
             <ViewAsBanner />
             <Box sx={{ display: "flex", flex: 1, minHeight: 0 }}>

@@ -63,6 +63,9 @@ at the matching path. Nothing else.
   (e.g. `superadmin.management.index`). Route files: `routes/{role}/{role}-{section}.php`.
 - Services: `{Name}Service` in `app/Services/`, constructor-injected (`UserController.php:13-16`).
 - Section headings: `components/utils/SectionTitle.tsx` (title, subtitle, optional action).
+- Card icons: `components/utils/SpotIcon.tsx` (`name`): simple flat drawings on a soft rounded tile, in the brand colours only —
+  `--lr-primary` shapes, one `--lr-accent` red detail, pale-blue fills; no gradients, shadows or extra colours. NATCON's cards use `tone="gold"` (gold on near-black, `--lr-natcon-*`). The
+  Management / Reports / NATCON catalogs give each card an `art` name; tabs and menus keep the flat MUI `icon`.
 - Pages/components: PascalCase `.tsx`, one component per file, **default export**.
   Pages use `Index.tsx`.
 - Hooks: `hooks/use{Thing}.ts`, default export (`hooks/useBreadcrumbs.ts`).
@@ -83,7 +86,13 @@ at the matching path. Nothing else.
   `TextField`/`Autocomplete` in forms.
 - **Colors / dark mode**: never hardcode hex in components — use the `var(--lr-*)` tokens from
   `resources/css/app.css` (`--lr-text-primary`, `--lr-surface`, `--lr-border`, `--lr-primary`, …),
-  which flip under `html.dark`. MUI's palette (`providers/appTheme.ts`) mirrors them — change both
+  which flip under `html.dark`. **The Leuterio Realty palette**: the brand's deep blue (`--lr-primary`, #0055b3 / dark #6aa6ff)
+  for actions, links and selection; the logo's red **only as a highlight** — `--lr-accent` (fills / marks: the active
+  sidebar marker, the tab indicator, the bar beside `SectionTitle`, menu counter badges) and
+  `--lr-accent-ink` (red text) — never for large areas or as a second action colour; near-black / charcoal text on white,
+  true near-black surfaces in dark mode (contrast checked AA). Font: Inter (loaded in `app.blade.php`, set in `appTheme.ts` +
+  body). Cards: `--lr-shadow` (a hairline shadow in light, none in dark). Focus rings mix the token with `color-mix()`. **NATCON** keeps the portal palette; its mark is `components/natcon/NatconTrophyIcon` (gold star on a swoosh, its own
+  colours — the menu icon, the NATCON header, the Qualifiers card). MUI's palette (`providers/appTheme.ts`) mirrors them — change both
   together. Mode is `useColorScheme()` (`components/utils/ThemeModeToggle.tsx`), stored in
   `localStorage['lr-theme-mode']` and applied pre-paint by the script in `app.blade.php`.
   Logos: use `components/utils/AppLogo.tsx` (swaps to the white logo in dark mode).
@@ -232,10 +241,10 @@ at the matching path. Nothing else.
   — logo, Dashboard / Sign out for a signed-in user, Sign in otherwise). **Business profile** `/business-profile/{slug}`
   (`Pages/BusinessProfile/Show.tsx`, `ContactLinkService::profile`): a social-media-style profile — cover, avatar, name, title,
   area, year joined, About me (`agent_profiles.about`, text), contact details, social buttons (`agent_profiles.facebook`
-  cleaned by `SocialLinks::facebook`, `instagram` / `twitter` / `linkedin` by `ContactLinkService::link`, `whatsapp` → `wa.me`
+  cleaned by `SocialLinks::facebook`, `instagram` / `twitter` / `linkedin` by `ContactLinkService::link`, `whatsapp` → `api.whatsapp.com/send?phone=` (not wa.me: some networks intercept its certificate)
   with `whatsapp()`; edited on its own page `/profile/business` — `ProfileController::business/updateBusiness`,
   `UpdateBusinessProfileRequest`, `ProfileService::updateBusiness` (logged `profile.business_updated`), `Pages/Profile/Business.tsx` +
-  `forms/BusinessProfileForm.tsx` (About me, mobile, Facebook/Instagram/X/LinkedIn links, WhatsApp) — the same fields also stay in the main `/profile` form (`ProfileDetailsForm` › Business profile group); both write the same columns, so they are always in sync), Save contact + Send inquiry.
+  `forms/BusinessProfileForm.tsx` (About me, mobile, Facebook/Instagram/X/LinkedIn links, WhatsApp, and **My Links** = `agent_profiles.links` JSON `[{label, url}]`, max 10, `links.*.label` / `links.*.url` rules, cleaned for the card by `ContactLinkService::links`, shown under the action buttons as globe cards — only on the business form) — the same fields also stay in the main `/profile` form (`ProfileDetailsForm` › Business profile group); both write the same columns, so they are always in sync), Save contact + Send inquiry.
   **Contact page** `/contact/{slug}` (`Pages/Contact/Show.tsx`): the agent card (name, title — "Licensed Real
   Estate Broker" when `is_broker` —, avatar, mobile, email, city + province, "Save contact" = `GET …/vcard`) and the inquiry form
   (`POST …`, throttled, `StoreContactInquiryRequest`, consent box `accepted`) → `contact_inquiries` (`ContactInquiry`, `ROLES` /
@@ -247,7 +256,7 @@ at the matching path. Nothing else.
   `DashboardController::index` creates one like `/profile`); Dashboard › Your links shows both as `LR | route` like the referral links
   (`helpers/userLinks.ts`: `url` is the shown text, `href` the real path that Copy / Share prefix with the origin, `settings` adds a gear
   button → `/profile/business`). Only agents whose account is `active` resolve; others 404.
-  The public name is first + last only (`ContactLinkService::displayName`; the middle name stays in the vCard `N` field). The business profile follows the Leuterio mock: blue `--lr-primary*` accent, two columns from `md` (avatar with red ring + name + verified mark + chips "Leuterio Realty & Brokerage" / province (`profile()['province']` = title-cased `agents.state`) / "Filipino Homes", About Me, Contact me / Save card / Share; right: QR + "Connect with me" badges panel, Contact Information cards that open tel: / mailto: / wa.me / Google Maps), stacked on phones. Social badges use the scheme-independent `--lr-brand-*` tokens in app.css (official brand colours, white mark); the Twitter field is shown as X. QR codes: `components/utils/DotsQrCode.tsx` (round dots + rounded eyes, module grid from the `qrcode` package). Share opens `ShareCardDialog` (QR + share-to links for Facebook / LinkedIn / X / WhatsApp + copy link).
+  The public name is first + last only (`ContactLinkService::displayName`; the middle name stays in the vCard `N` field). The business profile follows the Leuterio mock: blue `--lr-primary*` accent, two columns from `md` (avatar with red ring + name + verified mark + chips "Leuterio Realty & Brokerage" / province (`profile()['province']` = title-cased `agents.state`) / "Filipino Homes", About Me, Contact me / Save card / Share; right: QR + "Connect with me" badges panel, Contact Information cards that open tel: / mailto: / Google Maps (WhatsApp is only a social badge)), stacked on phones. Social badges use the scheme-independent `--lr-brand-*` tokens in app.css (official brand colours, white mark); the Twitter field is shown as X. QR codes: `components/utils/DotsQrCode.tsx` (round dots + rounded eyes, module grid from the `qrcode` package; `logo` = the pin `assets/qr-logo.png` in the middle at 30% height — level H, dots under it left out — verified with jsQR; tapping the card's QR opens the share dialog). Share opens `ShareCardDialog` (QR + share-to links for Facebook / LinkedIn / X / WhatsApp + copy link).
 - **Settings › Preferences** (`/settings/preferences`, `routes/settings.php`, `Portal\PreferencesController`,
   `UserPreferenceService`; every user, gated by permission `use_preferences` — migration `000036` gave it to every role, a
   role made later has it only if ticked): `users.preferences` = `{theme, font_size, links: {default, sections}}`
@@ -312,6 +321,18 @@ at the matching path. Nothing else.
   leaders their team / sub-team; anyone else with reports the recruits they sponsored (`sponsor_id` lock,
   `ReportsController::recruitLock`) (menu pseudo-grants `_backoffice` / `_leader`). Portable SQL only (CASE, not
   LEAST — tests run on SQLite).
+- **Partner posters** (`components/dashboard/PartnerPosters`, in `AppLayout` under the navbar — every signed-in page, every user):
+  a slim strip, Filipino Homes (post brokerage properties) beside Rent.ph (post rental properties), one at a time on phones, in
+  their own colours (`--lr-brand-fh-*`, `--lr-brand-rentph-*`, the same in both
+  schemes) with their logos (Filipino Homes white, `onboarding/fh-logo-white.png`; Rent.ph the full-colour `rentph-logo-tagline.png` on a slanted light panel `--lr-brand-rentph-logo-bg` so its blue lettering reads on the navy); external links (`url` in `POSTERS`), new tab.
+- **Dashboard posters** (announcements; Settings › Dashboard posters `/superadmin/settings/posters`, superadmin only —
+  `SuperAdmin\Settings\PosterController`, `DashboardPosterService`, `dashboard_posters` migration `000054`, `Save/Toggle/Reorder/DeletePosterRequest`):
+  title, image (compressed in the browser, then by `FileCompressionService`, stored on the photos disk under `posters/`; a replaced
+  or deleted image is removed), optional link (an in-app path → Inertia, or https → new tab), optional show-from / until dates,
+  on/off, order. Dashboard › Main gets `posters` (`showing()`: on and within dates, in order) and shows them edge to edge beside
+  the welcome as `components/dashboard/PosterCarousel` (slides every 6 s, pauses on hover / reduced motion, arrows + corner dots
+  when more than one; nothing when there are none). Best at 1200 × 515. The first row is the NATCON 2026 poster
+  (`public/assets/posters/natcon-2026-banner.jpg`).
 - **Dashboard (shared)**: `/dashboard/{main,overview,view-sales,record-sale/...}` (`routes/dashboard.php`,
   `Portal\DashboardController`, pages in `Pages/Portal/Dashboard/`) is the **same for every role** and is
   everyone's home (`User::homeUrl()` → `dashboard.index`; old `/superadmin/dashboard/*`, `/admin/dashboard`,

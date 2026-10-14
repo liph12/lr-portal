@@ -224,7 +224,7 @@ test('save contact downloads a vCard', function () {
         ->toContain('ADR;TYPE=WORK:;;Cebu City\\, Cebu;;;;');
 });
 
-test('the business profile shows about, social links and the way to the inquiry form', function () {
+test('the business profile shows about, social links, my links and the way to the inquiry form', function () {
     $agent = contactAgent('mark', 'SARGADO');
     $agent->profile()->create([
         'about' => 'Web Developer of Filipinohomes',
@@ -233,6 +233,7 @@ test('the business profile shows about, social links and the way to the inquiry 
         'twitter' => '',
         'linkedin' => 'https://linkedin.com/in/marksargado',
         'whatsapp' => '0910 193 0243',
+        'links' => [['label' => 'Listings', 'url' => 'listings.example.com/mark'], ['label' => 'Broken', 'url' => 'not a link']],
     ]);
     app(ContactLinkService::class)->slugFor($agent);
 
@@ -247,7 +248,8 @@ test('the business profile shows about, social links and the way to the inquiry 
             ->where('agent.socials.instagram', 'https://instagram.com/marksargado')
             ->where('agent.socials.twitter', null)
             ->where('agent.socials.linkedin', 'https://linkedin.com/in/marksargado')
-            ->where('agent.socials.whatsapp', 'https://wa.me/639101930243'));
+            ->where('agent.socials.whatsapp', 'https://api.whatsapp.com/send?phone=639101930243')
+            ->where('agent.links', [['label' => 'Listings', 'url' => 'https://listings.example.com/mark']]));
 
     $this->get('/business-profile/nobody')->assertNotFound();
 });

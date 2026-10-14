@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Entities\AgentTransaction;
 use App\Models\Entities\InternationalSale;
 use App\Services\SaleValidationService;
+use App\Services\DashboardPosterService;
 use App\Services\ProfileService;
 use App\Services\SalesReportService;
 use App\Services\SalesEncodingService;
@@ -17,11 +18,12 @@ class DashboardController extends Controller
 {
 
     // "Your links" needs an agent record (the contact slug lives on it), so one is created here on first use like /profile.
-    public function index(Request $request, ProfileService $profiles)
+    public function index(Request $request, ProfileService $profiles, DashboardPosterService $posters)
     {
         $profiles->agentFor($request->user());
 
-        return inertia('Portal/Dashboard/Index');
+        // Announcements beside the welcome (Settings › Dashboard posters), as a carousel.
+        return inertia('Portal/Dashboard/Index', ['posters' => $posters->showing()]);
     }
 
     // Sales at a glance: the back office sees the whole system, team leaders / unit managers their own team or
