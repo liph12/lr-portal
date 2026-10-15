@@ -68,6 +68,8 @@ export interface AuthUser {
     global_partners: { pending: number } | null;
     // Null when there's nobody whose NAO attendance this user approves; pending = waiting for approval (menu badge).
     nao_approvals: { pending: number } | null;
+    // SMS credit requests waiting (SMS managers only; menu badge).
+    sms_credits: { pending: number } | null;
     // Pending sales this user can validate (menu badge); null when they don't validate sales.
     sales_validation: { pending: number } | null;
     // Commission slips waiting to be received (the Commission receiving badge), in total and per category the user

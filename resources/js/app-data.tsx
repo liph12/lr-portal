@@ -15,6 +15,7 @@ import {
     Diversity3Rounded,
     FactCheckRounded,
     HowToRegRounded,
+    SmsRounded,
     PublicRounded,
     ReceiptLongRounded,
     AccountTreeRounded,
@@ -152,6 +153,18 @@ export const naoApprovalsRoute = {
     icon: HowToRegRounded,
     permission: NAO_APPROVER,
     children: [],
+};
+
+// SMS Manager (send_sms): texts to groups and typed-in numbers through Semaphore; team leaders pay with credits.
+export const smsRoute = {
+    name: "SMS Manager",
+    path: "/sms",
+    icon: SmsRounded,
+    permission: "send_sms",
+    children: [
+        { name: "Send SMS", path: "/sms", permission: "send_sms", children: [] },
+        { name: "Credits", path: "/sms/credits", permission: "send_sms", children: [] },
+    ],
 };
 
 // Who may open a report beyond Reports itself (ReportsController::available): Top Teams only with the whole system in
@@ -338,6 +351,8 @@ export const memberRoutes = [
     globalPartnersRoute,
     naoApprovalsRoute,
     genealogyRoute,
+    // Back-office portals reach SMS Manager through Management.
+    smsRoute,
     { name: "Sales validation", path: "/sales-validation", icon: FactCheckRounded, permission: SECRETARY, requires: ["sales_validation"], children: [] },
     settingsRoute,
 ];

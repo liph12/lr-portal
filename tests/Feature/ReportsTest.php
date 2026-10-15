@@ -87,5 +87,5 @@ test('the roles page groups permissions into sections, with every report under R
                 && collect($ps)->where('section', 'Reports')->pluck('name')->contains('view_reports')
                 && collect($ps)->firstWhere('name', 'record_sales')['section'] === 'Dashboard & sales'
                 // Sections come in display order, so the page can group them as they arrive.
-                && collect($ps)->pluck('section')->unique()->values()->all() === collect($ps)->pluck('section')->unique()->values()->sortBy(fn ($s) => array_search($s, ['Dashboard & sales', 'Reports', 'Statistics', 'Documentation', 'Management', 'Users & settings', 'Other']))->values()->all()));
+                && collect($ps)->pluck('section')->unique()->values()->all() === collect($ps)->pluck('section')->unique()->values()->sortBy(fn ($s) => array_search($s, [...array_keys(\App\Models\Permission::SECTIONS), \App\Models\Permission::OTHER_SECTION]))->values()->all()));
 });

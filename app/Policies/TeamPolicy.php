@@ -18,9 +18,9 @@ class TeamPolicy
         return collect(array_keys(Permission::MANAGEMENT))->contains(fn (string $permission) => $user->hasPermission($permission));
     }
 
-    // The Management page itself (its cards): managing teams and agents, or receiving commission slips.
+    // The Management page itself (its cards): managing teams and agents, receiving commission slips, or SMS.
     public function open(User $user): bool
     {
-        return $this->manage($user) || $user->hasPermission('receive_brokerage_sales') || $user->hasPermission('receive_rental_sales');
+        return $this->manage($user) || $user->hasPermission('receive_brokerage_sales') || $user->hasPermission('receive_rental_sales') || $user->hasPermission('send_sms');
     }
 }

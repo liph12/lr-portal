@@ -23,7 +23,11 @@ export type SpotName =
     | "for-sale"
     | "house-key"
     | "star-trophy"
-    | "coins";
+    | "coins"
+    | "handbook-team-leader"
+    | "handbook-unit-manager"
+    | "handbook-salesperson"
+    | "sms";
 
 // The colours every drawing uses, by role — read from the tile, so a tone (below) can swap them all.
 const TONE: Record<string, string> = {
@@ -50,8 +54,52 @@ function Person({ x, y, s = 1, fill }: { x: number; y: number; s?: number; fill:
     );
 }
 
+// A handbook: the cover with its spine and page edges, and a round plate on the cover for the emblem of whose handbook it is.
+function Handbook({ g, children }: { g: (c: string) => string; children: ReactNode }) {
+    return (
+        <>
+            <rect x="12" y="36" width="27" height="7" rx="2" fill={g("soft")} />
+            <rect x="9" y="5" width="30" height="35" rx="3.5" fill={g("main")} />
+            <rect x="13.5" y="5" width="2.4" height="35" fill={CUT} opacity="0.35" />
+            <circle cx="27.5" cy="20" r="9" fill={CUT} />
+            {children}
+            <rect x="20" y="32" width="15" height="2.4" rx="1.2" fill={CUT} />
+        </>
+    );
+}
+
 function drawing(name: SpotName, g: (c: string) => string): ReactNode {
     switch (name) {
+        case "sms":
+            return (
+                <>
+                    <path d="M8 9 H36 A4 4 0 0 1 40 13 V29 A4 4 0 0 1 36 33 H20 L12 40 V33 H8 A4 4 0 0 1 4 29 V13 A4 4 0 0 1 8 9 Z" fill={g("main")} />
+                    <circle cx="13.5" cy="21" r="2.6" fill={CUT} />
+                    <circle cx="22" cy="21" r="2.6" fill={CUT} />
+                    <circle cx="30.5" cy="21" r="2.6" fill={CUT} />
+                    <circle cx="39" cy="10" r="6" fill={g("accent")} stroke={CUT} strokeWidth="2" />
+                </>
+            );
+        case "handbook-team-leader":
+            return (
+                <Handbook g={g}>
+                    <path d="M21.5 23.5 L22.5 15.5 L25.2 18.8 L27.5 14.5 L29.8 18.8 L32.5 15.5 L33.5 23.5 Z" fill={g("accent")} />
+                    <rect x="21.5" y="23" width="12" height="2.6" rx="1" fill={g("accent")} />
+                </Handbook>
+            );
+        case "handbook-unit-manager":
+            return (
+                <Handbook g={g}>
+                    <path d="M27.5 13.2 L29.6 17.6 L34.4 18.1 L30.8 21.3 L31.8 26 L27.5 23.6 L23.2 26 L24.2 21.3 L20.6 18.1 L25.4 17.6 Z" fill={g("accent")} />
+                </Handbook>
+            );
+        case "handbook-salesperson":
+            return (
+                <Handbook g={g}>
+                    <circle cx="27.5" cy="17.3" r="3.3" fill={g("accent")} />
+                    <path d="M21.8 26.5 C21.8 22.4 24.3 21.3 27.5 21.3 C30.7 21.3 33.2 22.4 33.2 26.5 Z" fill={g("accent")} />
+                </Handbook>
+            );
         case "id-card":
             return (
                 <>

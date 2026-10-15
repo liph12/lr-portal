@@ -36,6 +36,8 @@ function Management({ counts }: ManagementProps) {
                 return { text: `${formatCount(awaiting?.brokerage ?? 0)} awaiting`, waiting: (awaiting?.brokerage ?? 0) > 0 };
             case "Rental receiving":
                 return { text: `${formatCount(awaiting?.rental ?? 0)} awaiting`, waiting: (awaiting?.rental ?? 0) > 0 };
+            case "SMS Manager":
+                return user?.sms_credits ? { text: `${formatCount(user.sms_credits.pending)} credit requests waiting`, waiting: user.sms_credits.pending > 0 } : null;
             default:
                 return null;
         }

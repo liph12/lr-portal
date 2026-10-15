@@ -75,3 +75,18 @@ test('only the superadmin manages posters', function () {
     $this->actingAs($this->agent)->post('/superadmin/settings/posters', ['title' => 'x', 'image' => UploadedFile::fake()->image('x.jpg')])->assertForbidden();
     expect(DashboardPoster::count())->toBe(1);
 });
+
+test('policy handbooks follow the role: a team leader all three, a unit manager theirs and the salesperson\'s, an agent only theirs', function () {
+    $handbooks = fn (User $user) => $this->actingAs($user)->get('/dashboard/main')->viewData('page')['props']['handbooks'];
+    $withRole = function (string $name, string $label) {
+        $user = User::factory()->create();
+        $user->roles()->attach(Role::create(['name' => $name, 'label' => $label]));
+
+        return $user;
+    };
+
+    expect($handbooks($withRole('team_leader', 'Team Leader')))->toBe(['team_leader', 'unit_manager', 'salesperson'])
+        ->and($handbooks($withRole('unit_manager', 'Unit Manager')))->toBe(['unit_manager', 'salesperson'])
+        ->and($handbooks($this->agent))->toBe(['salesperson'])
+        ->and($handbooks($this->superadmin))->toBe(['team_leader', 'unit_manager', 'salesperson']);
+});

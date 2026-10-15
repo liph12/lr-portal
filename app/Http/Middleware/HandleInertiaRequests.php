@@ -12,6 +12,7 @@ use App\Services\GlobalPartnerService;
 use App\Services\GroupSearchService;
 use App\Services\ImpersonationService;
 use App\Services\NaoApprovalService;
+use App\Services\SmsCreditService;
 use App\Services\OfficeService;
 use App\Services\TeamLeadershipService;
 use App\Services\UserPreferenceService;
@@ -79,6 +80,10 @@ class HandleInertiaRequests extends Middleware
                 'nao_approvals' => ($naoPending = app(NaoApprovalService::class)->pendingCount($request->user())) === null
                     ? null
                     : ['pending' => $naoPending],
+                // SMS credit requests waiting for an SMS manager (the SMS Manager badge); null for everyone else.
+                'sms_credits' => ($smsPending = app(SmsCreditService::class)->pendingCount($request->user())) === null
+                    ? null
+                    : ['pending' => $smsPending],
                 // Pending sales this user can validate (all for the back office, their area's for a secretary), any date:
                 // the Sales validation menu badge. Null when they don't validate sales.
                 'sales_validation' => ($pending = app(SaleValidationService::class)->pendingCount($request->user())) === null

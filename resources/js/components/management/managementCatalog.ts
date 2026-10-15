@@ -1,11 +1,11 @@
 import { ElementType } from "react";
 import { SpotName } from "../utils/SpotIcon";
-import { BadgeRounded, Diversity3Rounded, GroupsRounded, KeyRounded, MoveToInboxRounded, SwapHorizRounded } from "@mui/icons-material";
+import { BadgeRounded, Diversity3Rounded, GroupsRounded, KeyRounded, MoveToInboxRounded, SmsRounded, SwapHorizRounded } from "@mui/icons-material";
 
 // Management's sections, in order: its tabs, its cards (Overview) and its menu children.
 export interface ManagementSection {
     name: string;
-    // Inside the portal's /management, or a shared page of its own (the receivings).
+    // Inside the portal's /management, or a shared page of its own (the receivings, SMS Manager).
     href: (base: string) => string;
     icon: ElementType;
     // The card's illustration (tabs and menus keep the flat icon).
@@ -24,4 +24,5 @@ export const MANAGEMENT_SECTIONS: ManagementSection[] = [
     { name: "Team transfers", href: (b) => `${b}/transfers`, icon: SwapHorizRounded, art: "transfer", description: "Who moved between teams and sub-teams, and when.", permission: MANAGEMENT_PERMISSIONS },
     { name: "Brokerage receiving", href: () => "/brokerage-receiving", icon: MoveToInboxRounded, art: "inbox", description: "Sign for brokerage commission slips; receiving validates the sale.", permission: ["receive_brokerage_sales"] },
     { name: "Rental receiving", href: () => "/rental-receiving", icon: KeyRounded, art: "key", description: "Sign for Rent.ph rental commission slips; receiving validates the sale.", permission: ["receive_rental_sales"] },
+    { name: "SMS Manager", href: () => "/sms", icon: SmsRounded, art: "sms", description: "Text agents, leaders and staff by group or number through Semaphore; team leaders' credit requests.", permission: ["send_sms"] },
 ];

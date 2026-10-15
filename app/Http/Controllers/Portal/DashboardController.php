@@ -13,6 +13,7 @@ use App\Services\SalesEncodingService;
 use App\Services\SalesReportService;
 use App\Services\SaleValidationService;
 use App\Services\TeamLeadershipService;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 // The dashboard every signed-in role shares (/dashboard/...); only Record Your Sale is permission-gated.
@@ -24,7 +25,18 @@ class DashboardController extends Controller
         $profiles->agentFor($request->user());
 
         // Announcements beside the welcome (Settings › Dashboard posters), as a carousel.
-        return inertia('Portal/Dashboard/Index', ['posters' => $posters->showing()]);
+        return inertia('Portal/Dashboard/Index', ['posters' => $posters->showing(), 'handbooks' => $this->handbooks($request->user())]);
+    }
+
+    // The policy handbooks a role reads: its own and those of the roles under it (a team leader all three, a unit manager theirs
+    // and the salesperson's, everyone else the salesperson's); the back office all of them.
+    private function handbooks(User $user): array
+    {
+        return match (true) {
+            $user->hasAnyRole(User::PORTALS), $user->hasRole('team_leader') => ['team_leader', 'unit_manager', 'salesperson'],
+            $user->hasRole('unit_manager') => ['unit_manager', 'salesperson'],
+            default => ['salesperson'],
+        };
     }
 
     // Generate LR ID: the official agent ID card, previewed, downloaded and printed from the agent's own record.

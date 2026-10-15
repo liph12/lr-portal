@@ -49,6 +49,7 @@ Route::middleware(['auth', 'active'])->group(function(){
     require base_path('routes/search.php');
     require base_path('routes/global-partners.php');
     require base_path('routes/nao-approvals.php');
+    require base_path('routes/sms.php');
     (require base_path('routes/sales-validation.php'))();
 
     // Superadmin role preview; the requests check the real role, so the way back always works.

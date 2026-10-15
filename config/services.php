@@ -15,6 +15,14 @@ return [
     */
 
     // FIRE training modules and exams (FireTrainingService): the realestatetraining.ph integration API, called from the server only.
+    // Semaphore (semaphore.co) SMS: the API key stays on the server; the sender name must be registered with Semaphore
+    // (empty = Semaphore's default).
+    'semaphore' => [
+        'url' => env('SEMAPHORE_API_URL', 'https://api.semaphore.co/api/v4'),
+        'key' => env('SEMAPHORE_API_KEY'),
+        'sender_name' => env('SEMAPHORE_SENDER_NAME'),
+    ],
+
     'fire' => [
         'url' => env('FIRE_API_URL', 'https://realestatetraining.ph/api/integration/agent'),
         'key' => env('FIRE_API_KEY'),

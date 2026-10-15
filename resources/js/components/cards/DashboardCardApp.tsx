@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import { Box, Typography } from "@mui/material";
 import { ArrowForwardRounded } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
@@ -6,9 +7,12 @@ interface DashboardCardAppProps {
     title: string;
     subTitle: string;
     description: string;
-    icon: string;
+    // An image, or a drawn icon (SpotIcon) that brings its own tile.
+    icon: string | ReactNode;
     // Where the card opens; without one it is a placeholder for a tool that is not in the portal yet.
     href?: string;
+    // A file or site outside the portal: a plain link in a new tab.
+    external?: boolean;
 }
 
 export default function DashboardCardApp({
@@ -17,11 +21,13 @@ export default function DashboardCardApp({
     description,
     icon,
     href,
+    external,
 }: DashboardCardAppProps) {
     return (
         <Box
-            component={href ? Link : "div"}
+            component={href ? (external ? "a" : Link) : "div"}
             href={href}
+            {...(external ? { target: "_blank", rel: "noopener" } : {})}
             sx={{
                 textDecoration: "none",
                 color: "inherit",
@@ -44,25 +50,24 @@ export default function DashboardCardApp({
                 },
             }}
         >
-            <Box
-                sx={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 2.5,
-                    backgroundColor: "var(--lr-surface-container)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                }}
-            >
+            {typeof icon === "string" ? (
                 <Box
-                    component="img"
-                    src={icon}
-                    alt=""
-                    sx={{ width: 26, height: "auto" }}
-                />
-            </Box>
+                    sx={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 2.5,
+                        backgroundColor: "var(--lr-surface-container)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                    }}
+                >
+                    <Box component="img" src={icon} alt="" sx={{ width: 26, height: "auto" }} />
+                </Box>
+            ) : (
+                icon
+            )}
 
             <Typography
                 variant="body2"

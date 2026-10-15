@@ -23,7 +23,7 @@ export default function ManagementLayout({ children }: { children: ReactNode }) 
     return (
         <AppLayout>
             <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 } }}>
-                <SectionTitle title="Management" subtitle="Agents, teams, transfers and commission receiving." />
+                <SectionTitle title="Management" subtitle="Agents, teams, transfers, commission receiving and SMS." />
                 <Box
                     component="nav"
                     aria-label="Management sections"

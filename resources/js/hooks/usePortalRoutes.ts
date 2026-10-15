@@ -25,6 +25,7 @@ export default function usePortalRoutes(): PortalRoute[] {
     // Counters on menu items, by path (e.g. global partners waiting for confirmation).
     const partnersPending = user?.global_partners?.pending ?? 0;
     const naoPending = user?.nao_approvals?.pending ?? 0;
+    const smsPending = user?.sms_credits?.pending ?? 0;
     const salesPending = user?.sales_validation?.pending ?? 0;
     const brokerageAwaiting = user?.commission_receiving?.brokerage ?? 0;
     const rentalAwaiting = user?.commission_receiving?.rental ?? 0;
@@ -37,8 +38,9 @@ export default function usePortalRoutes(): PortalRoute[] {
         const badges: Record<string, number> = {
             "/global-partners": partnersPending,
             "/nao-approvals": naoPending,
-            // The receivings sit inside Management (its tabs / cards show each); its menu item carries their total.
-            ...Object.fromEntries(["/superadmin", "/admin", "/staff"].map((p) => [`${p}/management`, brokerageAwaiting + rentalAwaiting])),
+            "/sms": smsPending,
+            // The receivings and SMS sit inside Management (its tabs / cards show each); its menu item carries their total.
+            ...Object.fromEntries(["/superadmin", "/admin", "/staff"].map((p) => [`${p}/management`, brokerageAwaiting + rentalAwaiting + smsPending])),
             // Sales validation lives in each back-office portal and, for office secretaries, at the shared path.
             ...Object.fromEntries(["/superadmin", "/admin", "/staff", ""].map((p) => [`${p}/sales-validation`, salesPending])),
         };
@@ -50,5 +52,5 @@ export default function usePortalRoutes(): PortalRoute[] {
 
         // Leaders of a team or sub-team get My Team right after the dashboard.
         return leads ? [routes[0], myTeamRoute as PortalRoute, ...routes.slice(1)].filter(Boolean) : routes;
-    }, [portal, permissions, leads, partnersPending, naoPending, salesPending, brokerageAwaiting, rentalAwaiting]);
+    }, [portal, permissions, leads, partnersPending, naoPending, smsPending, salesPending, brokerageAwaiting, rentalAwaiting]);
 }
