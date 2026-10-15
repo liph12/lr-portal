@@ -32,8 +32,9 @@ export default function TableToolbar({ search, onSearch, placeholder, filters, a
                 }}
                 sx={{
                     flex: { xs: "1 1 100%", sm: "0 1 320px" },
-                    "& .MuiOutlinedInput-root": { borderRadius: 99, backgroundColor: "var(--lr-surface-container)", fontSize: 14 },
-                    "& fieldset": { border: "none" },
+                    "& .MuiOutlinedInput-root": { borderRadius: 99, backgroundColor: "var(--lr-surface)", fontSize: 14 },
+                    // White with a hairline edge: on the off-white page (--lr-page) as well as inside cards.
+                    "& fieldset": { border: "1px solid var(--lr-border)" },
                 }}
             />
             {filters}

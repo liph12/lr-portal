@@ -1,3 +1,4 @@
+import { ElementType } from "react";
 import { Box, Typography } from "@mui/material";
 import { ArrowDownwardRounded, ArrowUpwardRounded, RemoveRounded } from "@mui/icons-material";
 import { percentChange } from "../../helpers/formatNumber";
@@ -11,9 +12,11 @@ interface StatTileProps {
     // Shown instead of a change when there's no previous period (e.g. "of 5 users").
     caption?: string;
     comparisonLabel?: string;
+    // A large, faint icon behind the figures (what the tile counts).
+    icon?: ElementType;
 }
 
-export default function StatTile({ label, value, current, previous, caption, comparisonLabel = "vs previous period" }: StatTileProps) {
+export default function StatTile({ label, value, current, previous, caption, comparisonLabel = "vs previous period", icon: Icon }: StatTileProps) {
     const change = current !== undefined ? percentChange(current, previous) : null;
     const direction = change === null ? null : change > 0 ? "up" : change < 0 ? "down" : "flat";
     const tone =
@@ -26,19 +29,25 @@ export default function StatTile({ label, value, current, previous, caption, com
     return (
         <Box
             sx={{
+                position: "relative",
+                overflow: "hidden",
                 height: "100%",
                 p: 2.5,
                 borderRadius: 3,
                 border: "1px solid var(--lr-border)",
                 backgroundColor: "var(--lr-surface)",
+                // The figures sit above the watermark icon.
+                "& > :not(.stat-tile-icon)": { position: "relative" },
             }}
         >
+            {Icon && <Icon className="stat-tile-icon" aria-hidden sx={{ position: "absolute", right: -14, bottom: -18, fontSize: 112, color: "var(--lr-primary)", opacity: 0.07, pointerEvents: "none" }} />}
             <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)", fontWeight: 500 }}>
                 {label}
             </Typography>
             <Typography
                 fontFamily="Google Sans Code"
-                sx={{ mt: 1, fontSize: { xs: 26, sm: 30 }, lineHeight: 1.15, color: "var(--lr-text-primary)", wordBreak: "break-word" }}
+                // Whole amounts to the centavo run long (₱4,837,742,662.00): a size down so they stay on one line.
+                sx={{ mt: 1, fontSize: value.length > 13 ? { xs: 20, sm: 23 } : { xs: 26, sm: 30 }, lineHeight: 1.15, color: "var(--lr-text-primary)", wordBreak: "break-word" }}
             >
                 {value}
             </Typography>

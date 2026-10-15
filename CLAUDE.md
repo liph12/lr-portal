@@ -115,7 +115,7 @@ between them, index `docs/notes/README.md`) — read only the note for the featu
   sidebar marker, the tab indicator, the bar beside `SectionTitle`, menu counter badges) and
   `--lr-accent-ink` (red text) — never for large areas or as a second action colour; near-black / charcoal text on white,
   true near-black surfaces in dark mode (contrast checked AA). Font: Inter (loaded in `app.blade.php`, set in `appTheme.ts` +
-  body). Cards: `--lr-shadow` (a hairline shadow in light, none in dark). Focus rings mix the token with `color-mix()`. **NATCON** keeps the portal palette; its mark is `components/natcon/NatconTrophyIcon` (gold star on a swoosh, its own
+  body). Cards: `--lr-shadow` (a hairline shadow in light, none in dark). Behind them every page is `--lr-page` (AppLayout's `<main>`: off-white `#f2f4f8` in light, a shade darker than the cards in dark) — so a page must not paint its own `--lr-surface` background, and controls that sit on the page (search, filters, date range) are white with a hairline `--lr-border` edge. The **sidebar is deep navy** in both schemes (`--lr-sidebar-bg`): `.lr-sidebar` on `AppSidebar` redefines the usual tokens to their on-navy values (white text, white `--lr-primary`), so things inside it use the normal tokens. Focus rings mix the token with `color-mix()`. **NATCON** keeps the portal palette; its mark is `components/natcon/NatconTrophyIcon` (gold star on a swoosh, its own
   colours — the menu icon, the NATCON header, the Qualifiers card). MUI's palette (`providers/appTheme.ts`) mirrors them — change both
   together. Mode is `useColorScheme()` (`components/utils/ThemeModeToggle.tsx`), stored in
   `localStorage['lr-theme-mode']` and applied pre-paint by the script in `app.blade.php`.
@@ -193,7 +193,7 @@ between them, index `docs/notes/README.md`) — read only the note for the featu
   call `describe('domain.verb', 'Human sentence', $subjectModel, [...extra])` once the action succeeds
   (see `ProjectSaleService::record`). Add new sensitive field names to `config/activity_log.php` `redact`.
 - **Tables**: MUI X DataGrid (`@mui/x-data-grid`, free) via `components/utils/tables/DataTable.tsx`
-  (token-themed, `autoHeight` so `<main>` stays the only scroller) + `TableToolbar` / `FilterSelect` /
+  (token-themed, `autoHeight` so `<main>` stays the only scroller; a "#" column numbers the rows 1…N across pages — `rowNumbers`, off while a search is applied (`useServerTable`) and for tables with their own rank column) + `TableToolbar` / `FilterSelect` /
   `PersonCell`. Small sets (< ~1k rows) are sent whole and filtered in the browser (Management Teams);
   large ones are **server-paged** with `hooks/useServerTable.ts` (page/sort/search/filters in the URL
   query, partial reload of one prop; the controller returns `{data,total,page,per_page}` and accepts

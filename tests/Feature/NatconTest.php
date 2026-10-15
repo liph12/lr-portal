@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\AppSetting;
+use App\Models\Entities\NatconEdition;
 use App\Models\Entities\AgentTransaction;
 use App\Models\Permission;
 use App\Models\Role;
@@ -38,6 +38,8 @@ beforeEach(function () {
         ['team_id' => $this->bravo, 'agent_id' => $this->cara, 'joined_at' => '2020-01-01', 'status' => 'active'],
     ]);
     DB::table('sales_cutoffs')->insert(['month' => '2026-07', 'cutoff_at' => '2026-08-12 17:00:00']);
+    // NATCON 2026 (made by its migration): its cutoff is that moment.
+    NatconEdition::where('year', 2026)->update(['cutoff_at' => '2026-08-12 17:00:00']);
 
     $this->sale = function (string $type, int $agentId, float $price, string $date, string $encoded = '2026-08-01 10:00:00', string $status = 'valid') {
         $t = AgentTransaction::create(['agent_id' => $agentId, 'sale_type' => $type, 'commission_status' => 'Unclaimed', 'sale_status' => $status]);
@@ -111,12 +113,12 @@ test('Top Rent Managers counts rentals reserved Sep 1 – Aug 31 and encoded by 
 
     ($this->natcon)($this->superadmin, 'top-rent-managers')
         ->assertInertia(fn ($page) => $page
-            ->where('period', ['from' => '2025-09-01', 'to' => '2026-08-31', 'cutoff_at' => '2026-09-05 23:59:59', 'cutoff_month' => null])
+            ->where('period', ['from' => '2025-09-01', 'to' => '2026-08-31', 'cutoff_at' => '2026-09-05 23:59:59'])
             ->where('rows.total', 2)
             ->where('rows.data.0', fn ($r) => $r['name'] === 'Cara Lim' && (float) $r['value'] === 400_000.0)
             ->where('rows.data.1', fn ($r) => $r['name'] === 'Dan Uy' && (float) $r['value'] === 100_000.0));
 
-    ($this->natcon)($this->superadmin)->assertInertia(fn ($page) => $page->where('period.cutoff_month', '2026-07')->where('rows.total', 1));
+    ($this->natcon)($this->superadmin)->assertInertia(fn ($page) => $page->where('period.cutoff_at', '2026-08-12 17:00:00')->where('rows.total', 1));
 });
 
 test('admin and staff see every board with amounts, like the superadmin', function () {
@@ -150,7 +152,7 @@ test('a team leader sees only who qualified on their team; a unit manager on the
     ($this->natcon)($ben)->assertInertia(fn ($page) => $page->where('rows.total', 0));
 
     // A unit manager: their sub-team only (Cara leads one with Ben in it; qualifier lowered to 30M).
-    AppSetting::create(['key' => 'natcon', 'value' => ['qualifier_amount' => 30_000_000]]);
+    NatconEdition::where('year', 2026)->update(['qualifier_amount' => 30_000_000]);
     $sub = DB::table('sub_teams')->insertGetId(['name' => 'Bravo One', 'team_id' => $this->bravo, 'agent_id' => $this->cara, 'status' => 'active']);
     DB::table('sub_team_agents')->insert(['sub_team_id' => $sub, 'agent_id' => $this->ben, 'joined_at' => '2020-01-01', 'status' => 'active']);
     $umRole = Role::create(['name' => 'unit_manager', 'label' => 'Unit Manager']);
@@ -174,26 +176,54 @@ test('anyone else is refused, even with the permission', function () {
     ($this->natcon)($user)->assertForbidden();
 });
 
-test('a superadmin sets the period, cutoff month and qualifier amount; nobody else can', function () {
+test('NATCON editions: a superadmin adds NATCON 2027 with its own period, cutoff and threshold; each has its own pages', function () {
+    $edition = fn (array $o = []) => $o + [
+        'year' => 2027, 'name' => 'NATCON 2027', 'from' => '2026-08-01', 'to' => '2027-07-31', 'cutoff_at' => '2027-08-12T17:00',
+        'qualifier_amount' => '47000000', 'rental_from' => '2026-09-01', 'rental_to' => '2027-08-31', 'rental_cutoff' => '2027-09-05', 'is_default' => false,
+    ];
     $this->actingAs($this->superadmin)->get('/superadmin/settings/natcon')
-        ->assertInertia(fn ($page) => $page->component('SuperAdmin/Settings/Natcon/Index')->where('settings.qualifier_amount', 43000000));
+        ->assertInertia(fn ($page) => $page->component('SuperAdmin/Settings/Natcon/Index')->has('editions', 1)->where('editions.0.name', 'NATCON 2026')->where('editions.0.is_default', true));
 
-    $this->actingAs($this->superadmin)
-        ->put('/superadmin/settings/natcon', ['from' => '2025-08-01', 'to' => '2026-07-31', 'cutoff_month' => '2026-07', 'qualifier_amount' => '30000000', 'rental_from' => '2025-09-01', 'rental_to' => '2026-08-31', 'rental_cutoff' => '2026-09-05'])
-        ->assertSessionHasNoErrors();
-    expect(AppSetting::find('natcon')->value['qualifier_amount'])->toEqual(30_000_000);
+    $this->actingAs($this->superadmin)->post('/superadmin/settings/natcon', $edition())->assertSessionHasNoErrors();
+    $e = NatconEdition::where('year', 2027)->first();
+    expect($e->qualifier_amount)->toBe(47_000_000.0)->and($e->cutoff_at->format('Y-m-d H:i'))->toBe('2027-08-12 17:00')->and($e->is_default)->toBeFalse();
 
-    // Ben's 30M now qualifies too.
+    // Checked: a year taken, dates the wrong way round, a cutoff before the period ends.
+    $this->actingAs($this->superadmin)->post('/superadmin/settings/natcon', $edition(['year' => 2026, 'to' => '2026-07-01', 'cutoff_at' => '2026-07-15T10:00', 'qualifier_amount' => '0', 'rental_cutoff' => '2027-08-01']))
+        ->assertSessionHasErrors(['year', 'to', 'qualifier_amount', 'rental_cutoff']);
+
+    // /natcon stays on the default (2026); /natcon/2027 is the new one, with its own threshold; an unknown year is a 404.
+    $this->actingAs($this->superadmin)->get('/natcon')->assertInertia(fn ($page) => $page->where('settings.year', 2026)->has('editions', 2)->where('base', '/natcon/2026'));
+    $this->actingAs($this->superadmin)->get('/natcon/2027')->assertInertia(fn ($page) => $page->where('settings.name', 'NATCON 2027')->where('settings.qualifier_amount', 47_000_000)->where('period.from', '2026-08-01')->where('counts.qualifiers', 0));
+    $this->actingAs($this->superadmin)->get('/natcon/2027/top-teams')->assertInertia(fn ($page) => $page->where('settings.year', 2027)->where('board.slug', 'top-teams'));
+    $this->actingAs($this->superadmin)->get('/natcon/2026/qualifiers')->assertInertia(fn ($page) => $page->where('rows.total', 1));
+    $this->actingAs($this->superadmin)->get('/natcon/2030')->assertNotFound();
+
+    // Edit 2026's threshold: Ben's 30M now qualifies too.
+    $natcon2026 = NatconEdition::where('year', 2026)->first();
+    $this->actingAs($this->superadmin)->put("/superadmin/settings/natcon/{$natcon2026->id}", [
+        'year' => 2026, 'name' => 'NATCON 2026', 'from' => '2025-08-01', 'to' => '2026-07-31', 'cutoff_at' => '2026-08-12T17:00',
+        'qualifier_amount' => '30000000', 'rental_from' => '2025-09-01', 'rental_to' => '2026-08-31', 'rental_cutoff' => '2026-09-05', 'is_default' => true,
+    ])->assertSessionHasNoErrors();
     ($this->natcon)($this->superadmin)->assertInertia(fn ($page) => $page->where('rows.total', 2));
 
-    $this->actingAs($this->superadmin)
-        ->put('/superadmin/settings/natcon', ['from' => '2026-08-01', 'to' => '2026-07-31', 'cutoff_month' => 'July', 'qualifier_amount' => '0', 'rental_from' => '2026-09-01', 'rental_to' => '2026-08-31', 'rental_cutoff' => '2026-08-01'])
-        ->assertSessionHasErrors(['to', 'cutoff_month', 'qualifier_amount', 'rental_to', 'rental_cutoff']);
+    // Make 2027 the default; the default can't be deleted, another can.
+    $this->actingAs($this->superadmin)->patch("/superadmin/settings/natcon/{$e->id}/default")->assertSessionHasNoErrors();
+    $this->actingAs($this->superadmin)->get('/natcon')->assertInertia(fn ($page) => $page->where('settings.year', 2027));
+    $this->actingAs($this->superadmin)->delete("/superadmin/settings/natcon/{$e->id}")->assertSessionHasErrors('edition');
+    $this->actingAs($this->superadmin)->delete("/superadmin/settings/natcon/{$natcon2026->id}")->assertSessionHasNoErrors();
+    expect(NatconEdition::pluck('year')->all())->toBe([2027]);
 
     $admin = User::factory()->create();
     $admin->roles()->attach(Role::create(['name' => 'admin', 'label' => 'Admin']));
-    $this->actingAs($admin)->put('/superadmin/settings/natcon', ['from' => '2025-08-01', 'to' => '2026-07-31', 'cutoff_month' => '2026-07', 'qualifier_amount' => '1', 'rental_from' => '2025-09-01', 'rental_to' => '2026-08-31', 'rental_cutoff' => '2026-09-05'])
-        ->assertForbidden();
+    $this->actingAs($admin)->post('/superadmin/settings/natcon', $edition(['year' => 2028]))->assertForbidden();
+
+    // The menu's NATCON items: one per edition, newest first, for those who see NATCON; nothing for anyone else.
+    NatconEdition::create($edition(['year' => 2028, 'name' => 'NATCON 2028', 'cutoff_at' => null]));
+    $this->actingAs($this->superadmin)->get('/natcon')->assertInertia(fn ($page) => $page->where('auth.natcon_editions', [
+        ['year' => 2028, 'name' => 'NATCON 2028', 'is_default' => false], ['year' => 2027, 'name' => 'NATCON 2027', 'is_default' => true],
+    ]));
+    $this->actingAs($admin)->get('/profile')->assertInertia(fn ($page) => $page->where('auth.natcon_editions', []));
 });
 
 test('My NATCON sales: an agent\'s own valid sales in the period, encoded by the cutoff, shown like My Sales', function () {

@@ -27,7 +27,12 @@ export type SpotName =
     | "handbook-team-leader"
     | "handbook-unit-manager"
     | "handbook-salesperson"
-    | "sms";
+    | "sms"
+    | "qr-code"
+    | "qr-poster"
+    | "forms-download"
+    | "forms-global"
+    | "buyer-sheet";
 
 // The colours every drawing uses, by role — read from the tile, so a tone (below) can swap them all.
 const TONE: Record<string, string> = {
@@ -70,6 +75,83 @@ function Handbook({ g, children }: { g: (c: string) => string; children: ReactNo
 
 function drawing(name: SpotName, g: (c: string) => string): ReactNode {
     switch (name) {
+        case "qr-code":
+            // Three finder squares and a few modules; the red one is the brand's.
+            return (
+                <>
+                    {[
+                        [7, 7],
+                        [29, 7],
+                        [7, 29],
+                    ].map(([x, y]) => (
+                        <g key={`${x}${y}`}>
+                            <rect x={x} y={y} width="12" height="12" rx="2.5" fill={g("main")} />
+                            <rect x={x + 3} y={y + 3} width="6" height="6" rx="1" fill={CUT} />
+                            <rect x={x + 4.5} y={y + 4.5} width="3" height="3" rx="0.5" fill={g("main")} />
+                        </g>
+                    ))}
+                    <rect x="23" y="23" width="5" height="5" rx="1" fill={g("main")} />
+                    <rect x="30" y="28" width="5" height="5" rx="1" fill={g("soft")} />
+                    <rect x="36" y="34" width="5" height="5" rx="1" fill={g("main")} />
+                    <rect x="23" y="35" width="5" height="5" rx="1" fill={g("soft")} />
+                    <rect x="35" y="22" width="6" height="6" rx="1.2" fill={g("accent")} />
+                </>
+            );
+        case "qr-poster":
+            // A property poster: a house on top, its QR code below.
+            return (
+                <>
+                    <rect x="9" y="4" width="30" height="40" rx="3.5" fill={g("main")} />
+                    <path d="M16 19 L24 12 L32 19 V25 H16 Z" fill={g("soft")} />
+                    <rect x="21.5" y="20" width="5" height="5" rx="0.8" fill={g("accent")} />
+                    <rect x="15" y="29" width="18" height="11" rx="1.5" fill={CUT} />
+                    {[
+                        [17, 31],
+                        [27, 31],
+                        [17, 35.5],
+                    ].map(([x, y]) => (
+                        <rect key={`${x}${y}`} x={x} y={y} width="4" height="3" rx="0.6" fill={g("main")} />
+                    ))}
+                    <rect x="23" y="34" width="2.5" height="2.5" rx="0.4" fill={g("main")} />
+                    <rect x="27.5" y="36" width="3" height="2.5" rx="0.4" fill={g("main")} />
+                </>
+            );
+        case "forms-download":
+        case "forms-global": {
+            // A form with a folded corner; a red badge: download, or a globe for the global partners' forms.
+            const global = name === "forms-global";
+            return (
+                <>
+                    <path d="M10 6 H29 L37 14 V41 A3 3 0 0 1 34 44 H10 A3 3 0 0 1 7 41 V9 A3 3 0 0 1 10 6 Z" fill={g("main")} />
+                    <path d="M29 6 V14 H37 Z" fill={g("soft")} />
+                    <rect x="12" y="18" width="16" height="2.6" rx="1.3" fill={CUT} />
+                    <rect x="12" y="24" width="12" height="2.6" rx="1.3" fill={CUT} />
+                    <rect x="12" y="30" width="9" height="2.6" rx="1.3" fill={CUT} />
+                    <circle cx="35" cy="36" r="9" fill={g("accent")} stroke="var(--spot-tile)" strokeWidth="2" />
+                    {global ? (
+                        <g fill="none" stroke={CUT} strokeWidth="1.5">
+                            <circle cx="35" cy="36" r="5" />
+                            <ellipse cx="35" cy="36" rx="2.2" ry="5" />
+                            <path d="M30 36 H40" />
+                        </g>
+                    ) : (
+                        <path d="M35 31.5 V39 M31.8 36 L35 39.4 L38.2 36" fill="none" stroke={CUT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    )}
+                </>
+            );
+        }
+        case "buyer-sheet":
+            // A clipboard: the buyer up top, their details below.
+            return (
+                <>
+                    <rect x="9" y="7" width="30" height="37" rx="3.5" fill={g("main")} />
+                    <rect x="17" y="4" width="14" height="7" rx="2.5" fill={g("soft")} />
+                    <circle cx="24" cy="19" r="4" fill={g("accent")} />
+                    <path d="M16.5 30 C16.5 25.5 20 24.5 24 24.5 C28 24.5 31.5 25.5 31.5 30 Z" fill={g("accent")} />
+                    <rect x="14" y="33.5" width="20" height="2.6" rx="1.3" fill={CUT} />
+                    <rect x="14" y="38.5" width="13" height="2.6" rx="1.3" fill={CUT} />
+                </>
+            );
         case "sms":
             return (
                 <>

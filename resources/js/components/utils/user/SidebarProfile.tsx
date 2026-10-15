@@ -6,7 +6,7 @@ import StyledButton from "../StyledButton";
 import useAuthUser from "../../../hooks/useAuthUser";
 import UserAvatar from "./UserAvatar";
 
-const linkSx = { fontSize: 12, fontWeight: 500, color: "var(--lr-primary)", textDecoration: "none", ":hover": { textDecoration: "underline" } };
+const linkSx = { fontSize: 13, fontWeight: 500, color: "var(--lr-text-body)", textDecoration: "none", ":hover": { color: "var(--lr-primary)", textDecoration: "underline" } };
 
 export default function SidebarProfile() {
     const user = useAuthUser();
@@ -26,69 +26,33 @@ export default function SidebarProfile() {
                     pb: 2,
                 }}
             >
-                <Link href="/profile" aria-label="Edit profile" style={{ borderRadius: "50%" }}>
+                {/* Minimal: a large photo, the name and the role; the email lives on the profile. */}
+                <Link href="/profile" aria-label="Edit profile" style={{ borderRadius: "50%", textDecoration: "none" }}>
                     <UserAvatar
                         name={user.name}
                         src={user.avatar}
-                        size={72}
+                        size={104}
                         sx={{
-                            border: "3px solid var(--lr-surface)",
-                            boxShadow: "0 1px 3px rgba(60,64,67,.3)",
+                            boxShadow: "0 0 0 3px var(--lr-primary-soft-strong)",
                             transition: "box-shadow 0.15s",
-                            ":hover": { boxShadow: "0 0 0 3px var(--lr-primary-soft-strong)" },
+                            ":hover": { boxShadow: "0 0 0 3px var(--lr-primary)" },
                         }}
                     />
                 </Link>
-                <Typography
-                    sx={{
-                        mt: 1.5,
-                        fontSize: 16,
-                        fontWeight: 500,
-                        color: "var(--lr-text-primary)",
-                        lineHeight: 1.3,
-                        overflowWrap: "anywhere",
-                    }}
-                >
+                <Typography sx={{ mt: 1.75, fontSize: 18, fontWeight: 700, color: "var(--lr-text-primary)", lineHeight: 1.3, overflowWrap: "anywhere" }}>
                     {user.name}
                 </Typography>
-                {user.role && (
-                    <Box
-                        sx={{
-                            mt: 0.75,
-                            px: 1.25,
-                            py: 0.25,
-                            borderRadius: 99,
-                            backgroundColor: "var(--lr-primary-soft)",
-                            color: "var(--lr-primary)",
-                        }}
-                    >
-                        <Typography variant="caption" sx={{ fontWeight: 500 }}>
-                            {user.role}
-                        </Typography>
-                    </Box>
-                )}
-                <Typography
-                    variant="caption"
-                    sx={{ mt: 0.5, color: "var(--lr-text-secondary)", overflowWrap: "anywhere" }}
-                >
-                    {user.email}
-                </Typography>
-                {/* Their profile as others see it (agents only), and the form to change it. */}
-                <Box sx={{ mt: 0.5, display: "flex", gap: 1, alignItems: "center", fontSize: 12 }}>
+                <Typography variant="caption" sx={{ mt: 0.25, fontSize: 13, fontWeight: 500, color: "var(--lr-text-secondary)", lineHeight: 1.6 }}>
+                    {user.role}
                     {user.agent_id && (
                         <>
+                            {user.role && " · "}
                             <MuiLink component={Link} href={`/agents/${user.agent_id}`} sx={linkSx}>
                                 My profile
                             </MuiLink>
-                            <Box component="span" aria-hidden sx={{ color: "var(--lr-text-secondary)" }}>
-                                ·
-                            </Box>
                         </>
                     )}
-                    <MuiLink component={Link} href="/profile" sx={linkSx}>
-                        Edit profile
-                    </MuiLink>
-                </Box>
+                </Typography>
                 {hasAnyPermission(user.permissions, RECORD_PERMISSIONS) && (
                     <StyledButton
                         variant="contained"
@@ -100,6 +64,8 @@ export default function SidebarProfile() {
                             mt: 2,
                             py: 1,
                             backgroundColor: "var(--lr-primary)",
+                            color: "var(--lr-on-primary)",
+                            fontWeight: 600,
                             ":hover": { backgroundColor: "var(--lr-primary-hover)" },
                         }}
                     >

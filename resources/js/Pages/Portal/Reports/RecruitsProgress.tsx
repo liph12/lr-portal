@@ -27,7 +27,9 @@ interface Measures {
     recruits: number;
     sold: number;
     conversion: number;
+    // What the new recruits sold; the group's (or the selection's) whole total in the range, old members' too — null for a sponsor.
     value: number;
+    total_sales?: number | null;
     trainees: number;
     nao_finished: number;
     nao: number;
@@ -83,10 +85,10 @@ const GROUP_LABELS: Record<Group, { tab: string; column: string; search: string 
 };
 
 const CHART_LABELS = {
-    value: "Recruits' total sales",
-    count: "Recruits",
+    value: "New recruits' total sales",
+    count: "New recruits",
     valueToggle: "Their sales",
-    countToggle: "Recruits",
+    countToggle: "New recruits",
     dated: "by sign-up month",
 };
 
@@ -173,16 +175,29 @@ function RecruitsProgress({ filters, groups, scope, selection, summary, rows }: 
         ...(filters.group === "sponsors"
             ? [{ field: "team", headerName: "Team", flex: 1, minWidth: 150, sortable: false, valueGetter: (_: unknown, r: ProgressRow) => r.team ?? "—" } as GridColDef<ProgressRow>]
             : []),
-        { field: "recruits", headerName: "Recruits", type: "number", width: 110, valueFormatter: (v: number) => formatCount(v) },
+        { field: "recruits", headerName: "New recruits", type: "number", width: 120, valueFormatter: (v: number) => formatCount(v) },
         {
             field: "conversion",
-            headerName: "Recruits who sold",
+            headerName: "New recruits who sold",
             width: 180,
             renderCell: ({ row }) => <Percent value={row.conversion} caption={`${formatCount(row.sold)} of ${formatCount(row.recruits)}`} />,
         },
         { field: "nao", headerName: "NAO finished", width: 170, renderCell: ({ row }) => <Percent value={row.nao} caption={`${formatCount(row.nao_finished)} of ${formatCount(row.trainees)} in training`} /> },
         { field: "fire", headerName: "FIRE complete (3 of 3)", width: 190, renderCell: ({ row }) => <Percent value={row.fire} caption={`${formatCount(row.fire_complete)} of ${formatCount(row.trainees)} in training`} /> },
-        { field: "value", headerName: "Recruits' total sales", type: "number", flex: 1, minWidth: 170, valueFormatter: (v: number) => formatPeso(v) },
+        { field: "value", headerName: "New recruits' total sales", type: "number", flex: 1, minWidth: 190, valueFormatter: (v: number) => formatPeso(v) },
+        ...(filters.group === "sponsors"
+            ? []
+            : [
+                  {
+                      field: "total_sales",
+                      headerName: `${{ teams: "Team", sub_teams: "Sub-team", areas: "Branch" }[filters.group as "teams" | "sub_teams" | "areas"] ?? "Group"} total sales`,
+                      type: "number",
+                      flex: 1,
+                      minWidth: 180,
+                      sortable: false,
+                      valueFormatter: (v: number | null) => (v === null || v === undefined ? "—" : formatPeso(v)),
+                  } as GridColDef<ProgressRow>,
+              ]),
     ];
 
     return (
@@ -221,6 +236,7 @@ function RecruitsProgress({ filters, groups, scope, selection, summary, rows }: 
                 sold={kpis.sold}
                 conversion={kpis.conversion}
                 value={kpis.value}
+                totalSales={kpis.total_sales ?? null}
                 from={filters.from}
                 to={filters.to}
                 fire={kpis.fire_status}

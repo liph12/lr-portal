@@ -339,6 +339,9 @@ export const myTeamRoute = {
 // `parent` is the menu path they sit under (left out when the reader's menu doesn't have it).
 export const pagesOutsideMenu = [
     { name: "Agent profile", path: "/agents/:agent", parent: "/reports" },
+    // The default NATCON edition's own addresses (the menu has /natcon/{year} per edition).
+    { name: "NATCON", path: "/natcon" },
+    { name: "NATCON", path: "/natcon/:board" },
     { name: "Journey", path: "/agents/:agent/journey", parent: "/reports" },
     { name: "My journey", path: "/my-journey" },
     { name: "FIRE", path: "/fire" },

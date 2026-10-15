@@ -1,3 +1,4 @@
+import { PaymentsRounded, PeopleAltRounded, ReceiptLongRounded, SellRounded } from "@mui/icons-material";
 import { ReactNode, useState } from "react";
 import { Box, Container, Grid, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { router, usePage } from "@inertiajs/react";
@@ -10,7 +11,7 @@ import BarList from "../../components/charts/BarList";
 import ShareBar from "../../components/charts/ShareBar";
 import UserStatusChip from "../../components/utils/user/UserStatusChip";
 import ClientAgeChart from "../../components/reports/ClientAgeChart";
-import { formatCount, formatPeso, formatPesoCompact } from "../../helpers/formatNumber";
+import { formatCount, formatPeso, formatPesoCompact, formatPesoExact } from "../../helpers/formatNumber";
 import { StatsPeriod, StatsSummary } from "../../types/app-data-types";
 
 const PERIODS: { value: StatsPeriod; label: string; comparison: string }[] = [
@@ -74,7 +75,7 @@ function Statistics({ stats }: { stats: StatsSummary }) {
             <Box sx={{ opacity: loading ? 0.55 : 1, transition: "opacity 0.15s", display: "flex", flexDirection: "column", gap: 3 }}>
                 <Grid container spacing={2}>
                     <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                        <StatTile
+                        <StatTile icon={ReceiptLongRounded}
                             label="Sales recorded"
                             value={formatCount(kpis.sales.value)}
                             current={kpis.sales.value}
@@ -83,25 +84,25 @@ function Statistics({ stats }: { stats: StatsSummary }) {
                         />
                     </Grid>
                     <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                        <StatTile
+                        <StatTile icon={PaymentsRounded}
                             label="Total contract value"
-                            value={formatPesoCompact(kpis.contract_value.value)}
+                            value={formatPesoExact(kpis.contract_value.value)}
                             current={kpis.contract_value.value}
                             previous={kpis.contract_value.previous}
                             comparisonLabel={period.comparison}
                         />
                     </Grid>
                     <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                        <StatTile
+                        <StatTile icon={SellRounded}
                             label="Average deal size"
-                            value={formatPesoCompact(kpis.average_deal.value)}
+                            value={formatPesoExact(kpis.average_deal.value)}
                             current={kpis.average_deal.value}
                             previous={kpis.average_deal.previous}
                             comparisonLabel={period.comparison}
                         />
                     </Grid>
                     <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                        <StatTile
+                        <StatTile icon={PeopleAltRounded}
                             label="Active users"
                             value={formatCount(kpis.active_users.value)}
                             caption={`of ${kpis.active_users.total} accounts`}

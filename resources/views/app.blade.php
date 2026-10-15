@@ -10,8 +10,8 @@
                     var dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
                     document.documentElement.classList.remove('light', 'dark');
                     document.documentElement.classList.add(dark ? 'dark' : 'light');
-                    var zoom = parseFloat(localStorage.getItem('lr-font-size'));
-                    if (zoom > 0) document.documentElement.style.setProperty('--lr-zoom', String(zoom));
+                    var scale = parseFloat(localStorage.getItem('lr-font-size'));
+                    if (scale > 0) document.documentElement.style.setProperty('--lr-text-scale', String(scale));
                 } catch (e) {}
             })();
         </script>

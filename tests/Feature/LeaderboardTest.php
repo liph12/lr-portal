@@ -152,8 +152,8 @@ test('top teams credit each sale to the team its agent was on at the reservation
     $agent = fn (User $user) => DB::table('agents')->insertGetId(['user_id' => $user->id, 'email' => $user->email]);
     $ana = $agent($this->ana);
     $ben = $agent($this->ben);
-    $alpha = DB::table('teams')->insertGetId(['name' => 'Alpha', 'agent_id' => $ana]);
-    $bravo = DB::table('teams')->insertGetId(['name' => 'Bravo', 'agent_id' => $ben]);
+    $alpha = DB::table('teams')->insertGetId(['name' => 'Alpha', 'agent_id' => $ana, 'status' => 'active']);
+    $bravo = DB::table('teams')->insertGetId(['name' => 'Bravo', 'agent_id' => $ben, 'status' => 'active']);
     DB::table('team_agents')->insert([
         // Ana moved from Alpha to Bravo on 10 October.
         ['team_id' => $alpha, 'agent_id' => $ana, 'joined_at' => '2024-01-01', 'transferred_at' => '2026-10-10', 'status' => 'inactive'],
@@ -170,6 +170,18 @@ test('top teams credit each sale to the team its agent was on at the reservation
             ->has('leaderboards.0.boards.teams', 2)
             ->where('leaderboards.0.boards.teams.0', fn ($t) => $t['name'] === 'Alpha' && $t['sales'] === 1 && (float) $t['value'] === 8_000_000.0)
             ->where('leaderboards.0.boards.teams.1', fn ($t) => $t['name'] === 'Bravo' && $t['sales'] === 2 && (float) $t['value'] === 5_000_000.0)));
+
+    // A paused (inactive) team isn't ranked, however much its members sold.
+    $cy = User::factory()->create(['name' => 'Cy Paused']);
+    $cyAgent = $agent($cy);
+    $charlie = DB::table('teams')->insertGetId(['name' => 'Charlie', 'agent_id' => $cyAgent, 'status' => 'inactive']);
+    DB::table('team_agents')->insert(['team_id' => $charlie, 'agent_id' => $cyAgent, 'joined_at' => '2025-01-01', 'transferred_at' => null, 'status' => 'active']);
+    ($this->sale)($cy, 'Mivela', 50_000_000, '2026-10-07');
+    Illuminate\Support\Facades\Cache::flush();
+    $this->actingAs($this->staff)->get('/dashboard/main')
+        ->assertInertia(fn ($page) => $page->reloadOnly('leaderboards', fn ($reload) => $reload
+            ->has('leaderboards.0.boards.teams', 2)
+            ->where('leaderboards.0.boards.teams', fn ($teams) => collect($teams)->pluck('name')->all() === ['Alpha', 'Bravo'])));
 });
 
 test('top brokerage ranks agents by their brokerage sales only', function () {

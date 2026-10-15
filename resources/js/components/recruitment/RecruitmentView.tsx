@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Box, Grid, IconButton, LinearProgress, MenuItem, TextField, Tooltip, Typography } from "@mui/material";
-import { AccountCircleOutlined } from "@mui/icons-material";
+import { AccountCircleOutlined, GroupAddRounded, LocalFireDepartmentRounded, OndemandVideoRounded, SchoolRounded } from "@mui/icons-material";
 import { GridColDef } from "@mui/x-data-grid";
 import { router } from "@inertiajs/react";
 import SectionTitle from "../utils/SectionTitle";
@@ -38,7 +38,6 @@ interface Trainee {
 }
 
 export interface RecruitmentSummary {
-    members: { total: number; by_status: Record<string, number> };
     recruits: { total: number; by_status: Record<string, number> };
     trainees: number;
     nao: { finished: number; not_finished: number; finished_pct: number; average_pct: number };
@@ -99,7 +98,7 @@ function Progress({ value, label }: { value: number; label: string }) {
 export default function RecruitmentView({ filters, scope, summary, trainees, statuses, keep = {}, header, onOpen, area = null }: Props) {
     const inArea = (title: string) => (area ? `${title} · ${area}` : title);
     const table = useServerTable("trainees", trainees, { ...filters, ...keep }, ["summary"]);
-    const { members, recruits, nao, fire } = summary;
+    const { recruits, nao, fire } = summary;
 
     const columns: GridColDef<Trainee>[] = [
         { field: "name", headerName: "Recruit", flex: 1.5, minWidth: 230, renderCell: ({ row }) => <PersonCell name={row.name} avatar={row.avatar} secondary={row.email} /> },
@@ -192,34 +191,29 @@ export default function RecruitmentView({ filters, scope, summary, trainees, sta
             {/* Cards */}
             <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                    <StatTile label={inArea("Members")} value={formatCount(members.total)} caption={`${formatCount(members.by_status.active ?? 0)} active now`} />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                    <StatTile
+                    <StatTile icon={GroupAddRounded}
                         label={inArea("New recruits")}
                         value={formatCount(recruits.total)}
-                        caption={`${formatCount(recruits.by_status.active ?? 0)} active · ${formatCount(summary.trainees)} still in training, ${formatCount(recruits.total - summary.trainees)} already sold`}
+                        caption={`${formatCount(recruits.by_status.active ?? 0)} active · ${formatCount(recruits.total - summary.trainees)} already sold`}
                     />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                    <StatTile label="Finished NAO (100%)" value={pct(nao.finished_pct)} caption={`${formatCount(nao.finished)} of ${formatCount(summary.trainees)} new recruits without a sale`} />
+                    <StatTile icon={SchoolRounded} label="Still in training" value={formatCount(summary.trainees)} caption="New recruits without a sale yet" />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                    <StatTile label="FIRE complete (3 of 3)" value={pct(fire.complete_pct)} caption={`Average FIRE progress ${fire.average_pct}%`} />
+                    <StatTile icon={OndemandVideoRounded} label="Finished NAO (100%)" value={pct(nao.finished_pct)} caption={`${formatCount(nao.finished)} of ${formatCount(summary.trainees)} new recruits without a sale`} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+                    <StatTile icon={LocalFireDepartmentRounded} label="FIRE complete (3 of 3)" value={pct(fire.complete_pct)} caption={`Average FIRE progress ${fire.average_pct}%`} />
                 </Grid>
             </Grid>
             <Grid container spacing={2} sx={{ mb: 4 }}>
-                <Grid size={{ xs: 12, md: 6, lg: 3 }}>
-                    <SectionCard title={inArea("Members by status")}>
-                        <BarList items={statusBars(members.by_status)} caption="All current members by account status" formatValue={formatCount} emptyText="No members." />
-                    </SectionCard>
-                </Grid>
-                <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+                <Grid size={{ xs: 12, md: 6, lg: 4 }}>
                     <SectionCard title={inArea("New recruits by status")}>
                         <BarList items={statusBars(recruits.by_status)} caption="Members who signed up in the range, by account status" formatValue={formatCount} emptyText="No recruits in this range." />
                     </SectionCard>
                 </Grid>
-                <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+                <Grid size={{ xs: 12, md: 6, lg: 4 }}>
                     <SectionCard title={inArea("NAO")}>
                         <ShareBar
                             segments={[
@@ -235,7 +229,7 @@ export default function RecruitmentView({ filters, scope, summary, trainees, sta
                         </Typography>
                     </SectionCard>
                 </Grid>
-                <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+                <Grid size={{ xs: 12, md: 12, lg: 4 }}>
                     <SectionCard title={inArea("FIRE certificates")}>
                         <BarList
                             items={fire.levels.map((l) => ({ name: l.label, value: l.count, detail: `${l.pct}%` }))}

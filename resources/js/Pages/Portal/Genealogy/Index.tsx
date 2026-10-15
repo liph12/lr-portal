@@ -96,7 +96,7 @@ function Genealogy({ root, upline, firstBranch, ownId, canPick, roles, perBranch
                     {upline.map((u, i) => (
                         <Box key={u.id} sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
                             {i > 0 && <ChevronRightRounded sx={{ fontSize: 16, color: "var(--lr-text-secondary)" }} aria-hidden />}
-                            <Link href={`/genealogy?agent=${u.id}`} style={{ fontSize: 14, color: "var(--lr-primary)", textDecoration: "none" }}>
+                            <Link href={`/genealogy?agent=${u.id}`} style={{ fontSize: "0.875rem", color: "var(--lr-primary)", textDecoration: "none" }}>
                                 {u.name}
                             </Link>
                         </Box>

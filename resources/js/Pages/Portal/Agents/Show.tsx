@@ -394,7 +394,7 @@ function AgentProfile({ agent, teams, subTeams, details, sponsor, filters, summa
                         <Typography variant="h6" sx={{ fontSize: 18, color: "var(--lr-text-primary)", flex: 1 }}>
                             Sales
                         </Typography>
-                        <Link href={`/agents/${agent.id}/sales?from=${filters.from}&to=${filters.to}`} style={{ color: "var(--lr-primary)", fontSize: 14, fontWeight: 500 }}>
+                        <Link href={`/agents/${agent.id}/sales?from=${filters.from}&to=${filters.to}`} style={{ color: "var(--lr-primary)", fontSize: "0.875rem", fontWeight: 500 }}>
                             See every sale
                         </Link>
                         <DateRangeField value={filters} presets={reportPresets()} onChange={changeRange} />

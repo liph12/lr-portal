@@ -72,7 +72,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 
             {showOnlineStrip && <OnlineUsersPanel users={onlineUsers} live={live} variant="strip" />}
 
-            <Box sx={{ pb: { xs: 4, lg: 20 }, backgroundColor: "var(--lr-surface)" }}>{children}</Box>
+            <Box sx={{ pb: { xs: 4, lg: 20 } }}>{children}</Box>
         </AppLayout>
     );
 }

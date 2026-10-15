@@ -11,11 +11,6 @@ import {
 import { Link } from "@inertiajs/react";
 import DashboardLayout from "../../../components/layouts/DashboardLayout";
 import DashboardCardApp from "../../../components/cards/DashboardCardApp";
-import PropertyQrIcon from "../../../../assets/icons/property-qr-gray.png";
-import DevelopersIcon from "../../../../assets/icons/developers-gray.png";
-import FormDownloadIcon from "../../../../assets/icons/form-download.png";
-import GenerateIdIcon from "../../../../assets/icons/generate-id-gray.png";
-import BuyerInformationIcon from "../../../../assets/icons/buyer-information-gray.png";
 import {
     ShareRounded,
     ContentCopyRounded,
@@ -162,7 +157,7 @@ function Dashboard({ posters, handbooks }: { posters: DashboardPoster[]; handboo
     const links = user ? buildUserLinks(user) : [];
 
     return (
-        <Box sx={{ backgroundColor: "var(--lr-surface)" }}>
+        <Box>
             {/* Header band */}
             <Box
                 sx={{
@@ -260,7 +255,7 @@ function Dashboard({ posters, handbooks }: { posters: DashboardPoster[]; handboo
                 <Grid container spacing={2}>
                     <Grid size={{ lg: 3, sm: 6, xs: 12 }}>
                         <DashboardCardApp
-                            icon={PropertyQrIcon}
+                            icon={<SpotIcon name="qr-poster" size={44} />}
                             title="Property QR Code Poster"
                             subTitle="Filipinohomes"
                             description="Provides instant access to comprehensive property details through a simple scan."
@@ -268,7 +263,7 @@ function Dashboard({ posters, handbooks }: { posters: DashboardPoster[]; handboo
                     </Grid>
                     <Grid size={{ lg: 3, sm: 6, xs: 12 }}>
                         <DashboardCardApp
-                            icon={PropertyQrIcon}
+                            icon={<SpotIcon name="qr-code" size={44} />}
                             title="QR Code Maker"
                             subTitle="Leuterio Realty"
                             description="Customize a QR code for your URL/Links using LR domain."
@@ -276,7 +271,7 @@ function Dashboard({ posters, handbooks }: { posters: DashboardPoster[]; handboo
                     </Grid>
                     <Grid size={{ lg: 3, sm: 6, xs: 12 }}>
                         <DashboardCardApp
-                            icon={DevelopersIcon}
+                            icon={<SpotIcon name="buildings" size={44} />}
                             title="Filipinohomes Developers PH"
                             subTitle="Developers"
                             description="Search projects per developer nationwide."
@@ -284,7 +279,7 @@ function Dashboard({ posters, handbooks }: { posters: DashboardPoster[]; handboo
                     </Grid>
                     <Grid size={{ lg: 3, sm: 6, xs: 12 }}>
                         <DashboardCardApp
-                            icon={GenerateIdIcon}
+                            icon={<SpotIcon name="id-card" size={44} />}
                             href="/dashboard/lr-id"
                             title="Generate LR ID"
                             subTitle="Leuterio Realty"
@@ -298,7 +293,7 @@ function Dashboard({ posters, handbooks }: { posters: DashboardPoster[]; handboo
                     ))}
                     <Grid size={{ lg: 3, sm: 6, xs: 12 }}>
                         <DashboardCardApp
-                            icon={FormDownloadIcon}
+                            icon={<SpotIcon name="forms-download" size={44} />}
                             title="LR Portal Forms"
                             subTitle="Leuterio Realty"
                             description="Download forms here such as activation, reactivation, data correction form and more."
@@ -306,7 +301,7 @@ function Dashboard({ posters, handbooks }: { posters: DashboardPoster[]; handboo
                     </Grid>
                     <Grid size={{ lg: 3, sm: 6, xs: 12 }}>
                         <DashboardCardApp
-                            icon={FormDownloadIcon}
+                            icon={<SpotIcon name="forms-global" size={44} />}
                             title="FH Global Realty Forms"
                             subTitle="Global Realty"
                             description="Download and fill-up forms here such as customer information and agent to agent form."
@@ -314,7 +309,7 @@ function Dashboard({ posters, handbooks }: { posters: DashboardPoster[]; handboo
                     </Grid>
                     <Grid size={{ lg: 3, sm: 6, xs: 12 }}>
                         <DashboardCardApp
-                            icon={BuyerInformationIcon}
+                            icon={<SpotIcon name="buyer-sheet" size={44} />}
                             title="Buyer's Information Sheet"
                             subTitle="Cebu Landmasters Inc."
                             description="Download and fill-up individual BIS form here."

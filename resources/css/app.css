@@ -22,6 +22,8 @@
     --lr-text-secondary: #5b6472;
     --lr-surface: #ffffff;
     --lr-surface-dim: #f6f7f9;
+    /* Behind the cards on every page (AppLayout's <main>): off-white, so white cards read as cards. */
+    --lr-page: #f2f4f8;
     --lr-surface-container: #eef1f5;
     --lr-surface-hover: #e8ecf2;
     --lr-border: #e3e7ee;
@@ -67,6 +69,7 @@
     --lr-text-secondary: #9aa4b2;
     --lr-surface: #121418;
     --lr-surface-dim: #0c0e11;
+    --lr-page: #0b0d10;
     --lr-surface-container: #1b1f25;
     --lr-surface-hover: #232831;
     --lr-border: #262b33;
@@ -143,6 +146,35 @@
     --lr-natcon-gold-soft: #4a3c1c;
     /* Behind a video (webinar player letterbox), in both schemes. */
     --lr-video-bg: #000000;
+    /* The sidebar's deep navy (see .lr-sidebar). */
+    --lr-sidebar-bg: #0b2545;
+}
+
+.dark {
+    --lr-sidebar-bg: #0b1626;
+}
+
+/* The sidebar (AppSidebar): deep navy in both schemes. Inside it the usual tokens take their on-navy values, so the menu,
+   the profile block, the role chip and "Record Your Sale" need no colours of their own; badges and the active marker keep
+   the brand red. */
+.lr-sidebar {
+    color-scheme: dark;
+    --lr-surface: var(--lr-sidebar-bg);
+    --lr-surface-hover: rgba(255, 255, 255, 0.07);
+    --lr-border: rgba(255, 255, 255, 0.12);
+    --lr-text-primary: #ffffff;
+    --lr-text-body: rgba(255, 255, 255, 0.86);
+    --lr-text-secondary: rgba(255, 255, 255, 0.64);
+    --lr-primary: #ffffff;
+    --lr-primary-hover: #dfe9f8;
+    --lr-on-primary: var(--lr-sidebar-bg);
+    --lr-primary-soft: rgba(255, 255, 255, 0.13);
+    --lr-primary-soft-strong: rgba(255, 255, 255, 0.3);
+    /* A large Filipino Homes–style map pin, white at 6%, as a watermark low in the corner (it stays put while the menu scrolls). */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 140'%3E%3Cpath fill='%23ffffff' fill-opacity='0.06' fill-rule='evenodd' d='M50 0C22.4 0 0 22.4 0 50c0 33 50 90 50 90s50-57 50-90C100 22.4 77.6 0 50 0zm0 30a20 20 0 1 1 0 40a20 20 0 1 1 0-40z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right -130px bottom -90px;
+    background-size: 430px auto;
 }
 
 body {
@@ -173,7 +205,8 @@ body {
     height: 100%;
 }
 
-/* Settings › Preferences text size (helpers/appearance.ts); on body so menus and dialogs scale with the page. */
-body {
-    zoom: var(--lr-zoom, 1);
+/* Settings › Preferences text size (helpers/appearance.ts): the root font size, so rem text scales; pixel font sizes in sx
+   scale through the theme (appTheme.ts unstable_sxConfig). Only text changes — not spacing, images or layout. */
+html {
+    font-size: calc(100% * var(--lr-text-scale, 1));
 }

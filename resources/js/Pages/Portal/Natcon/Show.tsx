@@ -12,6 +12,7 @@ import NatconPeriod, { NatconBoardPeriod, NatconSettings } from "../../../compon
 import useServerTable, { ServerPage, TableFilters } from "../../../hooks/useServerTable";
 import { formatCount, formatPeso } from "../../../helpers/formatNumber";
 import { NatconBoard, NatconGroup } from "./Index";
+import NatconEditionSwitcher, { NatconEditionOption } from "../../../components/natcon/NatconEditionSwitcher";
 
 interface NatconRow {
     rank: number;
@@ -26,6 +27,7 @@ interface NatconRow {
 
 interface NatconShowProps {
     settings: NatconSettings;
+    editions: NatconEditionOption[];
     period: NatconBoardPeriod;
     board: NatconBoard;
     group: NatconGroup | null;
@@ -35,7 +37,7 @@ interface NatconShowProps {
 }
 
 // One NATCON board: valid sales reserved in the period and encoded by the cutoff, ranked.
-function NatconShow({ settings, period, board, group, filters, rows, canOpen }: NatconShowProps) {
+function NatconShow({ settings, editions, period, board, group, filters, rows, canOpen }: NatconShowProps) {
     const table = useServerTable<NatconRow>("rows", rows, filters);
     const people = board.group === "agents";
 
@@ -79,10 +81,11 @@ function NatconShow({ settings, period, board, group, filters, rows, canOpen }: 
 
     return (
         <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4 } }}>
-            <SectionTitle title={board.title} subtitle={group ? `${group.name} — only sales made while on ${group.type === "team" ? "your team" : "your sub-team"}.` : board.description} />
+            <SectionTitle title={`${settings.name} · ${board.title}`} subtitle={group ? `${group.name} — only sales made while on ${group.type === "team" ? "your team" : "your sub-team"}.` : board.description} />
+            <NatconEditionSwitcher editions={editions} current={settings.year} suffix={`/${board.slug}`} />
             <NatconPeriod
                 period={period}
-                title={period.cutoff_month ? "NATCON period" : "Rental period"}
+                title={board.slug === "top-rent-managers" ? "Rental period" : "NATCON period"}
                 qualifier={board.slug === "qualifiers" ? settings.qualifier_amount : undefined}
             />
 
@@ -95,6 +98,8 @@ function NatconShow({ settings, period, board, group, filters, rows, canOpen }: 
             <TableToolbar search={table.search} onSearch={table.setSearch} placeholder={people ? "Search agents" : board.group === "sub_teams" ? "Search sub-teams" : "Search teams"} />
             <DataTable
                 {...table.gridProps}
+                // Its own rank column (the board's position, also while searching).
+                rowNumbers={false}
                 columns={columns}
                 getRowId={(row) => row.id}
                 pageSizeOptions={[25, 50, 100]}

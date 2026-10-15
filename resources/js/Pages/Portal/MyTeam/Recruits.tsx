@@ -14,7 +14,7 @@ interface RecruitsProps extends RecruitmentViewProps {
 function Recruits({ group, isTeam, ...props }: RecruitsProps) {
     return (
         <Container maxWidth="xl" sx={{ py: { xs: 3, sm: 4 } }}>
-            <SectionTitle title={`My Team · ${group.name}`} subtitle="Members, recruits and how new sign-ups are doing with NAO and FIRE." />
+            <SectionTitle title={`My Team · ${group.name}`} subtitle="Who signed up in the date range, and how they are doing with NAO and FIRE." />
             <RecruitmentView {...props} keep={{ [group.type === "team" ? "team" : "sub_team"]: group.id }} header={<MyTeamNav group={group} isTeam={isTeam} />} />
         </Container>
     );

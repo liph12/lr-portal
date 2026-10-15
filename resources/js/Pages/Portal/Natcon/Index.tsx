@@ -7,6 +7,7 @@ import NatconTrophyIcon from "../../../components/natcon/NatconTrophyIcon";
 import SpotIcon from "../../../components/utils/SpotIcon";
 import NatconPeriod, { NatconBoardPeriod, NatconSettings, cutoffLabel, periodLabel } from "../../../components/natcon/NatconPeriod";
 import { NATCON_BOARDS } from "../../../components/natcon/natconCatalog";
+import NatconEditionSwitcher, { NatconEditionOption } from "../../../components/natcon/NatconEditionSwitcher";
 import { formatCount } from "../../../helpers/formatNumber";
 
 export interface NatconBoard {
@@ -26,7 +27,10 @@ export interface NatconGroup {
 }
 
 interface NatconProps {
+    // The edition shown, every edition (the switcher) and where this edition's pages live (/natcon/{year}).
     settings: NatconSettings;
+    editions: NatconEditionOption[];
+    base: string;
     // The main NATCON period (Top Rent Managers has its own, on its card).
     period: NatconBoardPeriod;
     boards: NatconBoard[];
@@ -49,8 +53,8 @@ const cardSx = {
     ":hover": { boxShadow: "0 1px 3px rgba(60,64,67,.15), 0 4px 8px rgba(60,64,67,.1)" },
 };
 
-// NATCON: one card per board, like Reports, each opening its own ranking for the convention period.
-function Natcon({ settings, period, boards, counts, group, hasMine }: NatconProps) {
+// One NATCON edition: one card per board, like Reports, each opening its own ranking for the edition's period.
+function Natcon({ settings, editions, base, period, boards, counts, group, hasMine }: NatconProps) {
     return (
         <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4 } }}>
             {/* The NATCON mark beside the title. */}
@@ -69,18 +73,19 @@ function Natcon({ settings, period, boards, counts, group, hasMine }: NatconProp
                             color: "var(--lr-text-primary)",
                         }}
                     >
-                        NATCON
+                        {settings.name}
                     </Typography>
                     <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)", mt: 0.5 }}>
                         {group ? `Who qualified on ${group.type === "team" ? "your team" : "your sub-team"}, ${group.name}.` : "National convention rankings. Pick a board."}
                     </Typography>
                 </Box>
             </Box>
+            <NatconEditionSwitcher editions={editions} current={settings.year} />
             <NatconPeriod period={period} qualifier={settings.qualifier_amount} />
             <Grid container spacing={2}>
                 {hasMine && (
                     <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
-                        <Link href="/natcon/my-sales" style={{ textDecoration: "none", display: "block", height: "100%" }}>
+                        <Link href={`${base}/my-sales`} style={{ textDecoration: "none", display: "block", height: "100%" }}>
                             <Box sx={cardSx}>
                                 <SpotIcon name="coins" size={52} tone="gold" />
                                 <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -102,7 +107,7 @@ function Natcon({ settings, period, boards, counts, group, hasMine }: NatconProp
 
                     return (
                         <Grid key={slug} size={{ xs: 12, sm: 6, lg: 4 }}>
-                            <Link href={`/natcon/${slug}`} style={{ textDecoration: "none", display: "block", height: "100%" }}>
+                            <Link href={`${base}/${slug}`} style={{ textDecoration: "none", display: "block", height: "100%" }}>
                                 <Box sx={cardSx}>
                                     <SpotIcon name={art} size={52} tone="gold" />
                                     <Box sx={{ flex: 1, minWidth: 0 }}>

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Entities\Team;
 use App\Support\DataCache;
 use App\Models\Entities\Agent;
 use App\Support\Areas;
@@ -580,13 +581,18 @@ class SalesReportService
         $s = fn () => DB::query()->fromSub($this->sales($f), 's');
 
         $rows = match ($f['view']) {
+            // Only active teams / sub-teams (of active teams) are ranked: paused or closed ones drop out of every ranking and
+            // statistic. Their sales still count in the totals and for their agents.
             'teams' => $this->onTeam($s(), 'team_agents', 'team_id')
                 ->join('teams as g0', 'g0.id', '=', 'm.team_id')
+                ->where('g0.status', Team::STATUS_ACTIVE)
                 ->groupBy('g0.id', 'g0.name', 'g0.logo')
                 ->selectRaw('g0.id as `key`, g0.name as name, NULL as detail, g0.logo as avatar'),
             'sub_teams' => $this->onTeam($s(), 'sub_team_agents', 'sub_team_id')
                 ->join('sub_teams as g0', 'g0.id', '=', 'm.sub_team_id')
                 ->join('teams as gt', 'gt.id', '=', 'g0.team_id')
+                ->where('g0.status', Team::STATUS_ACTIVE)
+                ->where('gt.status', Team::STATUS_ACTIVE)
                 ->groupBy('g0.id', 'g0.name', 'g0.logo', 'gt.name')
                 ->selectRaw('g0.id as `key`, g0.name as name, gt.name as detail, g0.logo as avatar'),
             // Agents without an area aren't ranked as an "Unassigned" row.

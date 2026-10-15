@@ -521,3 +521,25 @@ test('inside a branch the back office can rank its teams and sub-teams too', fun
     $this->actingAs($this->superadmin)->get("/reports/top-agents?{$range}&area=cebu&team_id={$this->alpha}")
         ->assertInertia(fn ($page) => $page->where('filters.view', 'agents')->where('filters.area', 'cebu')->where('breakdown.data.0.name', 'Ana Reyes'));
 });
+
+test('paused or closed teams and sub-teams aren\'t ranked in Top Teams / Top Sub-teams, whatever their members sold', function () {
+    $range = 'from=2026-01-01&to=2026-10-11';
+    $sub = DB::table('sub_teams')->insertGetId(['name' => 'Alpha One', 'team_id' => $this->alpha, 'agent_id' => $this->ana, 'status' => 'active']);
+    DB::table('sub_team_agents')->insert(['sub_team_id' => $sub, 'agent_id' => $this->ana, 'joined_at' => '2020-01-01', 'status' => 'active']);
+    // Ben sells for Bravo (paused) and its sub-team.
+    $bravo = DB::table('teams')->insertGetId(['name' => 'Bravo', 'agent_id' => $this->ben, 'status' => 'inactive']);
+    DB::table('team_agents')->insert(['team_id' => $bravo, 'agent_id' => $this->ben, 'joined_at' => '2020-01-01', 'status' => 'active']);
+    $bravoOne = DB::table('sub_teams')->insertGetId(['name' => 'Bravo One', 'team_id' => $bravo, 'agent_id' => $this->ben, 'status' => 'active']);
+    DB::table('sub_team_agents')->insert(['sub_team_id' => $bravoOne, 'agent_id' => $this->ben, 'joined_at' => '2020-01-01', 'status' => 'active']);
+    $names = fn (string $report) => collect($this->actingAs($this->superadmin)->get("/reports/{$report}?{$range}")->viewData('page')['props']['breakdown']['data'])->pluck('name')->all();
+
+    expect($names('top-teams'))->toBe(['Alpha'])
+        // Bravo One is active but its team isn't.
+        ->and($names('top-sub-teams'))->toBe(['Alpha One']);
+
+    // Paused, Alpha One goes too.
+    DB::table('sub_teams')->where('id', $sub)->update(['status' => 'inactive']);
+    expect($names('top-sub-teams'))->toBe([]);
+    // Ben's sales still count for him.
+    expect(collect($this->actingAs($this->superadmin)->get("/reports/top-agents?{$range}")->viewData('page')['props']['breakdown']['data'])->pluck('name'))->toContain('Ben Cruz');
+});

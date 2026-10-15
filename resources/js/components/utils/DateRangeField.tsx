@@ -117,7 +117,8 @@ export default function DateRangeField({ value, onChange, presets = [], label = 
                     borderRadius: 99,
                     fontSize: 14,
                     color: "var(--lr-text-primary)",
-                    backgroundColor: "var(--lr-surface-container)",
+                    backgroundColor: "var(--lr-surface)",
+                    border: "1px solid var(--lr-border)",
                     ":hover": { backgroundColor: "var(--lr-surface-hover)" },
                     ":focus-visible": { outline: "2px solid var(--lr-primary)" },
                 }}

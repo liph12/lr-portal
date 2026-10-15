@@ -54,12 +54,11 @@ beforeEach(function () {
 
 afterEach(fn () => Carbon::setTestNow());
 
-test('cards: members by status, recruits in range, NAO finished and FIRE as percentages', function () {
+test('cards: only the sign-up range — recruits, NAO finished and FIRE as percentages; no all-time member count', function () {
     $this->actingAs($this->superadmin)->get('/reports/recruits?from=2026-01-01&to=2026-10-11')
         ->assertInertia(fn ($page) => $page->component('Portal/Reports/Recruits')
-            ->where('summary.members.total', 6)
-            // Statistics only split active / inactive: Eve (resigned) counts as inactive.
-            ->where('summary.members.by_status', ['active' => 4, 'inactive' => 2])
+            ->missing('summary.members')
+            ->where('summary.recruits.by_status', ['active' => 3, 'inactive' => 1])
             // The table's status filter still offers every status.
             ->where('statuses', ['active', 'inactive', 'resigned', 'terminated'])
             ->where('summary.recruits.total', 4)
@@ -77,7 +76,6 @@ test('agents who never finished the registration stepper are left out of every c
 
     $this->actingAs($this->superadmin)->get('/reports/recruits?from=2026-01-01&to=2026-10-11')
         ->assertInertia(fn ($page) => $page
-            ->where('summary.members.total', 4)
             ->where('summary.recruits.total', 2)
             ->where('summary.trainees', 1)
             ->where('trainees.total', 1));
@@ -89,7 +87,7 @@ test('global partners are left out of recruits: they don\'t take NAO or FIRE', f
     DB::table('agents')->where('id', $this->agents['Ann']['id'])->update(['agent_type' => 'global_partner']);
 
     $this->actingAs($this->superadmin)->get('/reports/recruits?from=2026-01-01&to=2026-10-11')
-        ->assertInertia(fn ($page) => $page->where('summary.members.total', 5)->where('summary.recruits.total', 3)->where('summary.trainees', 2));
+        ->assertInertia(fn ($page) => $page->where('summary.recruits.total', 3)->where('summary.trainees', 2));
     $this->actingAs($this->superadmin)->get('/reports/recruits-progress?from=2026-01-01&to=2026-10-11')
         ->assertInertia(fn ($page) => $page->where('summary.kpis.recruits', 3));
 });
@@ -112,7 +110,6 @@ test('team leaders see their team under Reports › Recruits and My Team; plain 
     $this->actingAs($this->leader)->get("/reports/recruits?{$range}")
         ->assertInertia(fn ($page) => $page
             ->where('scope.name', 'Alpha')
-            ->where('summary.members.total', 4)
             ->where('summary.trainees', 2)); // Ann and Ben (Cy isn't on the team, Dee sold)
 
     $this->actingAs($this->leader)->get("/my-team/recruits?{$range}")
@@ -120,7 +117,7 @@ test('team leaders see their team under Reports › Recruits and My Team; plain 
 
     // A plain agent: only the recruits they sponsored (none here), whatever team the URL asks for.
     $this->actingAs($this->agents['Ann']['user'])->get("/reports/recruits?{$range}&team_id=1")
-        ->assertInertia(fn ($page) => $page->where('summary.members.total', 0)->where('scope.name', 'Ann'));
+        ->assertInertia(fn ($page) => $page->where('summary.recruits.total', 0)->where('scope.name', 'Ann'));
 });
 
 test('the trainees table shows each recruit\'s upline, team and sub-team', function () {
@@ -309,4 +306,24 @@ test('inside a sub-team (or one person\'s recruits) the table lists the recruits
             ->where('rows.total', 1)
             ->where('rows.data.0', fn ($r) => $r['id'] === $ben && $r['name'] === 'Ben' && $r['sponsor'] === 'Ann'
                 && $r['team'] === 'Alpha' && $r['sub_team'] === 'Ann One' && $r['sold'] === false && $r['nao'] === 40 && $r['fire'] === 1));
+});
+
+test('a team\'s row and drill-down show its whole total sales (old members too) beside what its new recruits sold', function () {
+    $range = 'from=2026-01-01&to=2026-10-11';
+    $team = DB::table('teams')->where('name', 'Alpha')->value('id');
+    $sale = function (int $agent, float $price, string $date) {
+        $t = AgentTransaction::create(['agent_id' => $agent, 'sale_type' => 'project', 'commission_status' => 'Unclaimed', 'sale_status' => 'valid']);
+        DB::table('agent_project_transactions')->insert(['agent_transaction_id' => $t->id, 'total_contract_price' => $price, 'reservation_date' => $date, 'project_name' => 'Mivela']);
+    };
+    // Eve signed up before the range (an old member): her 9M counts for the team, not for the new recruits. Ann's 1M counts for both.
+    $sale($this->agents['Eve']['id'], 9_000_000, '2026-05-10');
+    $sale($this->agents['Ann']['id'], 1_000_000, '2026-06-10');
+
+    $this->actingAs($this->superadmin)->get("/reports/recruits-progress?{$range}&group=teams")
+        ->assertInertia(fn ($page) => $page->where('rows.data.0', fn ($r) => $r['name'] === 'Alpha' && (float) $r['value'] === 1_000_000.0 && (float) $r['total_sales'] === 10_000_000.0));
+    $this->actingAs($this->superadmin)->get("/reports/recruits-progress?{$range}&team_id={$team}")
+        ->assertInertia(fn ($page) => $page->where('summary.kpis.value', 1_000_000)->where('summary.kpis.total_sales', 10_000_000));
+    // One sponsor's recruits aren't a group with sales of their own.
+    $this->actingAs($this->superadmin)->get("/reports/recruits-progress?{$range}&group=sponsors")
+        ->assertInertia(fn ($page) => $page->where('rows.data', fn ($rows) => collect($rows)->every(fn ($r) => $r['total_sales'] === null)));
 });

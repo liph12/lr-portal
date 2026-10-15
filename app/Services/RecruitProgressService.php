@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Entities\Team;
 use App\Support\DataCache;
 use App\Models\Entities\Agent;
 use App\Support\Areas;
@@ -16,6 +17,8 @@ use Illuminate\Support\Facades\DB;
 // who haven't sold yet, as in Reports › Recruits.
 class RecruitProgressService
 {
+    public function __construct(private SalesReportService $reports) {}
+
     // "recruits" isn't a grouping: the recruits themselves, one row each.
     public const GROUPS = ['teams', 'sub_teams', 'areas', 'sponsors', 'recruits'];
 
@@ -142,7 +145,37 @@ class RecruitProgressService
             $cursor = $cursor->addMonth();
         }
 
-        return ['kpis' => $this->row($totals), 'areas' => $areas, 'trend' => $trend];
+        return ['kpis' => [...$this->row($totals), 'total_sales' => $this->totalSales($f, $scope)], 'areas' => $areas, 'trend' => $trend];
+    }
+
+    /**
+     * Everyone's valid sales reserved in the range for the selection — old members' too, as Top Teams / the sales report count
+     * them — to set beside what the new recruits sold. Null for one sponsor's recruits (not a group with sales of its own).
+     *
+     * @param  array<string, mixed>  $f
+     * @param  array<string, int|string>|null  $scope
+     */
+    private function totalSales(array $f, ?array $scope): ?float
+    {
+        if (isset($scope['sponsor_id']) && ! isset($scope['team_id']) && ! isset($scope['sub_team_id']) && ! isset($scope['area'])) {
+            return null;
+        }
+        $sales = $this->reports->filters(['from' => $f['from'], 'to' => $f['to'], 'status' => 'valid']
+            + array_intersect_key($scope ?? [], array_flip(['team_id', 'sub_team_id', 'area'])));
+
+        return (float) $this->reports->summary($sales)['kpis']['value']['value'];
+    }
+
+    /**
+     * Each team / sub-team / branch's own valid sales in the range (Top Teams' numbers), by key.
+     *
+     * @return array<string|int, float>
+     */
+    private function groupSales(array $f): array
+    {
+        $view = ['teams' => 'teams', 'sub_teams' => 'sub_teams', 'areas' => 'areas'][$f['group']] ?? null;
+
+        return $view ? $this->reports->totals($this->reports->filters(['from' => $f['from'], 'to' => $f['to'], 'status' => 'valid', 'view' => $view])) : [];
     }
 
     /**
@@ -163,12 +196,15 @@ class RecruitProgressService
         }
 
         $grouped = match ($f['group']) {
+            // Paused or closed teams / sub-teams get no row (their recruits are still in the totals).
             'teams' => DB::query()->fromSub($this->recruits($f, $scope), 'r')
                 ->leftJoin('teams as g', 'g.id', '=', 'r.team_id')
+                ->where(fn ($q) => $q->whereNull('r.team_id')->orWhere('g.status', Team::STATUS_ACTIVE))
                 ->groupBy('r.team_id', 'g.name')
                 ->selectRaw('r.team_id as `key`, g.name as name, NULL as detail, NULL as avatar'),
             'sub_teams' => DB::query()->fromSub($this->recruits($f, $scope), 'r')
                 ->leftJoin('sub_teams as g', 'g.id', '=', 'r.sub_team_id')
+                ->where(fn ($q) => $q->whereNull('r.sub_team_id')->orWhere('g.status', Team::STATUS_ACTIVE))
                 ->leftJoin('agents as l', 'l.id', '=', 'g.agent_id')
                 ->leftJoin('users as lu', 'lu.id', '=', 'l.user_id')
                 ->groupBy('r.sub_team_id', 'g.name', 'lu.name', 'l.avatar')
@@ -200,6 +236,7 @@ class RecruitProgressService
         $page = $query->orderBy($f['sort'] === 'name' ? 'p.name' : $f['sort'], $f['dir'])->orderBy('p.key')
             ->paginate($f['per_page'], ['*'], 'page', $f['page']);
 
+        $groupSales = $this->groupSales($f);
         // A sponsor's current team, looked up for this page only.
         $teams = $f['group'] === 'sponsors'
             ? DB::table('team_agents as ta')->join('teams as t', 't.id', '=', 'ta.team_id')
@@ -215,6 +252,8 @@ class RecruitProgressService
             'avatar' => $r->avatar,
             'team' => $teams[$r->key] ?? null,
             ...$this->row($r),
+            // The group's whole total in the range (null for a sponsor).
+            'total_sales' => $f['group'] === 'sponsors' ? null : (float) ($groupSales[$r->key] ?? 0),
         ]);
     }
 

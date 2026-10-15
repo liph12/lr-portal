@@ -92,7 +92,7 @@ class RecruitmentService
         $byStatus = fn (Builder $q) => (clone $q)->join('users as su', 'su.id', '=', 'a.user_id')
             ->selectRaw(Agent::statusSql('su.status').' as status, COUNT(*) as n')->groupByRaw(Agent::statusSql('su.status'))->pluck('n', 'status')->map(fn ($n) => (int) $n);
 
-        $members = $byStatus($this->agents($scope));
+        // Only the sign-up range: no all-time member count here (the page is about who joined when).
         $recruits = $byStatus($this->recruits($f, $scope));
 
         $trainees = $this->trainees($f, $scope)->leftJoin('agent_attributes as tt', 'tt.agent_id', '=', 'a.id');
@@ -112,7 +112,6 @@ class RecruitmentService
         $pct = fn ($n) => $total ? round((int) $n / $total * 100, 1) : 0.0;
 
         return [
-            'members' => ['total' => $members->sum(), 'by_status' => $this->statusCounts($members)],
             'recruits' => ['total' => $recruits->sum(), 'by_status' => $this->statusCounts($recruits)],
             'trainees' => $total,
             'nao' => [

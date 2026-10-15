@@ -20,8 +20,9 @@ export default function FilterSelect({ label, value, options, onChange, hideAll 
             slotProps={{ select: { displayEmpty: true }, htmlInput: { "aria-label": label } }}
             sx={{
                 minWidth: 160,
-                "& .MuiOutlinedInput-root": { borderRadius: 99, backgroundColor: "var(--lr-surface-container)", fontSize: 14 },
-                "& fieldset": { border: "none" },
+                "& .MuiOutlinedInput-root": { borderRadius: 99, backgroundColor: "var(--lr-surface)", fontSize: 14 },
+                // White with a hairline edge: they sit on the off-white page (--lr-page) as well as inside cards.
+                "& fieldset": { border: "1px solid var(--lr-border)" },
             }}
         >
             {!hideAll && <MenuItem value="">All {label.toLowerCase()}</MenuItem>}

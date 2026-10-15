@@ -41,9 +41,11 @@ tags: [profile, preferences]
   `PUT /settings/preferences`, `UpdatePreferencesRequest`); shared as `auth.preferences` (null without the permission =
   defaults). Menu: a Preferences child in the superadmin's Settings + card on its index; `settingsRoute` for everyone else.
   **Theme** follows the account: `hooks/useAppearance.ts` (in `AppLayout`) sets `useColorScheme` from it, and the navbar
-  switch saves too (`PUT /settings/preferences/theme`, `UpdateThemeRequest`). **Text size** is a zoom of the whole page
-  (`helpers/appearance.ts`: `--lr-zoom` on `<html>`, `body { zoom }` in app.css, pre-paint from `localStorage['lr-font-size']`)
-  because sizes here are mostly px — so `AppLayout` fills the page by `height: 100%` (html → body → `#app`), never `100vh`.
+  switch saves too (`PUT /settings/preferences/theme`, `UpdateThemeRequest`). **Text size** scales the text only, not the
+  layout (`helpers/appearance.ts`: `--lr-text-scale` on `<html>`, pre-paint from `localStorage['lr-font-size']`): `html { font-size }`
+  in app.css scales rem text (MUI's typography), and `appTheme.ts` `unstable_sxConfig.fontSize` turns every numeric `fontSize` in
+  sx / system props into `calc(Npx * var(--lr-text-scale))` — so write font sizes as numbers (or rem), never a fixed `"14px"` string or a
+  `style={{ fontSize: 14 }}`, or they won't follow it. `AppLayout` fills the page by `height: 100%` (html → body → `#app`), never `100vh`.
   **Links** (same tab = SPA / new tab, overall + per top-level menu path): enforced in one place — `hooks/useLinkBehaviour.ts`
   cancels an Inertia GET to another path and opens it in a new tab (`helpers/linkBehaviour.ts`: the destination's section
   decides; pages outside the menu follow the page they're opened from). On the same path, filters (`preserveState`), partial

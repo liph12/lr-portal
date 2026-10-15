@@ -7,9 +7,12 @@ import StyledButton from "../../../components/utils/StyledButton";
 import AgentSalesView, { AgentSalesProps } from "../../../components/sales/AgentSalesView";
 import NatconPeriod, { NatconBoardPeriod, NatconSettings } from "../../../components/natcon/NatconPeriod";
 import { formatPeso } from "../../../helpers/formatNumber";
+import NatconEditionSwitcher, { NatconEditionOption } from "../../../components/natcon/NatconEditionSwitcher";
 
 interface MyNatconSalesProps extends AgentSalesProps {
     settings: NatconSettings;
+    editions: NatconEditionOption[];
+    base: string;
     period: NatconBoardPeriod;
 }
 
@@ -41,7 +44,7 @@ function QualifierProgress({ total, target }: { total: number; target: number })
 
 // My NATCON Sales: the reader's own sales that count for NATCON — valid, reserved in the period and encoded by its cutoff
 // (every category, the Qualifiers rule) — shown like My Sales; the period and status are fixed.
-function MyNatconSales({ settings, period, ...props }: MyNatconSalesProps) {
+function MyNatconSales({ settings, editions, base, period, ...props }: MyNatconSalesProps) {
     // The totals cover every category whatever is picked: the qualifier counts them all.
     const total = props.totals.reduce((sum, t) => sum + t.value, 0);
 
@@ -49,15 +52,18 @@ function MyNatconSales({ settings, period, ...props }: MyNatconSalesProps) {
         <AgentSalesView
             {...props}
             fixedPeriod
-            basePath="/natcon/my-sales"
-            title="My NATCON Sales"
+            basePath={`${base}/my-sales`}
+            title={`My ${settings.name} Sales`}
             subtitle="Your own valid sales that count for NATCON, client by client. Click a sale for its details and files."
             top={
-                <Link href="/natcon" style={{ textDecoration: "none" }}>
-                    <StyledButton size="small" variant="text" startIcon={<ArrowBackRounded />} sx={{ mb: 1, px: 1, color: "var(--lr-primary)" }}>
-                        NATCON
-                    </StyledButton>
-                </Link>
+                <>
+                    <Link href={base} style={{ textDecoration: "none" }}>
+                        <StyledButton size="small" variant="text" startIcon={<ArrowBackRounded />} sx={{ mb: 1, px: 1, color: "var(--lr-primary)" }}>
+                            {settings.name}
+                        </StyledButton>
+                    </Link>
+                    <NatconEditionSwitcher editions={editions} current={settings.year} suffix="/my-sales" />
+                </>
             }
             header={
                 <>

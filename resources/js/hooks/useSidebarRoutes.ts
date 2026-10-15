@@ -8,6 +8,6 @@ export default function useSidebarRoutes() {
 
     return usePortalRoutes().map((route) => ({
         ...route,
-        active: isRouteActive(path, route.path) || !!route.children?.some((child) => isRouteActive(path, child.path)),
+        active: isRouteActive(path, route.path) || !!route.children?.some((child) => isRouteActive(path, child.path)) || !!route.alsoActive?.test(path),
     }));
 }

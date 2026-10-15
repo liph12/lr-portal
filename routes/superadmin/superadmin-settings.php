@@ -29,7 +29,10 @@ Route::prefix('settings')->group(function(){
     Route::put('/sales-encoding', [SalesCutoffController::class, 'encoding'])->name('superadmin.settings.sales-encoding.update');
 
     Route::get('/natcon', [NatconController::class, 'index'])->name('superadmin.settings.natcon.index');
-    Route::put('/natcon', [NatconController::class, 'update'])->name('superadmin.settings.natcon.update');
+    Route::post('/natcon', [NatconController::class, 'store'])->name('superadmin.settings.natcon.store');
+    Route::put('/natcon/{edition}', [NatconController::class, 'update'])->name('superadmin.settings.natcon.update');
+    Route::patch('/natcon/{edition}/default', [NatconController::class, 'makeDefault'])->name('superadmin.settings.natcon.default');
+    Route::delete('/natcon/{edition}', [NatconController::class, 'destroy'])->name('superadmin.settings.natcon.destroy');
 
     Route::get('/posters', [PosterController::class, 'index'])->name('superadmin.settings.posters.index');
     Route::post('/posters', [PosterController::class, 'store'])->name('superadmin.settings.posters.store');

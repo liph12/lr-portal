@@ -2,27 +2,19 @@
 
 namespace App\Services;
 
-use App\Models\AppSetting;
+use App\Models\Entities\NatconEdition;
 use App\Models\User;
 use App\Policies\UserPolicy;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
-// NATCON: the national convention's rankings for one period. A sale counts if it's valid, reserved in the period and keyed
-// in by the cutoff of the period's last month (sales_cutoffs) — the leaderboards' rule over a whole year. Every board is a
-// view of the sales report (so cached and paged like reports); qualifiers are agents whose total reaches the amount.
+// NATCON: the national convention's rankings, one edition at a time (NATCON 2026, 2027… — natcon_editions, Settings › NATCON).
+// A sale counts if it's valid, reserved in the edition's period and keyed in by its cutoff (a specific moment). Top Rent
+// Managers has a period of its own and closes at the end of its cutoff date. Every board is a view of the sales report (so
+// cached and paged like reports); qualifiers are agents whose total reaches the edition's amount.
 class NatconService
 {
-    private const SETTING = 'natcon';
-
-    // This year's NATCON, until a superadmin sets the next one (Settings › NATCON). Top Rent Managers runs a month later and
-    // closes on a date of its own (encoded by the end of that day), not a monthly cutoff.
-    private const DEFAULTS = [
-        'from' => '2025-08-01', 'to' => '2026-07-31', 'cutoff_month' => '2026-07', 'qualifier_amount' => 43000000,
-        'rental_from' => '2025-09-01', 'rental_to' => '2026-08-31', 'rental_cutoff' => '2026-09-05',
-    ];
-
     // Keyed by URL slug (/natcon/{slug}); `group` is what a row is: an agent, a team or a sub-team.
     public const BOARDS = [
         'qualifiers' => ['title' => 'NATCON Qualifiers', 'description' => 'Agents whose valid sales in the period reach the qualifier amount.', 'view' => 'agents', 'qualifier' => true, 'group' => 'agents'],
@@ -63,31 +55,76 @@ class NatconService
     }
 
     /**
-     * The period, the cutoff month (and when it closes, if set) and the qualifier amount.
+     * Every edition, newest first, for the switcher.
      *
-     * @return array{from: string, to: string, cutoff_month: string, qualifier_amount: float, cutoff_at: ?string, rental_from: string, rental_to: string, rental_cutoff: string}
+     * @return list<array{year: int, name: string, is_default: bool}>
      */
-    public function settings(): array
+    public function editions(): array
     {
-        $saved = (array) (AppSetting::find(self::SETTING)?->value ?? []);
-        $s = array_intersect_key($saved, self::DEFAULTS) + self::DEFAULTS;
-        $cutoff = DB::table('sales_cutoffs')->where('month', $s['cutoff_month'])->value('cutoff_at');
-
-        return [...$s, 'qualifier_amount' => (float) $s['qualifier_amount'], 'cutoff_at' => $cutoff ? (string) $cutoff : null];
+        return NatconEdition::orderByDesc('year')->get(['year', 'name', 'is_default'])
+            ->map(fn (NatconEdition $e) => ['year' => $e->year, 'name' => $e->name, 'is_default' => $e->is_default])->all();
     }
 
     /**
-     * @param  array{from: string, to: string, cutoff_month: string, qualifier_amount: numeric}  $data
+     * One edition's settings: the given year, else the default (else the newest). Null when there's no such edition.
+     *
+     * @return array{id: int, year: int, name: string, is_default: bool, from: string, to: string, cutoff_at: ?string, qualifier_amount: float, rental_from: string, rental_to: string, rental_cutoff: string}|null
      */
-    public function save(array $data, User $by): void
+    public function edition(?int $year = null): ?array
     {
-        $value = [
-            'from' => $data['from'], 'to' => $data['to'], 'cutoff_month' => $data['cutoff_month'], 'qualifier_amount' => (float) $data['qualifier_amount'],
-            'rental_from' => $data['rental_from'], 'rental_to' => $data['rental_to'], 'rental_cutoff' => $data['rental_cutoff'],
-        ];
-        AppSetting::updateOrCreate(['key' => self::SETTING], ['value' => $value, 'updated_by' => $by->id]);
+        $e = $year !== null
+            ? NatconEdition::where('year', $year)->first()
+            : NatconEdition::orderByDesc('is_default')->orderByDesc('year')->first();
 
-        $this->activity->describe('natcon.settings', "Set the NATCON period to {$value['from']} – {$value['to']} (cutoff {$value['cutoff_month']}, qualifier ".number_format($value['qualifier_amount'])."; rentals {$value['rental_from']} – {$value['rental_to']}, cutoff {$value['rental_cutoff']})", null, $value);
+        return $e ? [
+            'id' => $e->id, 'year' => $e->year, 'name' => $e->name, 'is_default' => $e->is_default,
+            'from' => $e->from->toDateString(), 'to' => $e->to->toDateString(),
+            // App time (Asia/Manila), as sales' created_at is compared.
+            'cutoff_at' => $e->cutoff_at?->format('Y-m-d H:i:s'),
+            'qualifier_amount' => (float) $e->qualifier_amount,
+            'rental_from' => $e->rental_from->toDateString(), 'rental_to' => $e->rental_to->toDateString(), 'rental_cutoff' => $e->rental_cutoff->toDateString(),
+        ] : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data  validated SaveNatconEditionRequest input
+     */
+    public function save(?NatconEdition $edition, array $data, User $by): NatconEdition
+    {
+        $values = [
+            'year' => (int) $data['year'], 'name' => trim((string) $data['name']), 'from' => $data['from'], 'to' => $data['to'],
+            'cutoff_at' => $data['cutoff_at'] ?: null, 'qualifier_amount' => (float) $data['qualifier_amount'],
+            'rental_from' => $data['rental_from'], 'rental_to' => $data['rental_to'], 'rental_cutoff' => $data['rental_cutoff'],
+            'updated_by' => $by->id,
+        ];
+        $edition = DB::transaction(function () use ($edition, $values, $data, $by) {
+            $edition ??= new NatconEdition(['created_by' => $by->id]);
+            $edition->fill($values)->save();
+            // The first one is the default whatever was asked.
+            if (! empty($data['is_default']) || NatconEdition::count() === 1) {
+                $this->makeDefault($edition);
+            }
+
+            return $edition->refresh();
+        });
+
+        $this->activity->describe('natcon.edition_saved', "Saved {$edition->name}: {$values['from']} – {$values['to']}, cutoff ".($values['cutoff_at'] ?? 'not set').', qualifier '.number_format($values['qualifier_amount']), null, $values);
+
+        return $edition;
+    }
+
+    public function makeDefault(NatconEdition $edition): void
+    {
+        DB::transaction(function () use ($edition) {
+            NatconEdition::where('id', '<>', $edition->id)->update(['is_default' => false]);
+            $edition->forceFill(['is_default' => true])->save();
+        });
+    }
+
+    public function delete(NatconEdition $edition): void
+    {
+        $edition->delete();
+        $this->activity->describe('natcon.edition_deleted', "Deleted {$edition->name}", null, ['year' => $edition->year]);
     }
 
     /**
@@ -97,9 +134,9 @@ class NatconService
      * @param  array<string, mixed>  $input  category, q, page, per_page, sort, dir from the URL
      * @return array<string, mixed>
      */
-    public function mineFilters(int $agentId, array $input): array
+    public function mineFilters(int $agentId, array $input, array $edition): array
     {
-        $period = $this->period('qualifiers');
+        $period = $this->period('qualifiers', $edition);
         $f = $this->reports->lockedFilters(
             ['view' => 'agents', 'list' => 'sales', 'from' => $period['from'], 'to' => $period['to'], 'status' => 'valid']
                 + array_intersect_key($input, array_flip(['category', 'q', 'page', 'per_page', 'sort', 'dir'])),
@@ -112,15 +149,14 @@ class NatconService
     /**
      * The reservation dates a board counts and when its sales must have been encoded by (null = no cutoff yet).
      *
-     * @return array{from: string, to: string, cutoff_at: ?string, cutoff_month: ?string}
+     * @param  array<string, mixed>  $edition  edition()
+     * @return array{from: string, to: string, cutoff_at: ?string}
      */
-    public function period(string $board, ?array $settings = null): array
+    public function period(string $board, array $edition): array
     {
-        $s = $settings ?? $this->settings();
-
         return (self::BOARDS[$board]['period'] ?? null) === 'rental'
-            ? ['from' => $s['rental_from'], 'to' => $s['rental_to'], 'cutoff_at' => $s['rental_cutoff'].' 23:59:59', 'cutoff_month' => null]
-            : ['from' => $s['from'], 'to' => $s['to'], 'cutoff_at' => $s['cutoff_at'], 'cutoff_month' => $s['cutoff_month']];
+            ? ['from' => $edition['rental_from'], 'to' => $edition['rental_to'], 'cutoff_at' => $edition['rental_cutoff'].' 23:59:59']
+            : ['from' => $edition['from'], 'to' => $edition['to'], 'cutoff_at' => $edition['cutoff_at']];
     }
 
     /**
@@ -129,9 +165,9 @@ class NatconService
      * @param  array<string, mixed>  $input  q, page, per_page
      * @param  array<string, int>  $lock  the reader's group (reach()['lock'])
      */
-    public function board(string $board, array $input, array $lock = []): LengthAwarePaginator
+    public function board(string $board, array $edition, array $input, array $lock = []): LengthAwarePaginator
     {
-        $f = $this->filters($board, $input + $lock);
+        $f = $this->filters($board, $edition, $input + $lock);
         $page = $this->reports->breakdown($f);
         $offset = ($page->currentPage() - 1) * $page->perPage();
 
@@ -147,19 +183,18 @@ class NatconService
      * @param  array<string, int>  $lock
      * @return array<string, int>
      */
-    public function counts(array $boards, array $lock = []): array
+    public function counts(array $boards, array $edition, array $lock = []): array
     {
-        return collect($boards)->mapWithKeys(fn ($board) => [$board => $this->reports->breakdown($this->filters($board, $lock))->total()])->all();
+        return collect($boards)->mapWithKeys(fn ($board) => [$board => $this->reports->breakdown($this->filters($board, $edition, $lock))->total()])->all();
     }
 
     /**
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>
      */
-    private function filters(string $board, array $input): array
+    private function filters(string $board, array $edition, array $input): array
     {
-        $s = $this->settings();
-        $period = $this->period($board, $s);
+        $period = $this->period($board, $edition);
         $def = self::BOARDS[$board];
         $f = $this->reports->filters([
             'from' => $period['from'], 'to' => $period['to'], 'status' => 'valid', 'view' => $def['view'], 'category' => $def['category'] ?? null,
@@ -168,7 +203,7 @@ class NatconService
             'team_id' => $input['team_id'] ?? null, 'sub_team_id' => $input['sub_team_id'] ?? null,
         ]);
 
-        // No cutoff set for that month yet: everything keyed in so far counts.
-        return [...$f, 'encoded_by' => $period['cutoff_at'], 'min_value' => ($def['qualifier'] ?? false) ? $s['qualifier_amount'] : null];
+        // No cutoff set yet: everything keyed in so far counts.
+        return [...$f, 'encoded_by' => $period['cutoff_at'], 'min_value' => ($def['qualifier'] ?? false) ? $edition['qualifier_amount'] : null];
     }
 }

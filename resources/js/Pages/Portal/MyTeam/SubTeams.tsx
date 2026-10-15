@@ -115,6 +115,8 @@ function SubTeams({ group, isTeam, subTeams, filters }: SubTeamsProps) {
             <TableToolbar search={search} onSearch={setSearch} placeholder="Search sub-teams or unit managers" />
             <DataTable
                 rows={rows}
+                // Its own rank column, which follows the chosen sort.
+                rowNumbers={false}
                 columns={columns}
                 initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
                 getRowHeight={() => 60}

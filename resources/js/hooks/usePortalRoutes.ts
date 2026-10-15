@@ -13,8 +13,12 @@ export interface PortalRoute {
     permission?: string | string[];
     // Also needed on top of `permission` (all of them), e.g. a report's own report_* permission.
     requires?: string[];
+    // Other paths that light this item up (the default NATCON edition also lives at /natcon and /natcon/{board}).
+    alsoActive?: RegExp;
     children?: PortalRoute[];
 }
+
+const NO_EDITIONS: { year: number; name: string; is_default: boolean }[] = [];
 
 // The menu for the signed-in user's portal, minus anything their role lacks permission for.
 // Sidebar, breadcrumbs and global search all read this, so they always agree with each other.
@@ -25,6 +29,7 @@ export default function usePortalRoutes(): PortalRoute[] {
     // Counters on menu items, by path (e.g. global partners waiting for confirmation).
     const partnersPending = user?.global_partners?.pending ?? 0;
     const naoPending = user?.nao_approvals?.pending ?? 0;
+    const natconEditions = user?.natcon_editions ?? NO_EDITIONS;
     const smsPending = user?.sms_credits?.pending ?? 0;
     const salesPending = user?.sales_validation?.pending ?? 0;
     const brokerageAwaiting = user?.commission_receiving?.brokerage ?? 0;
@@ -48,9 +53,26 @@ export default function usePortalRoutes(): PortalRoute[] {
             routes.filter(allowed).map((r) => ({ ...r, badge: badges[r.path] || undefined, children: filter(r.children ?? []) }));
 
         // No portal (agents, team leaders, …) still get the shared dashboard.
-        const routes = filter((portal ? portalRoutes[portal] : memberRoutes) as PortalRoute[]);
+        const routes = withNatconEditions(filter((portal ? portalRoutes[portal] : memberRoutes) as PortalRoute[]), natconEditions);
 
         // Leaders of a team or sub-team get My Team right after the dashboard.
         return leads ? [routes[0], myTeamRoute as PortalRoute, ...routes.slice(1)].filter(Boolean) : routes;
-    }, [portal, permissions, leads, partnersPending, naoPending, smsPending, salesPending, brokerageAwaiting, rentalAwaiting]);
+    }, [portal, permissions, leads, partnersPending, naoPending, smsPending, salesPending, brokerageAwaiting, rentalAwaiting, natconEditions]);
+}
+
+// One NATCON item per edition (NATCON 2027, NATCON 2026 …), its boards under /natcon/{year}; the plain NATCON item stays when
+// none is set up yet.
+function withNatconEditions(routes: PortalRoute[], editions: { year: number; name: string; is_default: boolean }[]): PortalRoute[] {
+    const at = routes.findIndex((r) => r.path === "/natcon");
+    if (at === -1 || editions.length === 0) return routes;
+    const natcon = routes[at];
+    const items = editions.map((e) => ({
+        ...natcon,
+        name: e.name,
+        path: `/natcon/${e.year}`,
+        children: (natcon.children ?? []).map((c) => ({ ...c, path: c.path.replace(/^\/natcon/, `/natcon/${e.year}`) })),
+        alsoActive: e.is_default ? /^\/natcon(\/[a-z-]+)?$/ : undefined,
+    }));
+
+    return [...routes.slice(0, at), ...items, ...routes.slice(at + 1)];
 }

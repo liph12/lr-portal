@@ -12,6 +12,7 @@ use App\Services\GlobalPartnerService;
 use App\Services\GroupSearchService;
 use App\Services\ImpersonationService;
 use App\Services\NaoApprovalService;
+use App\Services\NatconService;
 use App\Services\SmsCreditService;
 use App\Services\OfficeService;
 use App\Services\TeamLeadershipService;
@@ -80,6 +81,8 @@ class HandleInertiaRequests extends Middleware
                 'nao_approvals' => ($naoPending = app(NaoApprovalService::class)->pendingCount($request->user())) === null
                     ? null
                     : ['pending' => $naoPending],
+                // NATCON editions, newest first: the menu has one item each (only for those who see NATCON).
+                'natcon_editions' => $request->user()->can('view_natcon') ? app(NatconService::class)->editions() : [],
                 // SMS credit requests waiting for an SMS manager (the SMS Manager badge); null for everyone else.
                 'sms_credits' => ($smsPending = app(SmsCreditService::class)->pendingCount($request->user())) === null
                     ? null

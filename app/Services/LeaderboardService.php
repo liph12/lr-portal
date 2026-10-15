@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Entities\Team;
 use App\Support\DataCache;
 use App\Models\Entities\Agent;
 use App\Models\Entities\AgentTransaction;
@@ -190,6 +191,8 @@ class LeaderboardService
                     ->orWhereColumn('later.joined_at', '>', 'ta.joined_at')
                     ->orWhere(fn ($q) => $q->whereColumn('later.joined_at', 'ta.joined_at')->whereColumn('later.id', '>', 'ta.id'))))
             ->join('teams as tm', 'tm.id', '=', 'ta.team_id')
+            // Paused or closed teams aren't ranked.
+            ->where('tm.status', Team::STATUS_ACTIVE)
             ->groupBy('tm.id', 'tm.name', 'tm.logo')
             ->selectRaw('tm.id as id, tm.name as name, tm.logo as avatar, COUNT(*) as sales, SUM(s.total_contract_price) as value')
             ->orderByDesc('value')

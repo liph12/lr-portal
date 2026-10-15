@@ -1,3 +1,4 @@
+import { FlagRounded, PaymentsRounded, PublicRounded, ReceiptLongRounded } from "@mui/icons-material";
 import { ReactNode, useState } from "react";
 import { Box, Container, Grid, LinearProgress, Typography } from "@mui/material";
 import { Link, router } from "@inertiajs/react";
@@ -12,7 +13,7 @@ import FlagIcon from "../../../components/utils/FlagIcon";
 import UserAvatar from "../../../components/utils/user/UserAvatar";
 import GlobalPartnersNav from "../../../components/partners/GlobalPartnersNav";
 import { reportPresets } from "../../../helpers/dateRanges";
-import { formatCount, formatPeso, formatPesoCompact } from "../../../helpers/formatNumber";
+import { formatCount, formatPesoCompact, formatPesoExact } from "../../../helpers/formatNumber";
 
 interface PartnerStats {
     partners: { total: number; confirmed: number; pending: number; countries: number };
@@ -171,7 +172,7 @@ function GlobalPartnerStatistics({ stats, filters, everyone }: Props) {
                         </Typography>
                         <Typography sx={{ fontSize: 20, color: "var(--lr-text-primary)" }}>{stats.selection.name}</Typography>
                     </Box>
-                    <Link href={`/global-partners/statistics?${query(range)}`} preserveScroll style={{ color: "var(--lr-primary)", fontSize: 14, fontWeight: 500 }}>
+                    <Link href={`/global-partners/statistics?${query(range)}`} preserveScroll style={{ color: "var(--lr-primary)", fontSize: "0.875rem", fontWeight: 500 }}>
                         Show everyone
                     </Link>
                 </Box>
@@ -179,16 +180,16 @@ function GlobalPartnerStatistics({ stats, filters, everyone }: Props) {
 
             <Grid container spacing={GAP} sx={{ mb: GAP }}>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                    <StatTile label="Global partners" value={formatCount(stats.partners.total)} caption={`${formatCount(stats.partners.confirmed)} confirmed · ${formatCount(stats.partners.pending)} waiting`} />
+                    <StatTile icon={PublicRounded} label="Global partners" value={formatCount(stats.partners.total)} caption={`${formatCount(stats.partners.confirmed)} confirmed · ${formatCount(stats.partners.pending)} waiting`} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                    <StatTile label="Countries" value={formatCount(stats.partners.countries)} caption="where global partners are based" />
+                    <StatTile icon={FlagRounded} label="Countries" value={formatCount(stats.partners.countries)} caption="where global partners are based" />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                    <StatTile label="International sales" value={formatCount(stats.sales.count)} caption={`by ${plural(stats.sales.partners, "partner", "partners")} in this range`} />
+                    <StatTile icon={ReceiptLongRounded} label="International sales" value={formatCount(stats.sales.count)} caption={`by ${plural(stats.sales.partners, "partner", "partners")} in this range`} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                    <StatTile label="Total contract value" value={formatPesoCompact(stats.sales.value)} caption={formatPeso(stats.sales.value)} />
+                    <StatTile icon={PaymentsRounded} label="Total contract value" value={formatPesoExact(stats.sales.value)} caption="valid and pending, in this range" />
                 </Grid>
             </Grid>
 

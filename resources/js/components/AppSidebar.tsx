@@ -8,8 +8,8 @@ const GROUP_HEADING = {
     color: "var(--lr-text-secondary)",
     px: 3.5,
     mb: 0.75,
-    fontSize: 11,
-    fontWeight: 600,
+    fontSize: 12,
+    fontWeight: 700,
     letterSpacing: "0.08em",
     textTransform: "uppercase",
     display: "block",
@@ -21,6 +21,7 @@ export default function AppSidebar() {
 
     return (
         <Box
+            className="lr-sidebar"
             sx={{
                 width: 270,
                 flexShrink: 0,
@@ -85,7 +86,8 @@ export default function AppSidebar() {
                                         backgroundColor: r.active
                                             ? "var(--lr-primary-soft)"
                                             : "transparent",
-                                        fontWeight: r.active ? 600 : 500,
+                                        fontSize: 15,
+                                        fontWeight: r.active ? 700 : 500,
                                         transition: "background-color 0.15s, color 0.15s",
                                         ":hover": {
                                             backgroundColor: r.active

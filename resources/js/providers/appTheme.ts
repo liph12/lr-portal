@@ -32,6 +32,14 @@ export const appTheme = createTheme({
             },
         },
     },
+    // Settings › Preferences text size: every pixel font size given in sx / system props scales with --lr-text-scale (rem sizes
+    // — MUI's own typography — follow the root font size, which scales too). Spacing, images and layout don't.
+    unstable_sxConfig: {
+        fontSize: {
+            themeKey: "typography",
+            transform: (value: string | number) => (typeof value === "number" ? `calc(${value}px * var(--lr-text-scale, 1))` : value),
+        },
+    },
     typography: {
         fontFamily: FONT,
         button: { textTransform: "none", fontWeight: 600, letterSpacing: 0 },
@@ -49,7 +57,7 @@ export const appTheme = createTheme({
         MuiDialog: { styleOverrides: { paper: { borderRadius: 16, border: "1px solid var(--lr-border)" } } },
         MuiTooltip: {
             styleOverrides: {
-                tooltip: { backgroundColor: "var(--lr-text-primary)", color: "var(--lr-surface)", fontSize: 12, fontWeight: 500, borderRadius: 6 },
+                tooltip: { backgroundColor: "var(--lr-text-primary)", color: "var(--lr-surface)", fontSize: "0.75rem", fontWeight: 500, borderRadius: 6 },
                 arrow: { color: "var(--lr-text-primary)" },
             },
         },

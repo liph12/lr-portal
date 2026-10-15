@@ -59,6 +59,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     component="main"
                     sx={{
                         flex: 1,
+                        backgroundColor: "var(--lr-page)",
                         minWidth: 0,
                         overflowY: "auto",
                         overflowX: "hidden",

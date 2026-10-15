@@ -4,31 +4,32 @@ import { EventAvailableRounded, LockClockRounded } from "@mui/icons-material";
 import NatconTrophyIcon from "./NatconTrophyIcon";
 import { formatPeso } from "../../helpers/formatNumber";
 import { formatDate, formatDateTime } from "../../helpers/formatDate";
-import { formatMonthYear } from "../../helpers/salesCutoff";
 
+// One NATCON edition (NatconService::edition): its period, specific cutoff, qualifier amount and Top Rent Managers' own period.
 export interface NatconSettings {
+    id: number;
+    year: number;
+    name: string;
+    is_default: boolean;
     from: string;
     to: string;
-    cutoff_month: string;
-    qualifier_amount: number;
     cutoff_at: string | null;
+    qualifier_amount: number;
     rental_from: string;
     rental_to: string;
     rental_cutoff: string;
 }
 
-// What one board counts (NatconService::period): a monthly cutoff (`cutoff_month`), or a cutoff date of its own (rentals).
+// What one board counts (NatconService::period): reservation dates and when its sales must have been encoded by.
 export interface NatconBoardPeriod {
     from: string;
     to: string;
     cutoff_at: string | null;
-    cutoff_month: string | null;
 }
 
 export const periodLabel = (p: NatconBoardPeriod) => `${formatDate(p.from)} – ${formatDate(p.to)}`;
 
-export const cutoffLabel = (p: NatconBoardPeriod) =>
-    !p.cutoff_at ? "Not set yet — everything encoded so far counts" : p.cutoff_month ? formatDateTime(p.cutoff_at) : `${formatDate(p.cutoff_at)}, end of day`;
+export const cutoffLabel = (p: NatconBoardPeriod) => (!p.cutoff_at ? "Not set yet — everything encoded so far counts" : formatDateTime(p.cutoff_at));
 
 function Fact({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
     return (
@@ -53,7 +54,7 @@ export default function NatconPeriod({ period, qualifier, title = "NATCON period
             <Fact icon={<EventAvailableRounded fontSize="small" />} label={`${title} (reservation date)`} value={periodLabel(period)} />
             <Fact
                 icon={<LockClockRounded fontSize="small" />}
-                label={period.cutoff_month ? `${formatMonthYear(period.cutoff_month)} cutoff — sales encoded by` : "Cutoff — sales encoded by"}
+                label="Cutoff — sales encoded by"
                 value={cutoffLabel(period)}
             />
             {qualifier !== undefined && <Fact icon={<NatconTrophyIcon fontSize="small" />} label="Qualifier: an agent's valid sales of at least" value={formatPeso(qualifier)} />}

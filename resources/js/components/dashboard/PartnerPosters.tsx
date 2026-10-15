@@ -135,7 +135,7 @@ export default function PartnerPosters() {
     }, []);
 
     return (
-        <Box sx={{ flexShrink: 0, display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, borderBottom: "1px solid var(--lr-border)" }}>
+        <Box sx={{ flexShrink: 0, display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}>
             {POSTERS.map((p, i) => (
                 <Box key={p.brand} sx={{ minWidth: 0, display: { xs: i === shown ? "block" : "none", md: "block" } }}>
                     <Strip {...p} />

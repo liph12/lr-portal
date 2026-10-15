@@ -22,7 +22,7 @@ function Recruits({ selection, ...props }: RecruitsPageProps) {
                     All reports
                 </StyledButton>
             </Link>
-            <SectionTitle title="Recruits" subtitle="Members, recruits and how new sign-ups are doing with NAO and FIRE." />
+            <SectionTitle title="Recruits" subtitle="Who signed up in the date range, and how they are doing with NAO and FIRE." />
             {selection && (
                 <ReportScopeHeader
                     scope={{ ...selection, type: selection.type === "sponsor" ? "agent" : selection.type }}

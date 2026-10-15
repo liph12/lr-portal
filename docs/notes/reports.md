@@ -42,6 +42,10 @@ Sales report / Reports cards, report layout, areas (branches), Recruits, Recruit
   Drill-down: Teams / Sub-teams / Developers rows open that group's top agents (`team_id` / `sub_team_id` /
   `developer_id` filter → `SalesReportService::sales()` scope; teams by the stint covering each reservation date;
   shared `scope` prop names it for the chip).
+- **Only active teams are ranked**: a team or sub-team that is paused (`inactive`) or closed (`deactivated`) — or a sub-team of
+  such a team — gets no row in any team / sub-team ranking or grouping: `SalesReportService::grouped()` (Reports Top Teams / Top
+  Sub-teams, View Sales, Overview, NATCON team boards, My Team sub-team totals), `LeaderboardService` top teams, Global Partners'
+  top teams, Recruits Progress' team / sub-team groupings. Their sales still count in every total and for their agents.
 - **Report layout**: the ranked table comes first (name, Area / location, Team where relevant, Total sales — no
   count / average / share columns); statistics (`components/reports/ReportStatistics.tsx`: tiles, trend, by
   category, by area, by client country — codes and legacy names merged via `Countries::resolve`, top 10 + Other —
@@ -62,8 +66,8 @@ Sales report / Reports cards, report layout, areas (branches), Recruits, Recruit
   must set it themselves or run `php artisan agents:assign-areas`. Reports: `areas` view / "Sales by Area" card,
   drill by `area`. Agents with no area count in totals but are **never shown as an "Unassigned" area** in any
   statistic (By area, Sales by Area, Recruits Progress areas); Management › Agents and the profile still say "Unassigned".
-- **Recruits** (Reports › Recruits `/reports/recruits`, and My Team › Recruits; `RecruitmentService`): members by status (now),
-  new recruits signed up in the date range (`agents.created_at`), and onboarding of recruits **without any sale** (local or
+- **Recruits** (Reports › Recruits `/reports/recruits`, and My Team › Recruits; `RecruitmentService`): **only the sign-up range** (no
+  all-time member count) — new recruits signed up in the date range (`agents.created_at`), and onboarding of recruits **without any sale** (local or
   international): NAO = `agent_attributes.nao_video_tracker` % (100 = finished), FIRE = `fire_certificates` with 3 = 100%
   (capped). Cards first, then the server-paged trainees table (filter NAO / FIRE level / status). **Clicking a person opens their recruits**
   (`?person=ID`, `ReportsController::personSelection`; date range kept, a profile button stays in the row): a team leader → their
@@ -81,6 +85,10 @@ Sales report / Reports cards, report layout, areas (branches), Recruits, Recruit
   **Recruits tab** (`group=recruits`, `RecruitProgressService::recruitRows`): the recruits themselves — sponsor, team / sub-team,
   signed up, sales, NAO %, FIRE x of 3 — first tab inside a sub-team or one person's recruits, last elsewhere; a row drills
   into that person. Sort keys follow each tab's column fields (`filters()`), or the grid resets the sort and reloads.
+  **Two different sales figures, side by side** (KPI): "New recruits' total sales" = what the recruits who signed up in the range
+  sold (any date) — and **"Total sales"** = all members' valid sales reserved in the range, old members' too, exactly Top Teams'
+  figure (`RecruitProgressService::groupSales` → `SalesReportService::totals` per team / sub-team / branch row as `total_sales`;
+  `totalSales` → the summary's `kpis.total_sales` for the selection: team / sub-team / branch / everyone, null for one sponsor).
   KPIs are `RecruitsPanel` (ordinary stat tiles + FIRE / NAO / Overall cards: not started · on progress · finished,
   for recruits without a sale — the legacy numbers, in this app's style). Groupings: team, unit manager, location
   (area), sponsor. Rows drill down by `team_id` / `sub_team_id` / `area` / `sponsor_id` (merged with the reader's
@@ -91,7 +99,7 @@ Sales report / Reports cards, report layout, areas (branches), Recruits, Recruit
   Roles & permissions › Statistics; migration `000028` gave it to every role that had view_reports) (`StatisticsController` → `StatisticsService`,
   sales dated by `reservation_date`). Client splits (country, gender, age) for both pages come from `App\Support\ClientStats`; ages
   outside 18–99 are typos and only counted as `excluded` (`agent_transaction_details.client_age`: legacy `clientAge` via
-  `legacy:import-client-ages`, new sales from the birthdate at the reservation date in `SaleRecord`); UI `ClientAgeChart`. Charts are plain MUI in `components/charts/` (`StatTile`,
+  `legacy:import-client-ages`, new sales from the birthdate at the reservation date in `SaleRecord`); UI `ClientAgeChart`. Charts are plain MUI in `components/charts/` (`StatTile` — optional `icon`: a large faint watermark in the corner; money on a tile is the whole amount to the centavo, `formatPesoExact`, never `formatPesoCompact`;
   `MonthlyColumnChart`, `BarList`, `ShareBar`) — no chart library. Series colours are the validated
   `--lr-series-1..3` tokens in fixed order (light/dark in `app.css`); text always uses text tokens;
   every chart carries a visually hidden data table (`srOnly`). Money: `helpers/formatNumber.ts`.

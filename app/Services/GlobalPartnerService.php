@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Entities\Team;
 use App\Support\DataCache;
 use App\Models\Entities\Agent;
 use App\Models\User;
@@ -240,6 +241,8 @@ class GlobalPartnerService
         $partners = $this->narrowed($reach, $f)
             ->join('team_agents as tta', fn ($j) => $j->on('tta.agent_id', '=', 'a.id')->where('tta.status', 'active'))
             ->join('teams as tt', 'tt.id', '=', 'tta.team_id')
+            // Paused or closed teams aren't ranked.
+            ->where('tt.status', Team::STATUS_ACTIVE)
             ->groupBy('tt.id', 'tt.name', 'tt.logo')
             ->selectRaw('tt.id, tt.name, tt.logo, COUNT(*) as partners')->get()->keyBy('id');
 

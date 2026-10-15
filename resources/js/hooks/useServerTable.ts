@@ -76,6 +76,8 @@ export default function useServerTable<R>(prop: string, page: ServerPage<R>, giv
             sortModel,
             onPaginationModelChange: (m: GridPaginationModel) => visit({ page: m.pageSize !== page.per_page ? 1 : m.page + 1, per_page: m.pageSize }),
             onSortModelChange: (m: GridSortModel) => visit({ sort: m[0]?.field ?? "", dir: m[0]?.sort ?? "", page: 1 }),
+            // Search matches aren't positions: no row numbers while searching.
+            rowNumbers: !(filters.q ?? "").toString().trim(),
         },
         setFilter: (key: string, value: string | number | null) => visit({ [key]: value ?? "", page: 1 }),
         // Several filters at once (e.g. a date range).

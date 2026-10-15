@@ -19,11 +19,18 @@ export default function ManagementLayout({ children }: { children: ReactNode }) 
         { name: "Overview", href: base, icon: DashboardCustomizeRounded },
         ...MANAGEMENT_SECTIONS.filter((s) => hasAnyPermission(user?.permissions, s.permission)).map((s) => ({ name: s.name, href: s.href(base), icon: s.icon })),
     ];
+    // The section this page belongs to (its own path or one below it, e.g. SMS › Credits), so the heading names it.
+    const section = MANAGEMENT_SECTIONS.map((s) => ({ ...s, path: s.href(base) }))
+        .filter((s) => path === s.path || path.startsWith(`${s.path}/`))
+        .sort((a, b) => b.path.length - a.path.length)[0];
 
     return (
         <AppLayout>
             <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 } }}>
-                <SectionTitle title="Management" subtitle="Agents, teams, transfers, commission receiving and SMS." />
+                <SectionTitle
+                    title={section?.name ?? "Management"}
+                    subtitle={section ? `Management · ${section.description}` : "Agents, teams, transfers, commission receiving and SMS."}
+                />
                 <Box
                     component="nav"
                     aria-label="Management sections"

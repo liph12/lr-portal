@@ -46,8 +46,9 @@ export default function FilterAutocomplete({ label, value, options, onChange, on
             renderInput={(params) => <TextField {...params} placeholder={`All ${label.toLowerCase()}`} slotProps={{ htmlInput: { ...params.inputProps, "aria-label": label } }} />}
             sx={{
                 width: { xs: "100%", sm: width },
-                "& .MuiOutlinedInput-root": { borderRadius: 99, backgroundColor: "var(--lr-surface-container)", fontSize: 14, pl: 1.5 },
-                "& fieldset": { border: "none" },
+                "& .MuiOutlinedInput-root": { borderRadius: 99, backgroundColor: "var(--lr-surface)", fontSize: 14, pl: 1.5 },
+                // White with a hairline edge: they sit on the off-white page (--lr-page) as well as inside cards.
+                "& fieldset": { border: "1px solid var(--lr-border)" },
             }}
         />
     );

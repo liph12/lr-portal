@@ -1,3 +1,4 @@
+import { GroupsRounded, PaymentsRounded, ReceiptLongRounded, SellRounded } from "@mui/icons-material";
 import { Box, Grid } from "@mui/material";
 import SectionCard from "../cards/SectionCard";
 import SectionTitle from "../utils/SectionTitle";
@@ -5,7 +6,7 @@ import StatTile from "../charts/StatTile";
 import MonthlyColumnChart from "../charts/MonthlyColumnChart";
 import BarList from "../charts/BarList";
 import ShareBar from "../charts/ShareBar";
-import { formatCount, formatPesoCompact } from "../../helpers/formatNumber";
+import { formatCount, formatPesoCompact, formatPesoExact } from "../../helpers/formatNumber";
 import { formatDate } from "../../helpers/formatDate";
 import ClientAgeChart from "./ClientAgeChart";
 import { ClientAges } from "../../types/app-data-types";
@@ -58,17 +59,17 @@ export default function ReportStatistics({ summary, showCategories = true, showA
             <SectionTitle title="Statistics" subtitle="For the same filters, compared with the period just before." />
             <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid size={tile}>
-                    <StatTile label="Total sales" value={formatPesoCompact(kpis.value.value)} current={kpis.value.value} previous={kpis.value.previous} comparisonLabel={comparison} />
+                    <StatTile icon={PaymentsRounded} label="Total sales" value={formatPesoExact(kpis.value.value)} current={kpis.value.value} previous={kpis.value.previous} comparisonLabel={comparison} />
                 </Grid>
                 <Grid size={tile}>
-                    <StatTile label="Sales recorded" value={formatCount(kpis.sales.value)} current={kpis.sales.value} previous={kpis.sales.previous} comparisonLabel={comparison} />
+                    <StatTile icon={ReceiptLongRounded} label="Sales recorded" value={formatCount(kpis.sales.value)} current={kpis.sales.value} previous={kpis.sales.previous} comparisonLabel={comparison} />
                 </Grid>
                 <Grid size={tile}>
-                    <StatTile label="Average deal" value={formatPesoCompact(kpis.average.value)} current={kpis.average.value} previous={kpis.average.previous} comparisonLabel={comparison} />
+                    <StatTile icon={SellRounded} label="Average deal" value={formatPesoExact(kpis.average.value)} current={kpis.average.value} previous={kpis.average.previous} comparisonLabel={comparison} />
                 </Grid>
                 {showAgentsTile && (
                     <Grid size={tile}>
-                        <StatTile label="Agents with sales" value={formatCount(kpis.agents.value)} current={kpis.agents.value} previous={kpis.agents.previous} comparisonLabel={comparison} />
+                        <StatTile icon={GroupsRounded} label="Agents with sales" value={formatCount(kpis.agents.value)} current={kpis.agents.value} previous={kpis.agents.previous} comparisonLabel={comparison} />
                     </Grid>
                 )}
             </Grid>

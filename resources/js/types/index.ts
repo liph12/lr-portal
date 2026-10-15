@@ -68,6 +68,8 @@ export interface AuthUser {
     global_partners: { pending: number } | null;
     // Null when there's nobody whose NAO attendance this user approves; pending = waiting for approval (menu badge).
     nao_approvals: { pending: number } | null;
+    // NATCON editions (newest first): one menu item each; empty for those who don't see NATCON.
+    natcon_editions: { year: number; name: string; is_default: boolean }[];
     // SMS credit requests waiting (SMS managers only; menu badge).
     sms_credits: { pending: number } | null;
     // Pending sales this user can validate (menu badge); null when they don't validate sales.
