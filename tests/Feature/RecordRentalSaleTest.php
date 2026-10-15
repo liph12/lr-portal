@@ -212,7 +212,39 @@ test('the rental page offers property types, the fixed rates and the duration un
             ->where('commissionRate', 8.3)
             ->where('shareRate', 20)
             ->where('durationUnits', ['days', 'months', 'years'])
-            ->missing('developers'));
+            // Optional on a rental: the same developer / project pickers as a project sale.
+            ->has('developers')
+            ->has('projects'));
+});
+
+test('a rental may name its developer and project — listed or typed — or neither when it is direct to owner', function () {
+    Carbon::setTestNow('2026-10-10 09:00:00');
+    $developer = DB::table('developers')->insertGetId(['name' => 'Robinsons Land']);
+    $other = DB::table('developers')->insertGetId(['name' => 'Ayala Land']);
+    $project = DB::table('developer_projects')->insertGetId(['developer_id' => $developer, 'name' => 'RLC Galleria Residences', 'status' => 'active']);
+    $rental = fn () => AgentTransaction::with('rentalTransaction')->latest('id')->first()->rentalTransaction;
+
+    // Direct to owner: no developer, no project.
+    ($this->post)()->assertSessionHasNoErrors();
+    expect($rental()->only(['developer_id', 'developer_project_id', 'project_name']))->toBe(['developer_id' => null, 'developer_project_id' => null, 'project_name' => null]);
+
+    // A listed project: its catalogue name is kept.
+    ($this->post)(['developer_id' => $developer, 'developer_project_id' => $project])->assertSessionHasNoErrors();
+    expect($rental()->only(['developer_id', 'developer_project_id', 'project_name']))->toBe(['developer_id' => $developer, 'developer_project_id' => $project, 'project_name' => 'RLC Galleria Residences']);
+
+    // Not listed: typed by name.
+    ($this->post)(['developer_id' => $other, 'project_name' => ' Ayala Towers '])->assertSessionHasNoErrors();
+    expect($rental()->only(['developer_id', 'developer_project_id', 'project_name']))->toBe(['developer_id' => $other, 'developer_project_id' => null, 'project_name' => 'Ayala Towers']);
+
+    // A developer needs its project; a project must be that developer's.
+    ($this->post)(['developer_id' => $developer])->assertSessionHasErrors('project_name');
+    ($this->post)(['developer_id' => $other, 'developer_project_id' => $project])->assertSessionHasErrors('developer_project_id');
+    expect(AgentTransaction::count())->toBe(3);
+
+    // Shown in the sale's details.
+    $sale = AgentTransaction::whereHas('rentalTransaction', fn ($q) => $q->where('developer_project_id', $project))->sole();
+    $detail = app(App\Services\SaleValidationService::class)->detail($sale->id);
+    expect($detail['names']['developer'])->toBe('Robinsons Land')->and($detail['property']['project_name'])->toBe('RLC Galleria Residences');
 });
 
 test('a closing agent with no LR account is entered by hand, credited by name, and linked when their account appears', function () {

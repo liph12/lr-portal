@@ -21,12 +21,16 @@ export interface MeasurementFields {
     lot_area: string;
 }
 
-export interface ProjectFields extends MeasurementFields {
+// A developer and its project: picked from the catalogue, or the name typed when it isn't listed.
+export interface DeveloperProjectFieldValues {
     developer: AutoCompleteValue | null;
     project: AutoCompleteValue | null;
     // True when the project isn't in the catalogue and its name is typed instead.
     project_not_listed: boolean;
     project_name: string;
+}
+
+export interface ProjectFields extends MeasurementFields, DeveloperProjectFieldValues {
     unit_no: string;
     total_contract_price: string;
     reservation_date: string;
@@ -49,7 +53,8 @@ export interface AgentOption {
 
 // Encoded from the Rent.ph Rent Commission Report Slip: the contract's total is worked out from the amount received;
 // Rent.ph's share and the closing agent's team / unit manager are shown, never stored.
-export interface RentalFields {
+// The developer and project are optional (a direct-to-owner rental has neither).
+export interface RentalFields extends DeveloperProjectFieldValues {
     unit_no: string;
     property_type: AutoCompleteValue | null;
     property_size: string;

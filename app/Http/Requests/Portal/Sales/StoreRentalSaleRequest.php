@@ -30,6 +30,14 @@ class StoreRentalSaleRequest extends SaleRequest
         return [
             ...$this->clientRules(),
             'unit_no' => ['required', 'string', 'max:255'],
+            // Optional (a direct-to-owner rental has none); with a developer, the project — listed, or typed when it isn't.
+            'developer_id' => ['nullable', 'integer', Rule::exists('developers', 'id')],
+            'developer_project_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('developer_projects', 'id')->where('developer_id', $this->integer('developer_id')),
+            ],
+            'project_name' => ['nullable', 'string', 'max:255'],
             'project_property_type_id' => ['required', 'integer', Rule::exists('project_property_types', 'id')],
             'property_size' => ['required', 'numeric', 'gt:0', 'max:99999999'],
             'rental_rate' => ['required', 'numeric', 'gt:0', 'max:9999999999'],
@@ -58,6 +66,9 @@ class StoreRentalSaleRequest extends SaleRequest
         return [
             ...parent::after(),
             function (\Illuminate\Validation\Validator $validator) {
+                if ($this->filled('developer_id') && ! $this->filled('developer_project_id') && trim((string) $this->input('project_name')) === '') {
+                    $validator->errors()->add('project_name', 'Select the project, or enter its name if it is not listed.');
+                }
                 $email = strtolower(trim((string) $this->input('unregistered_agent_email')));
                 if (! $this->filled('closing_agent_id') && $email !== '' && \Illuminate\Support\Facades\DB::table('users')->whereRaw('LOWER(email) = ?', [$email])->exists()) {
                     $validator->errors()->add('unregistered_agent_email', 'This email already has an LR account — pick them as the closing agent instead.');
@@ -77,6 +88,7 @@ class StoreRentalSaleRequest extends SaleRequest
             ...$this->fileMessages('proof_of_transaction', 'proof of transaction'),
             ...$this->fileMessages('deposit_slip', 'deposit slip'),
             'unit_no.required' => 'Enter the unit address.',
+            'developer_project_id.exists' => 'That project does not belong to the selected developer.',
             'property_size.required' => 'Enter the size of the property.',
             'rental_rate.required' => 'Enter the rate of rental.',
             'rental_rate.gt' => 'Rental rate must be more than 0.',

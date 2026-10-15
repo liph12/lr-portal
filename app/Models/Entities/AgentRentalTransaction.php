@@ -9,6 +9,9 @@ class AgentRentalTransaction extends Model
 {
     protected $fillable = [
         'agent_transaction_id',
+        'developer_id',
+        'developer_project_id',
+        'project_name',
         'project_property_type_id',
         'reservation_date',
         'unit_type',

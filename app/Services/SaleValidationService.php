@@ -191,7 +191,8 @@ class SaleValidationService
                 ->addSelect('c.project_name', 'c.developer_id', 'd.name as developer', 'c.proof_of_transaction'),
             'brokerage' => $query->leftJoin('brokerage_areas as ba', 'ba.id', '=', 'c.brokerage_area_id')
                 ->addSelect('c.brokerage_area_id', 'ba.name as brokerage_area', 'c.remittance_slip', 'c.deposit_slip'),
-            'rental' => $query->addSelect('c.closing_agent', 'c.partner_agent', 'c.rental_rate', 'c.remittance_slip', 'c.deposit_slip'),
+            'rental' => $query->leftJoin('developers as d', 'd.id', '=', 'c.developer_id')
+                ->addSelect('c.closing_agent', 'c.partner_agent', 'c.rental_rate', 'c.remittance_slip', 'c.deposit_slip', 'c.project_name', 'c.developer_id', 'd.name as developer'),
             self::ALL_CATEGORIES => $query->leftJoin('developers as d', 'd.id', '=', 'c.developer_id')
                 ->leftJoin('brokerage_areas as ba', 'ba.id', '=', 'c.brokerage_area_id')
                 ->addSelect(
@@ -498,7 +499,7 @@ class SaleValidationService
 
         return $branch(self::TABLES['project'], ['project_name', 'developer_id', 'proof_of_transaction'])
             ->unionAll($branch(self::TABLES['brokerage'], ['proof_of_transaction', 'brokerage_area_id', 'closing_agent', 'partner_agent', 'remittance_slip', 'deposit_slip']))
-            ->unionAll($branch(self::TABLES['rental'], ['proof_of_transaction', 'closing_agent', 'partner_agent', 'rental_rate', 'remittance_slip', 'deposit_slip']));
+            ->unionAll($branch(self::TABLES['rental'], ['project_name', 'developer_id', 'proof_of_transaction', 'closing_agent', 'partner_agent', 'rental_rate', 'remittance_slip', 'deposit_slip']));
     }
 
     public function base(): Builder

@@ -27,3 +27,6 @@ Thumbs.db
 # Database dumps (may contain personal data)
 *.sql
 *.sql.gz
+
+# graphify: the graph is rebuilt locally (graphify update .)
+graphify-out/

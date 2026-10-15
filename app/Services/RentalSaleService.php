@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Entities\Agent;
 use App\Models\Entities\AgentRentalTransaction;
 use App\Models\Entities\AgentTransaction;
+use App\Models\Entities\DeveloperProject;
 use App\Models\Entities\ProjectPropertyType;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -12,7 +13,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
-// Rental sales are encoded from the Rent.ph Rent Commission Report Slip: the amount received is 8.3% of the contract
+// Rental sales are encoded from the Rent.ph Rent Commission Report Slip (optionally naming the unit's developer and project): the amount received is 8.3% of the contract
 // (which gives its total); Rent.ph's 20% share and the closing agent's team / unit manager are worked out, never stored.
 // The slip is generated here; receiving it later (signed) validates the sale.
 class RentalSaleService
@@ -52,7 +53,12 @@ class RentalSaleService
                 }
                 $folder = "sales/rental/{$transaction->id}";
 
+                $projectId = ! empty($data['developer_id']) ? ($data['developer_project_id'] ?? null) : null;
                 $rental = $transaction->rentalTransaction()->create([
+                    // Optional: a direct-to-owner rental has no developer or project.
+                    'developer_id' => $data['developer_id'] ?? null,
+                    'developer_project_id' => $projectId,
+                    'project_name' => empty($data['developer_id']) ? null : ($projectId ? DeveloperProject::whereKey($projectId)->value('name') : (trim((string) ($data['project_name'] ?? '')) ?: null)),
                     'project_property_type_id' => (int) $data['project_property_type_id'],
                     'property_size' => $data['property_size'],
                     'reservation_date' => $data['remittance_date'],

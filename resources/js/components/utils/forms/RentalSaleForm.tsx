@@ -4,7 +4,8 @@ import StyledTextField from "../StyledTextField";
 import StyledAutocomplete from "../StyledAutocomplete";
 import FieldLabel from "./FieldLabel";
 import AgentPicker from "./AgentPicker";
-import { RentalFields } from "../../../types/app-data-types";
+import { DeveloperProjectOption, RentalFields } from "../../../types/app-data-types";
+import DeveloperProjectFields from "./DeveloperProjectFields";
 import { AutoCompleteValue, SaleStepProps } from "../../../types";
 import { commissionStatus } from "../../../app-data";
 import { formatPesoExact } from "../../../helpers/formatNumber";
@@ -12,6 +13,9 @@ import { rentalAmounts } from "../../../helpers/commissionSlip";
 
 interface RentalSaleFormProps extends SaleStepProps<RentalFields> {
     propertyTypes: AutoCompleteValue[];
+    // Optional for a rental: the unit's developer and project (none when it's direct to owner).
+    developers: AutoCompleteValue[];
+    projects: DeveloperProjectOption[];
     // The fixed commission (8.3%), Rent.ph's share (20%) and how a duration is counted.
     commissionRate: number;
     shareRate: number;
@@ -39,12 +43,23 @@ function Amount({ label, value, hint }: { label: string; value: number; hint: st
 
 // Rental sales are encoded from the Rent.ph Rent Commission Report Slip: the amount received gives the contract's total
 // and Rent.ph's share (shown, not stored); the closing agent brings their team and unit manager onto the slip.
-export default function RentalSaleForm({ data, setData, errors, propertyTypes, commissionRate, shareRate, durationUnits }: RentalSaleFormProps) {
+export default function RentalSaleForm({ data, setData, errors, propertyTypes, developers, projects, commissionRate, shareRate, durationUnits }: RentalSaleFormProps) {
     const handleChangeTextField = (e: ChangeEvent<HTMLInputElement>) => setData(e.target.name as keyof RentalFields, e.target.value as never);
     const { total, share } = rentalAmounts(data.commission_received, commissionRate, shareRate);
 
     return (
         <Grid container spacing={2}>
+            <DeveloperProjectFields
+                data={data}
+                set={(key, value) => setData(key, value as never)}
+                errors={errors}
+                developers={developers}
+                projects={projects}
+                propertyTypes={propertyTypes}
+                onPropertyType={(type) => !data.property_type && setData("property_type", type)}
+                optional
+                size={{ md: 6, xs: 12 }}
+            />
             <Grid size={{ lg: 6, xs: 12 }}>
                 <FieldLabel text="Address (unit no. / building / street)" required />
                 <StyledTextField name="unit_no" value={data.unit_no} error={errors.unit_no ?? null} handleChange={handleChangeTextField} placeholder="e.g. Unit 1503, Tower 2, RLC Galleria Residences" />

@@ -108,6 +108,12 @@ export default function SaleDetailsView({ detail, showStatus = true }: { detail:
                         <Fact label="Signing broker">{names.signing_broker ?? null}</Fact>
                     </>
                 )}
+                {category === "rental" && names.developer && (
+                    <>
+                        <Fact label="Developer">{names.developer}</Fact>
+                        <Fact label="Project">{str(p.project_name)}</Fact>
+                    </>
+                )}
                 {category === "rental" && (
                     <>
                         <Fact label="Closing agent">{str(p.closing_agent)}</Fact>

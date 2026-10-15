@@ -8,7 +8,10 @@ tags: [sales, recording]
 Recording project / rental / brokerage sales, commission slips & receiving, cutoffs, international sales. Related: [[sales-validation]] · [[reports]] · [[legacy-data]] · back to [[README|index]].
 
 - **Recording sales** — A project sale has exactly
-  **one** `proof_of_transaction` (`ProjectSaleService`). A **rental** (`RentalSaleService`, no developer) is **encoded from the
+  **one** `proof_of_transaction` (`ProjectSaleService`). A **rental** (`RentalSaleService`) may name the unit's **developer and project — optional** (direct-to-owner rentals have
+  neither): `developer_id`, a listed `developer_project_id` (its name copied to `project_name`) or a typed `project_name`, project required once a
+  developer is picked (`StoreRentalSaleRequest::after`), the same pickers as a project sale (`forms/DeveloperProjectFields`, `optional`); migration
+  `000058` (and a removed project no longer deletes the rental); shown as Developer / Project in the sale's details. It is **encoded from the
   Rent.ph Rent Commission Report Slip**: address (`unit_number`), property type, `property_size`, `rental_rate`, duration
   (`duration_value` + `duration_unit` days / months / years, also written as `term_of_payment`), remittance date (stored as both
   dates), amount received → `total_contract_price` = amount / 8.3% (`AgentRentalTransaction::COMMISSION_RATE`); **Rent.ph's 20%

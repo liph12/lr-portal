@@ -10,7 +10,7 @@ import ClientForm from "../../../../components/utils/forms/ClientForm";
 import RentalSaleForm from "../../../../components/utils/forms/RentalSaleForm";
 import SaleDocumentsForm, { SaleDocument } from "../../../../components/utils/forms/SaleDocumentsForm";
 import CommissionSlipPreview from "../../../../components/sales/CommissionSlipPreview";
-import { PropertyTypeOption, RentalSaleFormData, SalesCutoffTimes, SalesEncodingState } from "../../../../types/app-data-types";
+import { DeveloperProjectOption, PropertyTypeOption, RentalSaleFormData, SalesCutoffTimes, SalesEncodingState, SalesSource } from "../../../../types/app-data-types";
 import { FormErrors } from "../../../../types";
 import { useCommissionSaleSteps } from "../../../../app-data";
 
@@ -18,6 +18,9 @@ interface RentalProps {
     encoding: SalesEncodingState;
     cutoffs: SalesCutoffTimes;
     propertyTypes: PropertyTypeOption[];
+    // Optional on a rental: the unit's developer and project.
+    developers: SalesSource[];
+    projects: DeveloperProjectOption[];
     maxFileKb: number;
     commissionRate: number;
     shareRate: number;
@@ -28,7 +31,7 @@ interface RentalProps {
 const STEP_FIELDS: string[][] = [
     ["client_firstname", "client_middlename", "client_lastname", "client_email", "client_mobile", "client_birthdate", "client_gender", "client_country", "client_address"],
     [
-        "unit_no", "property_type", "project_property_type_id", "property_size", "rental_rate", "duration_value", "duration_unit", "payment_terms", "remittance_date", "reservation_date",
+        "developer", "developer_id", "project", "developer_project_id", "project_name", "unit_no", "property_type", "project_property_type_id", "property_size", "rental_rate", "duration_value", "duration_unit", "payment_terms", "remittance_date", "reservation_date",
         "commission_received", "commission_status", "closing_agent", "closing_agent_id", "unregistered_agent_name", "unregistered_agent_email", "unregistered_agent_mobile", "partner_agent_id", "remarks",
     ],
     ["contract", "proof_of_transaction", "deposit_slip"],
@@ -63,9 +66,10 @@ const stepOfError = (key: string) => STEP_FIELDS.findIndex((fields) => fields.so
 
 const toAmount = (value: string) => value.replace(/,/g, "").trim();
 
-function Rental({ propertyTypes, maxFileKb, encoding, cutoffs, commissionRate, shareRate, durationUnits }: RentalProps) {
+function Rental({ propertyTypes, developers, projects, maxFileKb, encoding, cutoffs, commissionRate, shareRate, durationUnits }: RentalProps) {
     const [compressing, setCompressing] = useState<Record<SaleDocument, boolean>>({ contract: false, proof_of_transaction: false, deposit_slip: false });
     const propertyTypeOptions = useMemo(() => propertyTypes.map((t) => ({ id: t.id, label: t.name })), [propertyTypes]);
+    const developerOptions = useMemo(() => developers.map((d) => ({ id: d.id, label: d.name })), [developers]);
 
     const form = useForm<RentalSaleFormData>({
         client_firstname: "",
@@ -77,6 +81,10 @@ function Rental({ propertyTypes, maxFileKb, encoding, cutoffs, commissionRate, s
         client_gender: null,
         client_country: { id: "PH", label: "Philippines" },
         client_address: "",
+        developer: null,
+        project: null,
+        project_not_listed: false,
+        project_name: "",
         unit_no: "",
         property_type: null,
         property_size: "",
@@ -103,12 +111,12 @@ function Rental({ propertyTypes, maxFileKb, encoding, cutoffs, commissionRate, s
         form.setData((prev) => ({ ...prev, [key]: value }));
         if (errors[key as string]) form.clearErrors(key);
         // Pickers report their errors under the id the server checks.
-        const idKey = ({ property_type: "project_property_type_id", closing_agent: "closing_agent_id", partner_agent: "partner_agent_id" } as Record<string, string>)[key as string];
+        const idKey = ({ property_type: "project_property_type_id", closing_agent: "closing_agent_id", partner_agent: "partner_agent_id", developer: "developer_id", project: "developer_project_id" } as Record<string, string>)[key as string];
         if (idKey) form.clearErrors(idKey as keyof RentalSaleFormData);
     };
 
     const validateStep = (step: number) => {
-        form.clearErrors(...(REQUIRED[step] ?? []).map(([key]) => key), ...(step === 1 ? (["closing_agent", "unregistered_agent_name", "unregistered_agent_email"] as const) : []));
+        form.clearErrors(...(REQUIRED[step] ?? []).map(([key]) => key), ...(step === 1 ? (["closing_agent", "unregistered_agent_name", "unregistered_agent_email", "project", "project_name"] as const) : []));
 
         const missing = (REQUIRED[step] ?? []).filter(([key]) => {
             const value = form.data[key];
@@ -116,9 +124,11 @@ function Rental({ propertyTypes, maxFileKb, encoding, cutoffs, commissionRate, s
             return value === null || value === "";
         });
 
-        // The closing agent: picked, or (not yet in LR) their name and email.
+        // The closing agent: picked, or (not yet in LR) their name and email; with a developer, its project.
         if (step === 1) {
             const d = form.data;
+            if (d.developer && d.project_not_listed && !d.project_name.trim()) missing.push(["project_name", "Enter the project name."]);
+            if (d.developer && !d.project_not_listed && !d.project) missing.push(["project", "Select the project, or choose “Project not listed?”."]);
             if (!d.unregistered && !d.closing_agent) missing.push(["closing_agent", "Select the closing agent."]);
             if (d.unregistered && !d.unregistered_agent_name.trim()) missing.push(["unregistered_agent_name", "Enter the closing agent's name."]);
             if (d.unregistered && !d.unregistered_agent_email.trim()) missing.push(["unregistered_agent_email", "Enter their email — it links the sale once they sign up."]);
@@ -167,6 +177,9 @@ function Rental({ propertyTypes, maxFileKb, encoding, cutoffs, commissionRate, s
             client_gender: d.client_gender?.label ?? "",
             client_country: String(d.client_country?.id ?? ""),
             client_address: d.client_address,
+            developer_id: d.developer?.id ?? "",
+            developer_project_id: d.developer && !d.project_not_listed ? (d.project?.id ?? "") : "",
+            project_name: d.developer && d.project_not_listed ? d.project_name.trim() : "",
             unit_no: d.unit_no,
             project_property_type_id: d.property_type?.id ?? "",
             property_size: toAmount(d.property_size),
@@ -227,6 +240,8 @@ function Rental({ propertyTypes, maxFileKb, encoding, cutoffs, commissionRate, s
                         setData={setField}
                         errors={errors}
                         propertyTypes={propertyTypeOptions}
+                        developers={developerOptions}
+                        projects={projects}
                         commissionRate={commissionRate}
                         shareRate={shareRate}
                         durationUnits={durationUnits}

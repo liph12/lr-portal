@@ -73,6 +73,9 @@ class SaleController extends Controller
     {
         return inertia('Portal/Dashboard/RecordSale/Rental', [
             ...$this->encodingProps(),
+            // Optional on a rental (direct-to-owner rentals have none); the same pickers as a project sale.
+            'developers' => Developer::query()->orderBy('name')->get(['id', 'name']),
+            'projects' => DeveloperProject::query()->where('status', 'active')->orderBy('name')->get(['id', 'developer_id', 'name', 'project_property_type_id']),
             'propertyTypes' => ProjectPropertyType::query()->orderBy('name')->get(['id', 'name']),
             'maxFileKb' => $this->maxFileKb(),
             // The fixed commission (8.3%) and Rent.ph's share (20%, worked out, not stored); how a duration is counted.
