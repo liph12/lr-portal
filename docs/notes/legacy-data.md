@@ -36,4 +36,14 @@ Imports from lr_legacy: members, sales, teams, ids, registration status, fill-ex
   use `Agent::fullyRegisteredIds()` / `Agent::FULLY_REGISTERED`. Sales totals are not filtered. Pages that
   list users must page/search server-side — there are ~83k users now.
 
+- **Moving it all in one go** (deploy day, or after schema changes): `legacy:dump` (old server → `.sql.gz` without
+  `config('legacy.excluded_tables')` = activity_tracker, inbox_improved, personal_access_tokens — ~80 MB instead of 1.2 GB),
+  `legacy:restore {file}` (streams into `lr_legacy`, `LegacyDumpFilter` drops the excluded tables' statements), `legacy:migrate`
+  (`--fresh --force` on deploy day = migrate:fresh --seed; otherwise new migrations; then every `config('legacy.steps')` command in
+  order — re-runs only **add** new records, already-imported ones stay as they are except documents / offices / cutoffs (upserts) — `LegacyMigration`, each step recorded in `legacy_migration_runs`, migration `000059`; `--from` / `--only`). Developer page
+  Settings › Legacy migration (`SuperAdmin\Settings\LegacyMigrationController`, superadmin): source DB, steps + last run (polled
+  while running), the commands, "Run the import" (a detached `legacy:migrate --run=N` via `LegacyMigrationLauncher`, log
+  `storage/logs/legacy-migration.log`; never `--fresh`). Developers / projects / property types: `legacy:import-developers` (`LegacyDeveloperImporter::run`, upserts by legacy id, before the sales) and `legacy:import-sale-links` (`linkSales`, fills sales' missing developer / project / property type from `salesreport`); property types are also in `DatabaseSeeder`. `legacy:rehearse` = all of it locally in `*_rehearsal` databases + a row-count comparison, then dropped (`--keep`, `--dump=`). `LegacyMigrationTest` fails if a `legacy:*` command is in neither
+  `steps` nor `not_in_migration`. Runbook: `docs/legacy-migration/README.md`.
+
 Mapping and decisions per table: `docs/legacy-migration/` (members, sales, teams, offices, documents, international-sales).

@@ -151,14 +151,16 @@ class LeaderboardService
      */
     private function topDevelopers(CarbonImmutable $month): array
     {
+        // Known developers only: sales with none recorded aren't a developer to rank.
         return $this->projectSalesIn($month)
-            ->leftJoin('developers as d', 'd.id', '=', 'p.developer_id')
+            ->join('developers as d', 'd.id', '=', 'p.developer_id')
+            ->where('d.name', '<>', '')
             ->groupBy('p.developer_id', 'd.name')
             ->selectRaw('d.name as name, COUNT(*) as sales, SUM(p.total_contract_price) as value')
             ->orderByDesc('value')
             ->limit(self::LIMIT)
             ->get()
-            ->map(fn ($r) => ['name' => trim((string) $r->name) ?: 'Unknown developer', 'sales' => (int) $r->sales, 'value' => (float) $r->value])
+            ->map(fn ($r) => ['name' => trim((string) $r->name), 'sales' => (int) $r->sales, 'value' => (float) $r->value])
             ->all();
     }
 

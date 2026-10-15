@@ -1,6 +1,6 @@
 import { ElementType, ReactNode } from "react";
 import { Box, Container, Grid, Typography } from "@mui/material";
-import { AdminPanelSettingsOutlined, ChevronRightRounded, EmojiEventsOutlined, EventBusyOutlined, TuneRounded, ViewCarouselOutlined } from "@mui/icons-material";
+import { AdminPanelSettingsOutlined, ChevronRightRounded, EmojiEventsOutlined, EventBusyOutlined, StorageOutlined, TuneRounded, ViewCarouselOutlined } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
 import AppLayout from "../../../components/layouts/AppLayout";
 import SectionTitle from "../../../components/utils/SectionTitle";
@@ -92,6 +92,9 @@ function Settings({ counts, salesEncoding }: SettingsProps) {
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
                     <SettingsCard href="/superadmin/settings/posters" icon={ViewCarouselOutlined} title="Dashboard posters" detail="Announcements in the dashboard carousel" />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
+                    <SettingsCard href="/superadmin/settings/legacy-migration" icon={StorageOutlined} title="Legacy migration" detail="For developers: import the old system's database" />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
                     <SettingsCard href="/settings/preferences" icon={TuneRounded} title="Preferences" detail="Theme, text size and links" />

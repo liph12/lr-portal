@@ -45,7 +45,7 @@ Sales report / Reports cards, report layout, areas (branches), Recruits, Recruit
 - **Report layout**: the ranked table comes first (name, Area / location, Team where relevant, Total sales — no
   count / average / share columns); statistics (`components/reports/ReportStatistics.tsx`: tiles, trend, by
   category, by area, by client country — codes and legacy names merged via `Countries::resolve`, top 10 + Other —
-  by client gender, by client age, by property type, and Top developers with % share of project sales when the report includes
+  by client gender, by client age, by property type, and Top developers (known developers only — no "Unknown developer" row; same on the leaderboards) with % share of project sales when the report includes
   project sales) sit underneath. A drill-down shows `ReportScopeHeader` (photo, name, facts, total, "Show
   everyone") under the title instead of a chip; `scope` carries `avatar` + `facts`. People rows (reports, Overview top agents) open that agent's
   sales `/agents/{agent}/sales` with the same dates / status / category; the read-only profile is `/agents/{agent}`

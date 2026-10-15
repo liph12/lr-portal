@@ -34,7 +34,8 @@ composer dev          # serve + queue + pail logs + vite; serve loads dev/php/*.
 npm run build         # production build (doesn't type-check)
 npx -y -p typescript@5.9 tsc --noEmit -p tsconfig.json --strictNullChecks   # type-check, as strict as VS Code (0 errors)
 composer test         # Pest (tests/ holds only the default examples)
-php artisan migrate --seed   # MySQL db `lr_portal`; seeders: roles, permissions, users, developers
+php artisan migrate --seed   # MySQL db `lr_portal`; seeders: roles, permissions, users, property types (developers + projects: legacy:import-developers)
+php artisan legacy:rehearse  # deploy day in throwaway DBs: dump → restore → legacy:migrate --fresh → compare counts (docs/legacy-migration/README.md)
 ```
 
 ## 2. Reference implementation — copy this flow

@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Portal\SuperAdmin\SettingsController;
+use App\Http\Controllers\Portal\SuperAdmin\Settings\LegacyMigrationController;
 use App\Http\Controllers\Portal\SuperAdmin\Settings\NatconController;
 use App\Http\Controllers\Portal\SuperAdmin\Settings\PermissionController;
 use App\Http\Controllers\Portal\SuperAdmin\Settings\PosterController;
@@ -36,6 +37,9 @@ Route::prefix('settings')->group(function(){
     Route::put('/posters/{poster}', [PosterController::class, 'update'])->name('superadmin.settings.posters.update');
     Route::patch('/posters/{poster}/active', [PosterController::class, 'toggle'])->name('superadmin.settings.posters.toggle');
     Route::delete('/posters/{poster}', [PosterController::class, 'destroy'])->name('superadmin.settings.posters.destroy');
+
+    Route::get('/legacy-migration', [LegacyMigrationController::class, 'index'])->name('superadmin.settings.legacy-migration.index');
+    Route::post('/legacy-migration', [LegacyMigrationController::class, 'run'])->middleware('throttle:3,1')->name('superadmin.settings.legacy-migration.run');
 
     Route::post('/permissions', [PermissionController::class, 'store'])->name('superadmin.settings.permissions.store');
     Route::delete('/permissions/{permission}', [PermissionController::class, 'destroy'])->name('superadmin.settings.permissions.destroy');

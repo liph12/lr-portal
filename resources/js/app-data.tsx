@@ -268,6 +268,11 @@ export const useAppRoutes = [
                 children: [],
             },
             {
+                name: "Legacy migration",
+                path: "/superadmin/settings/legacy-migration",
+                children: [],
+            },
+            {
                 name: "Preferences",
                 path: "/settings/preferences",
                 permission: "use_preferences",

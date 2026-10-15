@@ -428,7 +428,7 @@ class SalesReportService
     private const TOP_DEVELOPERS = 10;
 
     /**
-     * Project sales by developer, with each one's share of all project sales in the report.
+     * Project sales by (known) developer, with each one's share of all project sales in the report.
      *
      * @return array{total: float, rows: array<int, array{id: int, name: string, sales: int, value: float, share: float}>}
      */
@@ -441,8 +441,10 @@ class SalesReportService
         $projectSales = fn () => DB::query()->fromSub($this->sales($f), 's')->where('s.category', 'project');
         $total = (float) $projectSales()->sum('s.value');
 
+        // Developers by name only: sales with no developer recorded aren't a "developer" to rank (they still count in the total).
         $rows = $projectSales()
-            ->leftJoin('developers as dv', 'dv.id', '=', 's.developer_id')
+            ->join('developers as dv', 'dv.id', '=', 's.developer_id')
+            ->where('dv.name', '<>', '')
             ->groupBy('s.developer_id', 'dv.name')
             ->selectRaw('s.developer_id as id, dv.name as name, COUNT(*) as sales, COALESCE(SUM(s.value), 0) as value')
             ->orderByDesc('value')
@@ -450,7 +452,7 @@ class SalesReportService
             ->get()
             ->map(fn ($r) => [
                 'id' => (int) $r->id,
-                'name' => $r->name ?? 'Unknown developer',
+                'name' => $r->name,
                 'sales' => (int) $r->sales,
                 'value' => (float) $r->value,
                 'share' => $total > 0 ? round((float) $r->value / $total * 100, 1) : 0.0,

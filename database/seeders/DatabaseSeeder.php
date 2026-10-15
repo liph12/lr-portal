@@ -19,6 +19,8 @@ class DatabaseSeeder extends Seeder
             PermissionSeeder::class,
             PermissionRoleSeeder::class,
             UserSeeder::class,
+            // Fixed reference list (developers and projects come from the legacy import).
+            ProjectPropertyTypeSeeder::class,
         ]);
     }
 }

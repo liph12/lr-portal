@@ -19,8 +19,10 @@ beforeEach(function () {
     $this->dashboardPosters = fn (User $user) => collect($this->actingAs($user)->get('/dashboard/main')->viewData('page')['props']['posters'])->pluck('title')->all();
 });
 
-test('the NATCON poster comes with the table, and everyone sees what is showing, in order', function () {
-    expect(($this->dashboardPosters)($this->agent))->toBe(['National Real Estate Convention 2026']);
+test('the NATCON and business card posters come with the table, and everyone sees what is showing, in order', function () {
+    expect(($this->dashboardPosters)($this->agent))->toBe(['National Real Estate Convention 2026', 'Update your business card information']);
+    // The ordering below is about NATCON and a new one.
+    DashboardPoster::where('title', 'Update your business card information')->delete();
 
     $this->actingAs($this->superadmin)->post('/superadmin/settings/posters', [
         'title' => 'Mid-year awards',
@@ -73,7 +75,7 @@ test('editing replaces the image (the old stored file goes), deleting removes it
 test('only the superadmin manages posters', function () {
     $this->actingAs($this->agent)->get('/superadmin/settings/posters')->assertForbidden();
     $this->actingAs($this->agent)->post('/superadmin/settings/posters', ['title' => 'x', 'image' => UploadedFile::fake()->image('x.jpg')])->assertForbidden();
-    expect(DashboardPoster::count())->toBe(1);
+    expect(DashboardPoster::count())->toBe(2);
 });
 
 test('policy handbooks follow the role: a team leader all three, a unit manager theirs and the salesperson\'s, an agent only theirs', function () {
