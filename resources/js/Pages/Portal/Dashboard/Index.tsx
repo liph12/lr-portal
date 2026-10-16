@@ -269,9 +269,10 @@ function Dashboard({ posters, handbooks }: { posters: DashboardPoster[]; handboo
                     <Grid size={{ lg: 3, sm: 6, xs: 12 }}>
                         <DashboardCardApp
                             icon={PropertyQrIcon}
+                            href="/dashboard/qr-maker"
                             title="QR Code Maker"
                             subTitle="Leuterio Realty"
-                            description="Customize a QR code for your URL/Links using LR domain."
+                            description="A QR code for any link in your own style, with an optional short link on the LR domain."
                         />
                     </Grid>
                     <Grid size={{ lg: 3, sm: 6, xs: 12 }}>

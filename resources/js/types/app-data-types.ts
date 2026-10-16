@@ -398,3 +398,24 @@ export interface FireResult {
     results: { question: number; position: number; correct: boolean }[];
     total_passed: number;
 }
+
+// Dashboard › QR Code Maker: a short link on the portal's domain (ShortLinkService).
+export interface ShortLink {
+    id: number;
+    code: string;
+    url: string;
+    short_url: string;
+    title: string | null;
+    clicks: number;
+    created_at: string;
+}
+
+// What `helpers/linkHealth.ts` makes of a pasted address.
+export interface ShortLinkHealth {
+    valid: boolean;
+    // No reasons to hesitate: a readable address people will scan.
+    clean: boolean;
+    reasons: string[];
+    host: string | null;
+    length: number;
+}

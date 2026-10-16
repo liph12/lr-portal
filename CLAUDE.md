@@ -91,7 +91,7 @@ between them, index `docs/notes/README.md`) — read only the note for the featu
 | [FIRE](docs/notes/fire.md) | realestatetraining.ph integration: modules, exams, Rent.ph module 12, endorsement letter, certificates |
 | [SMS Manager](docs/notes/sms.md) | Semaphore SMS: recipients picker, credits & requests, send job, Management section |
 | [Profile, business profile & preferences](docs/notes/profile.md) | /profile, avatars, business profile & contact page, Settings › Preferences |
-| [Dashboard](docs/notes/dashboard.md) | Shared dashboard, My Sales, Overview, partner & dashboard posters, LR ID |
+| [Dashboard](docs/notes/dashboard.md) | Shared dashboard, My Sales, Overview, partner & dashboard posters, LR ID, QR Code Maker & short links |
 | [Reports & statistics](docs/notes/reports.md) | Sales report / Reports cards, report layout, areas (branches), Recruits, Recruits Progress, statistics charts, leaderboards |
 | [NATCON](docs/notes/natcon.md) | NATCON boards, periods / cutoffs, reach, My NATCON sales |
 | [Management](docs/notes/management.md) | Management cards / tabs, agents & teams, transfers, designations, editing profile & upline, agent activity, documentation |

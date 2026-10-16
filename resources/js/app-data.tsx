@@ -20,6 +20,7 @@ import {
     ReceiptLongRounded,
     AccountTreeRounded,
     BadgeRounded,
+    QrCode2Rounded,
 } from "@mui/icons-material";
 import { REPORTS } from "./components/reports/reportCatalog";
 import { NATCON_BOARDS } from "./components/natcon/natconCatalog";
@@ -97,6 +98,14 @@ export const dashboardRoute = {
             tab: false,
             children: [],
             icon: BadgeRounded,
+        },
+        {
+            name: "QR Code Maker",
+            path: "/dashboard/qr-maker",
+            // Opened from the Tools & apps card on Main; kept here for breadcrumbs and search.
+            tab: false,
+            children: [],
+            icon: QrCode2Rounded,
         },
         {
             name: "View Sales",
