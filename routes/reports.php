@@ -10,6 +10,7 @@ Route::prefix('reports')->name('reports.')->group(function () {
     Route::get('/', [ReportsController::class, 'index'])->name('index');
     Route::get('/recruits', [ReportsController::class, 'recruits'])->name('recruits');
     Route::get('/recruits-progress', [ReportsController::class, 'recruitsProgress'])->name('recruits-progress');
+    Route::get('/recruits-kpi', [ReportsController::class, 'recruitsKpi'])->name('recruits-kpi');
     Route::get('/{report}', [ReportsController::class, 'show'])
         ->whereIn('report', array_keys(ReportsController::REPORTS))
         ->name('show');

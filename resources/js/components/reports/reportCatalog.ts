@@ -7,6 +7,7 @@ import {
     EmojiEventsRounded,
     GroupsRounded,
     HomeWorkRounded,
+    InsightsRounded,
     PlaceRounded,
     SchoolRounded,
     TrendingUpRounded,
@@ -28,6 +29,7 @@ export interface ReportCard {
 // The reports offered under Reports, in the order they're shown.
 export const REPORTS: ReportCard[] = [
     { slug: "recruits", title: "Recruits", description: "Members by status, new recruits, and NAO / FIRE progress of new sign-ups.", icon: SchoolRounded, art: "graduation" },
+    { slug: "recruits-kpi", title: "Recruits KPI", description: "Per team and sub-team: new recruits, NAO, FIRE and their sales against the team's total sales.", icon: InsightsRounded, art: "chart-up" },
     { slug: "recruits-progress", title: "Recruits Progress", description: "Recruits vs recruits who sold, their sales, NAO and FIRE — by team, unit manager or sponsor.", icon: TrendingUpRounded, art: "chart-up" },
     { slug: "top-agents", title: "Top Agents", description: "Agents ranked by total contract value across every sale type.", icon: EmojiEventsRounded, art: "trophy" },
     { slug: "top-unit-managers", title: "Top Unit Managers", description: "Unit managers ranked by their own sales.", icon: BadgeRounded, art: "medal" },

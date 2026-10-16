@@ -170,6 +170,8 @@ export const smsRoute = {
 // Who may open a report beyond Reports itself (ReportsController::available): Top Teams only with the whole system in
 // reach, Top Sub-teams also inside a team. Recruits follow Reports (an agent sees the recruits they sponsored).
 const REPORT_ACCESS: Record<string, string[]> = {
+    // Team totals: the back office, leaders (their own group) and office secretaries (their branch).
+    "recruits-kpi": [BACKOFFICE, LEADER, SECRETARY],
     "top-teams": [BACKOFFICE],
     "top-sub-teams": [BACKOFFICE, TEAM_LEADER],
 };

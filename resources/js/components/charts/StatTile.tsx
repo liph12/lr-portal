@@ -2,6 +2,7 @@ import { ElementType } from "react";
 import { Box, Typography } from "@mui/material";
 import { ArrowDownwardRounded, ArrowUpwardRounded, RemoveRounded } from "@mui/icons-material";
 import { percentChange } from "../../helpers/formatNumber";
+import { fitFontSize } from "../../helpers/fitText";
 import { srOnly } from "./srOnly";
 
 interface StatTileProps {
@@ -31,6 +32,8 @@ export default function StatTile({ label, value, current, previous, caption, com
             sx={{
                 position: "relative",
                 overflow: "hidden",
+                // The figure sizes itself to this card's width (fitFontSize).
+                containerType: "inline-size",
                 height: "100%",
                 p: 2.5,
                 borderRadius: 3,
@@ -46,8 +49,8 @@ export default function StatTile({ label, value, current, previous, caption, com
             </Typography>
             <Typography
                 fontFamily="Google Sans Code"
-                // Whole amounts to the centavo run long (₱4,837,742,662.00): a size down so they stay on one line.
-                sx={{ mt: 1, fontSize: value.length > 13 ? { xs: 20, sm: 23 } : { xs: 26, sm: 30 }, lineHeight: 1.15, color: "var(--lr-text-primary)", wordBreak: "break-word" }}
+                // Always one line: whole amounts to the centavo (₱35,737,795,092.47) shrink to the card's width.
+                sx={{ mt: 1, fontSize: fitFontSize(value, 30), lineHeight: 1.15, color: "var(--lr-text-primary)", whiteSpace: "nowrap" }}
             >
                 {value}
             </Typography>

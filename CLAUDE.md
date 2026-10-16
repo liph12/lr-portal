@@ -193,7 +193,7 @@ between them, index `docs/notes/README.md`) — read only the note for the featu
   call `describe('domain.verb', 'Human sentence', $subjectModel, [...extra])` once the action succeeds
   (see `ProjectSaleService::record`). Add new sensitive field names to `config/activity_log.php` `redact`.
 - **Tables**: MUI X DataGrid (`@mui/x-data-grid`, free) via `components/utils/tables/DataTable.tsx`
-  (token-themed, `autoHeight` so `<main>` stays the only scroller; a "#" column numbers the rows 1…N across pages — `rowNumbers`, off while a search is applied (`useServerTable`) and for tables with their own rank column) + `TableToolbar` / `FilterSelect` /
+  (token-themed, `autoHeight` so `<main>` stays the only scroller; a "#" column numbers the rows 1…N across pages — `rowNumbers`, off while a search is applied (`useServerTable`) and for tables with their own rank column; and a **Columns** button in the grid's toolbar to hide / show columns — `columnPicker`, remembered per page + column set in `localStorage` (`columnsKey` to fix the key), never the first column (unless `hideable: true`), columns marked `hideable: false` or untitled control columns, and only when 3+ can be hidden) + `TableToolbar` / `FilterSelect` /
   `PersonCell`. Small sets (< ~1k rows) are sent whole and filtered in the browser (Management Teams);
   large ones are **server-paged** with `hooks/useServerTable.ts` (page/sort/search/filters in the URL
   query, partial reload of one prop; the controller returns `{data,total,page,per_page}` and accepts

@@ -327,3 +327,29 @@ test('a team\'s row and drill-down show its whole total sales (old members too) 
     $this->actingAs($this->superadmin)->get("/reports/recruits-progress?{$range}&group=sponsors")
         ->assertInertia(fn ($page) => $page->where('rows.data', fn ($rows) => collect($rows)->every(fn ($r) => $r['total_sales'] === null)));
 });
+
+test('Recruits KPI: every team in reach — even one with no new recruits — with its new recruits\' share of its total sales', function () {
+    $range = 'from=2026-01-01&to=2026-10-11';
+    $sale = function (int $agent, float $price, string $date) {
+        $t = AgentTransaction::create(['agent_id' => $agent, 'sale_type' => 'project', 'commission_status' => 'Unclaimed', 'sale_status' => 'valid']);
+        DB::table('agent_project_transactions')->insert(['agent_transaction_id' => $t->id, 'total_contract_price' => $price, 'reservation_date' => $date, 'project_name' => 'Mivela']);
+    };
+    // Alpha: Eve (old member) 9M + Ann (new recruit) 1M = 10M, 10% from new recruits. Bravo: only an old member's 5M.
+    $sale($this->agents['Eve']['id'], 9_000_000, '2026-05-10');
+    $sale($this->agents['Ann']['id'], 1_000_000, '2026-06-10');
+    $oldUser = User::factory()->create(['name' => 'Old Timer']);
+    $old = DB::table('agents')->insertGetId(['user_id' => $oldUser->id, 'email' => $oldUser->email, 'created_at' => '2019-01-01 00:00:00']);
+    $bravo = DB::table('teams')->insertGetId(['name' => 'Bravo', 'agent_id' => $old, 'status' => 'active']);
+    DB::table('team_agents')->insert(['team_id' => $bravo, 'agent_id' => $old, 'joined_at' => '2019-01-01', 'status' => 'active']);
+    $sale($old, 5_000_000, '2026-07-01');
+
+    $this->actingAs($this->superadmin)->get("/reports/recruits-kpi?{$range}")
+        ->assertInertia(fn ($page) => $page->component('Portal/Reports/RecruitsKpi')->where('groups', ['teams', 'sub_teams'])
+            ->where('rows', fn ($rows) => collect($rows)->pluck('name')->all() === ['Alpha', 'Bravo']
+                && (float) $rows[0]['total_sales'] === 10_000_000.0 && (float) $rows[0]['value'] === 1_000_000.0 && (float) $rows[0]['share'] === 10.0 && $rows[0]['recruits'] === 3
+                && $rows[1]['recruits'] === 0 && (float) $rows[1]['total_sales'] === 5_000_000.0 && (float) $rows[1]['share'] === 0.0));
+
+    // A team leader: their own team's sub-teams; a plain agent: no team totals.
+    $this->actingAs($this->leader)->get("/reports/recruits-kpi?{$range}")->assertInertia(fn ($page) => $page->where('groups', ['sub_teams']));
+    $this->actingAs($this->agents['Ann']['user'])->get("/reports/recruits-kpi?{$range}")->assertForbidden();
+});

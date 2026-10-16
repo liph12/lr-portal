@@ -167,15 +167,18 @@ class RecruitProgressService
     }
 
     /**
-     * Each team / sub-team / branch's own valid sales in the range (Top Teams' numbers), by key.
+     * Each team / sub-team / branch's own valid sales in the range (Top Teams' numbers), by key — within the selection, as the
+     * sales report counts it there (a branch: its members' sales; a team: its sub-teams' sales while on it).
      *
+     * @param  array<string, int|string>|null  $scope
      * @return array<string|int, float>
      */
-    private function groupSales(array $f): array
+    private function groupSales(array $f, ?array $scope = null): array
     {
         $view = ['teams' => 'teams', 'sub_teams' => 'sub_teams', 'areas' => 'areas'][$f['group']] ?? null;
 
-        return $view ? $this->reports->totals($this->reports->filters(['from' => $f['from'], 'to' => $f['to'], 'status' => 'valid', 'view' => $view])) : [];
+        return $view ? $this->reports->totals($this->reports->filters(['from' => $f['from'], 'to' => $f['to'], 'status' => 'valid', 'view' => $view]
+            + array_intersect_key($scope ?? [], array_flip(['team_id', 'sub_team_id', 'area'])))) : [];
     }
 
     /**
@@ -195,6 +198,94 @@ class RecruitProgressService
             return $this->recruitRows($f, $scope);
         }
 
+        $query = $this->groupRows($f, $scope);
+        if ($f['q'] !== null && mb_strlen($f['q']) >= 2) {
+            $like = '%'.addcslashes($f['q'], '%_\\').'%';
+            $query->where(fn ($q) => $q->where('p.name', 'like', $like)->orWhere('p.detail', 'like', $like));
+        }
+
+        $page = $query->orderBy($f['sort'] === 'name' ? 'p.name' : $f['sort'], $f['dir'])->orderBy('p.key')
+            ->paginate($f['per_page'], ['*'], 'page', $f['page']);
+
+        // A sponsor's current team, looked up for this page only.
+        $teams = $f['group'] === 'sponsors'
+            ? DB::table('team_agents as ta')->join('teams as t', 't.id', '=', 'ta.team_id')
+                ->whereIn('ta.agent_id', collect($page->items())->pluck('key')->all())->where('ta.status', 'active')
+                ->pluck('t.name', 'ta.agent_id')
+            : collect();
+        $groupSales = $this->groupSales($f, $scope);
+
+        return $page->through(fn ($r) => [
+            'id' => $r->key,
+            // Areas are stored as keys; a sponsor who wasn't imported keeps their member number.
+            'name' => $f['group'] === 'areas' ? Areas::name($r->key) : ($r->name ?? "Member #{$r->key}"),
+            'detail' => $r->detail,
+            'avatar' => $r->avatar,
+            'team' => $teams[$r->key] ?? null,
+            ...$this->row($r),
+            // The group's whole total in the range (null for a sponsor).
+            'total_sales' => $f['group'] === 'sponsors' ? null : (float) ($groupSales[$r->key] ?? 0),
+        ]);
+    }
+
+    /**
+     * Reports › Recruits KPI: every team (or sub-team) in reach with its new recruits' numbers — conversion, NAO, FIRE, their
+     * sales — against the group's whole total sales in the range, and the new recruits' share of it. Not paged (≈50 teams,
+     * ≈450 sub-teams): the page sorts, searches and picks its columns itself.
+     *
+     * @param  array<string, mixed>  $f  filters() with group teams or sub_teams
+     * @param  array<string, int|string>|null  $scope
+     * @return list<array<string, mixed>>
+     */
+    public function kpi(array $f, ?array $scope): array
+    {
+        return DataCache::remember('RecruitProgressService.kpi', [$f, $scope], fn () => $this->computeKpi($f, $scope));
+    }
+
+    private function computeKpi(array $f, ?array $scope): array
+    {
+        $groupSales = $this->groupSales($f, $scope);
+        $rows = $this->groupRows($f, $scope)->get()->keyBy('key');
+
+        // Groups with sales but no new recruits in the range still belong in a KPI (0 recruits) — the ones in reach: every
+        // active one for the whole system, a team's own sub-teams inside a team.
+        $teamId = $scope['team_id'] ?? null;
+        $others = ! $scope || ($f['group'] === 'sub_teams' && $teamId && count($scope) === 1)
+            ? array_diff(array_keys(array_filter($groupSales)), $rows->keys()->all())
+            : [];
+        if ($others) {
+            $extra = $f['group'] === 'teams'
+                ? DB::table('teams')->whereIn('id', $others)->where('status', Team::STATUS_ACTIVE)->get(['id as key', 'name', DB::raw('NULL as detail'), DB::raw('NULL as avatar')])
+                : DB::table('sub_teams as g')->leftJoin('agents as l', 'l.id', '=', 'g.agent_id')->leftJoin('users as lu', 'lu.id', '=', 'l.user_id')
+                    ->whereIn('g.id', $others)->where('g.status', Team::STATUS_ACTIVE)->when($teamId, fn ($q) => $q->where('g.team_id', $teamId))
+                    ->get(['g.id as key', 'g.name', 'lu.name as detail', 'l.avatar']);
+            $zero = (object) array_fill_keys(['recruits', 'sold', 'value', 'trainees', 'nao_finished', 'fire_complete', 'nao_not_started', 'fire_not_started', 'no_activity', 'completed'], 0);
+            foreach ($extra as $e) {
+                $rows[$e->key] = (object) ((array) $zero + (array) $e);
+            }
+        }
+
+        return $rows->values()->map(function ($r) use ($groupSales) {
+            $total = (float) ($groupSales[$r->key] ?? 0);
+            $row = $this->row($r);
+
+            return [
+                'id' => $r->key, 'name' => $r->name ?? "#{$r->key}", 'detail' => $r->detail, 'avatar' => $r->avatar,
+                ...$row,
+                'total_sales' => $total,
+                // The KPI: how much of the group's sales its new recruits brought in.
+                'share' => $total > 0 ? round($row['value'] / $total * 100, 1) : null,
+            ];
+        })->sortByDesc('total_sales')->values()->all();
+    }
+
+    /**
+     * One row per team / sub-team / branch / sponsor with the new recruits' measures (the table's and the KPI's source).
+     *
+     * @param  array<string, int|string>|null  $scope
+     */
+    private function groupRows(array $f, ?array $scope): Builder
+    {
         $grouped = match ($f['group']) {
             // Paused or closed teams / sub-teams get no row (their recruits are still in the totals).
             'teams' => DB::query()->fromSub($this->recruits($f, $scope), 'r')
@@ -226,35 +317,7 @@ class RecruitProgressService
             ->selectRaw('CASE WHEN p.trainees > 0 THEN p.fire_complete * 100.0 / p.trainees ELSE 0 END as fire');
 
         // Only recruits who have a team / sub-team / sponsor are ranked; the KPIs above still count everyone.
-        $query->whereNotNull('p.key');
-
-        if ($f['q'] !== null && mb_strlen($f['q']) >= 2) {
-            $like = '%'.addcslashes($f['q'], '%_\\').'%';
-            $query->where(fn ($q) => $q->where('p.name', 'like', $like)->orWhere('p.detail', 'like', $like));
-        }
-
-        $page = $query->orderBy($f['sort'] === 'name' ? 'p.name' : $f['sort'], $f['dir'])->orderBy('p.key')
-            ->paginate($f['per_page'], ['*'], 'page', $f['page']);
-
-        $groupSales = $this->groupSales($f);
-        // A sponsor's current team, looked up for this page only.
-        $teams = $f['group'] === 'sponsors'
-            ? DB::table('team_agents as ta')->join('teams as t', 't.id', '=', 'ta.team_id')
-                ->whereIn('ta.agent_id', collect($page->items())->pluck('key')->all())->where('ta.status', 'active')
-                ->pluck('t.name', 'ta.agent_id')
-            : collect();
-
-        return $page->through(fn ($r) => [
-            'id' => $r->key,
-            // Areas are stored as keys; a sponsor who wasn't imported keeps their member number.
-            'name' => $f['group'] === 'areas' ? Areas::name($r->key) : ($r->name ?? "Member #{$r->key}"),
-            'detail' => $r->detail,
-            'avatar' => $r->avatar,
-            'team' => $teams[$r->key] ?? null,
-            ...$this->row($r),
-            // The group's whole total in the range (null for a sponsor).
-            'total_sales' => $f['group'] === 'sponsors' ? null : (float) ($groupSales[$r->key] ?? 0),
-        ]);
+        return $query->whereNotNull('p.key');
     }
 
     /**

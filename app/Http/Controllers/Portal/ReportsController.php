@@ -97,6 +97,26 @@ class ReportsController extends Controller
         ]);
     }
 
+    // Reports › Recruits KPI: per team / sub-team, new recruits' conversion, NAO, FIRE and sales against the group's whole
+    // total sales (RecruitProgressService::kpi). Same reach as Recruits Progress.
+    public function recruitsKpi(Request $request, RecruitProgressService $progress)
+    {
+        $lock = $this->leadership->reportScope($request->user());
+        abort_if($lock === false || ! $request->user()->can(self::permission('recruits-kpi')) || ! self::groupReach($lock), 403);
+
+        $scope = $this->narrow([], $this->recruitLock($lock), $request->user());
+        // Only teams and sub-teams are KPI groups; inside one sub-team there's nothing to compare.
+        $groups = array_values(array_intersect($progress->groupsFor($scope), ['teams', 'sub_teams']));
+        $filters = $progress->filters($request->query(), $groups ?: ['teams']);
+
+        return inertia('Portal/Reports/RecruitsKpi', [
+            'filters' => ['from' => $filters['from'], 'to' => $filters['to'], 'group' => $filters['group']],
+            'groups' => $groups,
+            'scope' => fn () => $lock ? $this->reports->scope($this->reports->filters($lock)) : null,
+            'rows' => fn () => $groups ? $progress->kpi($filters, $scope) : [],
+        ]);
+    }
+
     public function show(Request $request, string $report)
     {
         abort_unless(isset(self::REPORTS[$report]), 404);
@@ -164,9 +184,16 @@ class ReportsController extends Controller
     {
         $views = $this->reports->viewsFor($lock);
         $reports = array_keys(array_filter(self::REPORTS, fn (string $view) => in_array($view, $views, true)));
-        $reports = ['recruits', 'recruits-progress', ...$reports];
+        $reports = ['recruits', 'recruits-progress', ...(self::groupReach($lock) ? ['recruits-kpi'] : []), ...$reports];
 
         return array_values(array_filter($reports, fn (string $slug) => $user->can(self::permission($slug))));
+    }
+
+    // Team totals are the back office's, a leader's own group's or a secretary's branch's — not a plain agent's (their reach is
+    // their own sales / recruits).
+    private static function groupReach(?array $lock): bool
+    {
+        return $lock === null || (bool) array_intersect_key($lock, array_flip(['team_id', 'sub_team_id', 'area']));
     }
 
     /**

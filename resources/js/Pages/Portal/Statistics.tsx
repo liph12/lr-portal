@@ -105,7 +105,7 @@ function Statistics({ stats }: { stats: StatsSummary }) {
                         <StatTile icon={PeopleAltRounded}
                             label="Active users"
                             value={formatCount(kpis.active_users.value)}
-                            caption={`of ${kpis.active_users.total} accounts`}
+                            caption={`of ${formatCount(kpis.active_users.total)} accounts`}
                         />
                     </Grid>
                 </Grid>

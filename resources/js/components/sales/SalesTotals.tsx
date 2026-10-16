@@ -1,6 +1,7 @@
 import { Box, ButtonBase, Grid, Typography } from "@mui/material";
 import { CATEGORY_LABELS } from "../reports/ReportStatistics";
 import { formatCount, formatPeso } from "../../helpers/formatNumber";
+import { fitFontSize } from "../../helpers/fitText";
 
 export interface CategoryTotal {
     category: string;
@@ -56,7 +57,7 @@ export default function SalesTotals({ totals, category, onPick }: SalesTotalsPro
                             <Typography
                                 fontFamily="Google Sans Code"
                                 title={formatPeso(t.value)}
-                                sx={{ mt: 1, fontSize: "clamp(15px, 8.5cqi, 26px)", lineHeight: 1.15, color: "var(--lr-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                                sx={{ mt: 1, fontSize: fitFontSize(formatPeso(t.value), 26), lineHeight: 1.15, color: "var(--lr-text-primary)", whiteSpace: "nowrap" }}
                             >
                                 {formatPeso(t.value)}
                             </Typography>

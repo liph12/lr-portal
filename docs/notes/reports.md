@@ -66,6 +66,14 @@ Sales report / Reports cards, report layout, areas (branches), Recruits, Recruit
   must set it themselves or run `php artisan agents:assign-areas`. Reports: `areas` view / "Sales by Area" card,
   drill by `area`. Agents with no area count in totals but are **never shown as an "Unassigned" area** in any
   statistic (By area, Sales by Area, Recruits Progress areas); Management › Agents and the profile still say "Unassigned".
+- **Recruits KPI** (Reports › Recruits KPI `/reports/recruits-kpi`, `ReportsController::recruitsKpi`, page `Portal/Reports/RecruitsKpi`;
+  permission `report_recruits_kpi`, migration `000062` → every role with Recruits Progress; only readers whose reach is a group —
+  back office, leaders, office secretaries (`groupReach`), never a plain agent; menu `REPORT_ACCESS` `[BACKOFFICE, LEADER, SECRETARY]`):
+  Teams | Sub-teams (inside a team: its sub-teams; inside one sub-team nothing to compare). `RecruitProgressService::kpi` = every
+  group in reach, not paged — the Recruits Progress grouping (`groupRows`) plus groups with sales but no new recruits — with new
+  recruits, sold %, NAO / FIRE %, new recruits' sales, the group's total sales (`groupSales`, within the reader's reach) and the KPI
+  `share` = new recruits' sales ÷ total. The page totals the shown rows into tiles, sorts / searches in the browser, and its
+  **Columns** button (every `DataTable` has it now; this page keeps the key `lr-recruits-kpi-columns`); a row opens that group in Recruits Progress.
 - **Recruits** (Reports › Recruits `/reports/recruits`, and My Team › Recruits; `RecruitmentService`): **only the sign-up range** (no
   all-time member count) — new recruits signed up in the date range (`agents.created_at`), and onboarding of recruits **without any sale** (local or
   international): NAO = `agent_attributes.nao_video_tracker` % (100 = finished), FIRE = `fire_certificates` with 3 = 100%
@@ -99,7 +107,7 @@ Sales report / Reports cards, report layout, areas (branches), Recruits, Recruit
   Roles & permissions › Statistics; migration `000028` gave it to every role that had view_reports) (`StatisticsController` → `StatisticsService`,
   sales dated by `reservation_date`). Client splits (country, gender, age) for both pages come from `App\Support\ClientStats`; ages
   outside 18–99 are typos and only counted as `excluded` (`agent_transaction_details.client_age`: legacy `clientAge` via
-  `legacy:import-client-ages`, new sales from the birthdate at the reservation date in `SaleRecord`); UI `ClientAgeChart`. Charts are plain MUI in `components/charts/` (`StatTile` — optional `icon`: a large faint watermark in the corner; money on a tile is the whole amount to the centavo, `formatPesoExact`, never `formatPesoCompact`;
+  `legacy:import-client-ages`, new sales from the birthdate at the reservation date in `SaleRecord`); UI `ClientAgeChart`. Charts are plain MUI in `components/charts/` (`StatTile` — optional `icon`: a large faint watermark in the corner; money on a tile is the whole amount to the centavo, `formatPesoExact`, never `formatPesoCompact`; the figure never wraps: it sizes itself to the card with `helpers/fitText.ts` `fitFontSize` (the card is an inline-size container; also `SalesTotals`);
   `MonthlyColumnChart`, `BarList`, `ShareBar`) — no chart library. Series colours are the validated
   `--lr-series-1..3` tokens in fixed order (light/dark in `app.css`); text always uses text tokens;
   every chart carries a visually hidden data table (`srOnly`). Money: `helpers/formatNumber.ts`.
