@@ -29,6 +29,8 @@ Route::middleware('guest')->group(function(){
 
 // Public contact pages: anyone with an agent's link, signed in or not.
 require base_path('routes/contact.php');
+// Public: short links (/url/{code}) made in the QR Code Maker.
+require base_path('routes/short-links.php');
 
 Route::middleware(['auth', 'active'])->group(function(){
 

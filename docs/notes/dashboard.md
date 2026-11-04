@@ -5,7 +5,7 @@ tags: [dashboard]
 
 # Dashboard
 
-Shared dashboard, My Sales, Overview, partner & dashboard posters, LR ID. Related: [[reports]] · [[profile]] · back to [[README|index]].
+Shared dashboard, My Sales, Overview, partner & dashboard posters, LR ID, QR Code Maker & short links. Related: [[reports]] · [[profile]] · back to [[README|index]].
 
 - **Dashboard (shared)**: `/dashboard/{main,overview,view-sales,record-sale/...}` (`routes/dashboard.php`,
   `Portal\DashboardController`, pages in `Pages/Portal/Dashboard/`) is the **same for every role** and is
@@ -47,3 +47,23 @@ Shared dashboard, My Sales, Overview, partner & dashboard posters, LR ID. Relate
   uploaded (drawn on `SignaturePad` with `showFooter={false}` / `height`, applied with its own Clear / Apply buttons, or on the larger
   "Touch Expand" pad dialog). Download = both sides as two 2× PNG files after the terms dialog (shown on arrival, and again as a confirmation before every download; no print button, no zip); it posts
   `POST /dashboard/lr-id/downloaded` (`LogLrIdDownloadRequest`) → activity `lr_id.downloaded`. Tests: `tests/Feature/LrIdTest.php`.
+- **Dashboard › QR Code Maker** (`/dashboard/qr-maker`, `Portal\QrMakerController::index`, `Pages/Portal/Dashboard/QrMaker/Index.tsx` outside AppLayout
+  under `PublicHeader` like Generate LR ID — its own scroller, no sidebar / rail; opened from the Tools & apps card, route node `tab: false`): a QR code for any web address, drawn in the browser
+  by `components/utils/StyledQrCode.tsx` over `helpers/qrArt.ts` (one SVG path per layer: modules **square / rounded / dots**, eyes
+  **square / rounded / circle**, any code / eye / background colour incl. transparent, error correction not offered: level M, or H when the mark is on; a fixed 2-module quiet zone — the
+  Filipino Homes pin `assets/qr-logo.png` ("FH mark") in the middle forces H and clears the modules under it). Every shape × eye × logo combination was verified
+  to decode with ZXing (phone cameras) and, apart from dots, jsQR; colours are literal (what the camera sees), and
+  `qrReadability` warns below 3:1 contrast or when the code is lighter than its background. Download = PNG (one size, 1024 px: the SVG
+  rasterised on a canvas with the logo embedded as a data URL) or SVG (`helpers/qrExport.ts`).
+  **Short links** (`short_links` migration `000058`, `Entities\ShortLink`, `ShortLinkService`, `ShortLinkPolicy` — anyone signed in
+  creates, only the owner deletes; `Requests/Portal/QrMaker/{Store,Delete}ShortLinkRequest`): every code goes **through a short LR link** (no
+  switch: the agent asked for every scan to be counted and for people to see Leuterio Realty's address first), so the preview is
+  empty until the short link exists; `helpers/linkHealth.ts` only validates the address now (its slug heuristics stay for reuse).
+  Creating one
+  (`POST /dashboard/qr-maker/links`: `url` — https assumed when no scheme, http(s) only, never one of our own `/url/` links; optional
+  `alias` 3–40 chars `[a-z0-9-]`, unique, not in `ShortLinkService::RESERVED`; optional `title`) returns `back()` with the short URL
+  in the flash; without an alias a 6-character code from an unambiguous alphabet, and the same address is reused rather than
+  shortened twice. The QR then encodes `url('/url/{code}')`; **public** `GET /url/{code}` (`routes/short-links.php`, outside auth,
+  `QrMakerController::open`) 302s to the address and counts `clicks` / `last_clicked_at`. "Your short links" lists the newest 50 with
+  visits, Make QR / copy / remove (`ConfirmDialog`, `DELETE /dashboard/qr-maker/links/{link}`). Activity: `short_link.created` /
+  `short_link.deleted`. Tests: `tests/Feature/QrMakerTest.php`.

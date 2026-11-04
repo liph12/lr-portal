@@ -13,7 +13,7 @@ Feature rules for lr-portal, split out of `CLAUDE.md` (which keeps the cross-cut
 - [[fire|FIRE]] — realestatetraining.ph integration: modules, exams, Rent.ph module 12, endorsement letter, certificates
 - [[sms|SMS Manager]] — Semaphore SMS: recipients picker, credits & requests, send job, Management section
 - [[profile|Profile, business profile & preferences]] — /profile, avatars, business profile & contact page, Settings › Preferences
-- [[dashboard|Dashboard]] — Shared dashboard, My Sales, Overview, partner & dashboard posters, LR ID
+- [[dashboard|Dashboard]] — Shared dashboard, My Sales, Overview, partner & dashboard posters, LR ID, QR Code Maker & short links
 - [[reports|Reports & statistics]] — Sales report / Reports cards, report layout, areas (branches), Recruits, Recruits Progress, statistics charts, leaderboards
 - [[natcon|NATCON]] — NATCON boards, periods / cutoffs, reach, My NATCON sales
 - [[management|Management]] — Management cards / tabs, agents & teams, transfers, designations, editing profile & upline, agent activity, documentation

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Portal\DashboardController;
+use App\Http\Controllers\Portal\QrMakerController;
 use App\Http\Controllers\Portal\Sales\SaleController;
 use App\Http\Controllers\Portal\SalesReportController;
 use App\Models\Entities\AgentTransaction;
@@ -24,6 +25,11 @@ Route::prefix('dashboard')->name('dashboard.')->group(function () {
     Route::get('/lr-id', [DashboardController::class, 'lrId'])->name('lr-id');
     Route::get('/lr-id/photo', [DashboardController::class, 'lrIdPhoto'])->name('lr-id.photo');
     Route::post('/lr-id/downloaded', [DashboardController::class, 'lrIdDownloaded'])->name('lr-id.downloaded');
+
+    // QR Code Maker: anyone signed in; the QR is drawn in the browser, the server keeps the optional short links.
+    Route::get('/qr-maker', [QrMakerController::class, 'index'])->name('qr-maker');
+    Route::post('/qr-maker/links', [QrMakerController::class, 'storeLink'])->name('qr-maker.links.store');
+    Route::delete('/qr-maker/links/{link}', [QrMakerController::class, 'destroyLink'])->name('qr-maker.links.destroy');
 
     // The landing page is for anyone who can record either kind; each form has its own gate.
     Route::get('/record-sale', [DashboardController::class, 'recordSale'])->name('record-sale');
