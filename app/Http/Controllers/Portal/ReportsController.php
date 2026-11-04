@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Portal;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\GenealogyService;
+use App\Http\Requests\Portal\Reports\SendRecruitAnalysisRequest;
+use App\Services\RecruitAnalysisService;
 use App\Services\RecruitProgressService;
 use App\Services\RecruitmentService;
 use App\Services\SaleValidationService;
@@ -12,11 +14,15 @@ use App\Services\SalesReportService;
 use App\Services\TeamLeadershipService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 // Reports: a card per report, each opening its own page (date range, statistics, ranked table).
 // Same data and the same reach as Dashboard › View Sales (TeamLeadershipService::reportScope), one report at a time.
 class ReportsController extends Controller
 {
+    // A PDF of more would be a book; the table pages the rest.
+    private const PDF_ROWS = 500;
+
     // URL slug => report view in SalesReportService.
     public const REPORTS = [
         'rental-sales' => 'rental',
@@ -94,7 +100,46 @@ class ReportsController extends Controller
 
                 return ['data' => $page->items(), 'total' => $page->total(), 'page' => $page->currentPage(), 'per_page' => $page->perPage()];
             },
+            // The AI analysis of the team / sub-team in view, written only when asked for (a paid call, 10–40 s).
+            'analysisFor' => $request->user()->can(RecruitAnalysisService::PERMISSION) ? RecruitAnalysisService::groupOf($scope) : null,
+            // Who "Send report" can email — for those who may send it.
+            'analysisAudience' => fn () => ($group = RecruitAnalysisService::groupOf($scope)) && $request->user()->can(RecruitAnalysisService::SEND_PERMISSION)
+                && $request->user()->can(RecruitAnalysisService::PERMISSION)
+                ? app(RecruitAnalysisService::class)->audience($group)
+                : null,
+            'analysis' => Inertia::optional(function () use ($request, $progress, $filters, $scope) {
+                abort_unless(RecruitAnalysisService::groupOf($scope) && $request->user()->can(RecruitAnalysisService::PERMISSION), 403);
+
+                return app(RecruitAnalysisService::class)->analyze($filters, $scope, $progress->summary($filters, $scope)['kpis'], $request->user());
+            }),
+            // The PDF download: every row of the tab (in the table's order), asked for only when it's made.
+            'pdfRows' => Inertia::optional(function () use ($progress, $filters, $scope, $groups) {
+                if (! $groups) {
+                    return ['data' => [], 'total' => 0];
+                }
+                $page = $progress->table(array_merge($filters, ['page' => 1, 'per_page' => self::PDF_ROWS]), $scope);
+
+                return ['data' => $page->items(), 'total' => $page->total()];
+            }),
         ]);
+    }
+
+    // Recruits Progress › Send report: the AI analysis of the team / sub-team on the page, emailed to the superadmins only, or to its
+    // leader with the superadmins copied. The same analysis the page shows (cached for these numbers), written first if it hasn't been yet.
+    public function sendRecruitAnalysis(SendRecruitAnalysisRequest $request, RecruitProgressService $progress, RecruitAnalysisService $analysis)
+    {
+        $lock = $this->leadership->reportScope($request->user());
+        abort_if($lock === false, 403);
+
+        $scope = $this->narrow(array_filter(['team_id' => $request->integer('team_id'), 'sub_team_id' => $request->integer('sub_team_id')]), $this->recruitLock($lock), $request->user());
+        if (! RecruitAnalysisService::groupOf($scope)) {
+            return back()->with('error', 'Open a team or sub-team to send its analysis.');
+        }
+        $groups = $progress->groupsFor($scope);
+        $filters = $progress->filters($request->only('from', 'to'), $groups ?: ['sponsors']);
+        $result = $analysis->send($filters, $scope, $progress->summary($filters, $scope)['kpis'], $request->user(), $request->string('audience')->value());
+
+        return back()->with($result['sent'] ? 'success' : 'error', $result['message']);
     }
 
     // Reports › Recruits KPI: per team / sub-team, new recruits' conversion, NAO, FIRE and sales against the group's whole

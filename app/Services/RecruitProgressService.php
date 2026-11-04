@@ -149,6 +149,16 @@ class RecruitProgressService
     }
 
     /**
+     * The selection's recruits (signed up in the range) by id, without the sales and training columns.
+     *
+     * @return array<int, int>
+     */
+    public function recruitIds(array $f, ?array $scope): array
+    {
+        return $this->recruitBase($f, $scope)->distinct()->pluck('a.id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /**
      * Everyone's valid sales reserved in the range for the selection — old members' too, as Top Teams / the sales report count
      * them — to set beside what the new recruits sold. Null for one sponsor's recruits (not a group with sales of its own).
      *
@@ -372,14 +382,8 @@ class RecruitProgressService
      */
     private function recruits(array $f, ?array $scope): Builder
     {
-        $query = DB::table('agents as a')
-            ->leftJoin('agent_attributes as at', 'at.agent_id', '=', 'a.id')
-            ->leftJoin('team_agents as ta', fn ($j) => $j->on('ta.agent_id', '=', 'a.id')->where('ta.status', 'active'))
-            ->leftJoin('sub_team_agents as sa', fn ($j) => $j->on('sa.agent_id', '=', 'a.id')->where('sa.status', 'active'))
+        return $this->recruitBase($f, $scope)
             ->leftJoinSub($this->validSalesByAgent($f), 'sv', 'sv.agent_id', '=', 'a.id')
-            ->whereBetween('a.created_at', [$f['from'].' 00:00:00', $f['to'].' 23:59:59'])
-            ->where('at.registration_status', Agent::FULLY_REGISTERED)
-            ->where('a.agent_type', Agent::TYPE_LOCAL)
             ->select('a.id', 'a.area', 'a.created_at as signed_up', 'ta.team_id', 'sa.sub_team_id', 'at.referral_id as sponsor_id')
             ->selectRaw('COALESCE(sv.value, 0) as value')
             ->selectRaw('CASE WHEN EXISTS (SELECT 1 FROM agent_transactions st WHERE st.agent_id = a.id) THEN 1 ELSE 0 END as sold')
@@ -387,6 +391,18 @@ class RecruitProgressService
             ->selectRaw('CASE WHEN COALESCE(at.fire_certificates, 0) >= ? THEN 1 ELSE 0 END as fire_done', [RecruitmentService::FIRE_COMPLETE])
             ->selectRaw('CASE WHEN COALESCE(at.nao_video_tracker, 0) > 0 THEN 1 ELSE 0 END as nao_started')
             ->selectRaw('CASE WHEN COALESCE(at.fire_certificates, 0) > 0 THEN 1 ELSE 0 END as fire_started');
+    }
+
+    // Who the recruits are: signed up in the range, fully registered, local, within the reader's reach and selection.
+    private function recruitBase(array $f, ?array $scope): Builder
+    {
+        $query = DB::table('agents as a')
+            ->leftJoin('agent_attributes as at', 'at.agent_id', '=', 'a.id')
+            ->leftJoin('team_agents as ta', fn ($j) => $j->on('ta.agent_id', '=', 'a.id')->where('ta.status', 'active'))
+            ->leftJoin('sub_team_agents as sa', fn ($j) => $j->on('sa.agent_id', '=', 'a.id')->where('sa.status', 'active'))
+            ->whereBetween('a.created_at', [$f['from'].' 00:00:00', $f['to'].' 23:59:59'])
+            ->where('at.registration_status', Agent::FULLY_REGISTERED)
+            ->where('a.agent_type', Agent::TYPE_LOCAL);
 
         // The reader's reach and whatever they clicked into narrow the recruits together.
         if (isset($scope['team_id'])) {

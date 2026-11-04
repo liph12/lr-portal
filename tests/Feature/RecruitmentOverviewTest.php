@@ -7,6 +7,11 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\RecruitAnalysisReport;
+use App\Services\RecruitAnalysisService;
+use App\Services\RecruitProgressService;
 
 uses(RefreshDatabase::class);
 
@@ -243,6 +248,20 @@ test('a drill-down reload brings back the selected team\'s header, tabs and numb
             ->where('summary.kpis.recruits', 3)));
 });
 
+test('the PDF download asks for every row of the tab, which a normal visit never sends', function () {
+    $range = 'from=2026-01-01&to=2026-10-11';
+
+    $this->actingAs($this->superadmin)->get("/reports/recruits-progress?{$range}&per_page=25")
+        ->assertInertia(fn ($page) => $page->missing('pdfRows')
+            ->reloadOnly(['pdfRows'], fn ($reload) => $reload
+                ->where('pdfRows.total', 1)
+                ->where('pdfRows.data', fn ($rows) => collect($rows)->pluck('recruits', 'name')->all() == ['Alpha' => 3])));
+
+    // A plain agent's recruits list them one by one.
+    $this->actingAs($this->agents['Ann']['user'])->get("/reports/recruits-progress?{$range}&group=recruits")
+        ->assertInertia(fn ($page) => $page->reloadOnly(['pdfRows'], fn ($reload) => $reload->has('pdfRows.data')));
+});
+
 test('clicking a person opens their recruits: a team leader\'s team, a unit manager\'s sub-team, an agent\'s own recruits', function () {
     // Lead › Ann › Ben › Cy; Ann leads a sub-team of Alpha.
     $id = fn (string $name) => $this->agents[$name]['id'];
@@ -352,4 +371,157 @@ test('Recruits KPI: every team in reach — even one with no new recruits — wi
     // A team leader: their own team's sub-teams; a plain agent: no team totals.
     $this->actingAs($this->leader)->get("/reports/recruits-kpi?{$range}")->assertInertia(fn ($page) => $page->where('groups', ['sub_teams']));
     $this->actingAs($this->agents['Ann']['user'])->get("/reports/recruits-kpi?{$range}")->assertForbidden();
+});
+
+test('AI analysis: offered inside a team, written only when asked, from group totals with no one\'s name', function () {
+    config(['services.openai.key' => 'test-key', 'services.openai.model' => 'gpt-test']);
+    $strategy = ['title' => 'Do more', 'detail' => 'Detail', 'owner' => 'team leader', 'kpi' => '+10%', 'impact' => 'high'];
+    $answer = [
+        'summary' => 'All good.', 'highlights' => [['text' => 'Fine', 'verdict' => 'good']], 'contribution' => 'Old agents lead.', 'training' => 'NAO ok.',
+        'outlook' => [['month' => '2026-10', 'expectation' => 'Flat', 'focus' => 'Close', 'actions' => ['Call']]],
+        'strategies' => array_fill(0, 12, $strategy),
+    ];
+    Http::fake(['api.openai.com/*' => Http::response(['choices' => [['message' => ['content' => json_encode($answer)]]]])]);
+    $team = DB::table('teams')->value('id');
+    $range = 'from=2026-01-01&to=2026-10-11';
+
+    // Not for everyone together, nor a sponsor's recruits: only a team or sub-team.
+    $this->actingAs($this->superadmin)->get("/reports/recruits-progress?{$range}")
+        ->assertInertia(fn ($page) => $page->where('analysisFor', null));
+
+    $this->actingAs($this->superadmin)->get("/reports/recruits-progress?{$range}&team_id={$team}")
+        ->assertInertia(fn ($page) => $page->where('analysisFor', ['type' => 'team', 'id' => $team])->missing('analysis')
+            ->reloadOnly(['analysis'], fn ($reload) => $reload
+                ->where('analysis.error', null)
+                ->where('analysis.ai.summary', 'All good.')
+                ->where('analysis.ai.strategies', fn ($s) => count($s) === 10)
+                ->where('analysis.facts.members.new', 3)
+                ->where('analysis.facts.forecast', fn ($f) => count($f) === 3)
+                ->has('analysis.facts.contribution.old')
+                ->has('analysis.facts.contribution.new')));
+
+    Http::assertSentCount(1);
+    Http::assertSent(fn ($request) => ! str_contains($request->body(), 'Alpha') && ! collect($this->agents)->keys()->contains(fn ($name) => str_contains($request->body(), "\"{$name}\""))
+        && $request['model'] === 'gpt-test' && $request['response_format']['type'] === 'json_schema'
+        // The compact brief: one line, series as rows, no field names repeated per month.
+        && $request['max_completion_tokens'] > 0 && ! str_contains($request['messages'][1]['content'], "\n")
+        && ! str_contains($request['messages'][1]['content'], 'new_value'));
+
+    // The same numbers again are answered from the cache, not a second paid call.
+    $this->actingAs($this->superadmin)->get("/reports/recruits-progress?{$range}&team_id={$team}")
+        ->assertInertia(fn ($page) => $page->reloadOnly(['analysis'], fn ($reload) => $reload->where('analysis.ai.summary', 'All good.')));
+    Http::assertSentCount(1);
+});
+
+test('AI analysis without a key, or when the call fails, still gives the exact numbers', function () {
+    $team = DB::table('teams')->value('id');
+    $url = "/reports/recruits-progress?from=2026-01-01&to=2026-10-11&team_id={$team}";
+
+    config(['services.openai.key' => null]);
+    $this->actingAs($this->superadmin)->get($url)
+        ->assertInertia(fn ($page) => $page->reloadOnly(['analysis'], fn ($reload) => $reload
+            ->where('analysis.ai', null)->where('analysis.error', fn ($e) => str_contains($e, 'OPENAI_API_KEY'))->has('analysis.facts.double')));
+
+    config(['services.openai.key' => 'test-key']);
+    Http::fake(['api.openai.com/*' => Http::response(['error' => ['message' => 'down']], 500)]);
+    $this->actingAs($this->superadmin)->get($url)
+        ->assertInertia(fn ($page) => $page->reloadOnly(['analysis'], fn ($reload) => $reload
+            ->where('analysis.ai', null)->where('analysis.error', fn ($e) => str_contains($e, 'couldn\'t be written'))->has('analysis.facts.monthly', 12)));
+});
+
+test('AI analysis needs its own permission', function () {
+    $team = DB::table('teams')->value('id');
+    $role = $this->leader->roles()->first();
+    $role->permissions()->detach(Permission::where('name', 'report_recruits_ai_analysis')->value('id'));
+
+    $this->actingAs($this->leader)->get("/reports/recruits-progress?from=2026-01-01&to=2026-10-11")
+        ->assertInertia(fn ($page) => $page->where('analysisFor', null));
+});
+
+function fakeAnalysisAnswer(): void
+{
+    $strategy = ['title' => 'Add active sellers', 'detail' => 'Old agents delivered ₱4.5M.', 'owner' => 'unit managers', 'kpi' => 'sellers per month: 3 → 6 by Dec 2026', 'impact' => 'high'];
+    $answer = [
+        'summary' => 'The team\'s sales were ₱5.0M from 2 sales.', 'highlights' => [['text' => 'Old agents\' sales: ₱5.0M.', 'verdict' => 'good']],
+        'contribution' => 'Old agents made ₱5.0M in the range.', 'training' => 'NAO is 66.7% finished.',
+        'outlook' => [['month' => 'Oct 2026', 'expectation' => 'Forecast sales: ₱1.0M.', 'focus' => 'Close reservations', 'actions' => ['Review the pipeline weekly.']]],
+        'strategies' => array_fill(0, 10, $strategy),
+    ];
+    config(['services.openai.key' => 'test-key']);
+    Http::fake(['api.openai.com/*' => Http::response(['choices' => [['message' => ['content' => json_encode($answer)]]]])]);
+}
+
+test('Send report to all: the team leader gets it, with every superadmin copied', function () {
+    fakeAnalysisAnswer();
+    Mail::fake();
+    $team = DB::table('teams')->value('id');
+    $range = ['from' => '2026-01-01', 'to' => '2026-10-11'];
+
+    $this->actingAs($this->superadmin)->get('/reports/recruits-progress?'.http_build_query($range + ['team_id' => $team]))
+        ->assertInertia(fn ($page) => $page->where('analysisAudience.leader.email', $this->leader->email)->where('analysisAudience.leader.role', 'Team leader')
+            ->where('analysisAudience.superadmins', 1));
+
+    $this->actingAs($this->superadmin)->post('/reports/recruits-progress/analysis/send', $range + ['team_id' => $team, 'audience' => 'all'])
+        ->assertRedirect()->assertSessionHas('success', fn ($m) => str_contains($m, $this->leader->email));
+
+    Mail::assertSent(RecruitAnalysisReport::class, fn ($mail) => $mail->hasTo($this->leader->email) && $mail->hasCc($this->superadmin->email));
+    $this->assertDatabaseHas('activity_logs', ['action' => 'report.analysis_sent']);
+});
+
+test('Send report to superadmins only: the leader doesn\'t get it, and the copy says so', function () {
+    fakeAnalysisAnswer();
+    Mail::fake();
+    $team = DB::table('teams')->value('id');
+
+    $this->actingAs($this->superadmin)->post('/reports/recruits-progress/analysis/send', ['from' => '2026-01-01', 'to' => '2026-10-11', 'team_id' => $team, 'audience' => 'superadmins'])
+        ->assertSessionHas('success', fn ($m) => str_contains($m, 'superadmin') && str_contains($m, 'not to the leader'));
+
+    Mail::assertSent(RecruitAnalysisReport::class, function ($mail) {
+        $html = $mail->render();
+
+        return $mail->hasTo($this->superadmin->email) && ! $mail->hasTo($this->leader->email) && ! $mail->hasCc($this->leader->email)
+            && str_contains($html, 'Superadmins only.') && str_contains($mail->envelope()->subject, '(superadmins only)');
+    });
+});
+
+test('Send report: the email shows the analysis itself, in the house wording', function () {
+    fakeAnalysisAnswer();
+    $team = DB::table('teams')->value('id');
+    $service = app(RecruitAnalysisService::class);
+    $progress = app(RecruitProgressService::class);
+    $filters = $progress->filters(['from' => '2026-01-01', 'to' => '2026-10-11'], ['sub_teams']);
+    $analysis = $service->analyze($filters, ['team_id' => $team], $progress->summary($filters, ['team_id' => $team])['kpis'], $this->superadmin);
+
+    $leader = ['name' => 'Lead Person', 'email' => 'lead@example.com', 'role' => 'Team leader'];
+    $html = (new RecruitAnalysisReport(['group' => 'Alpha', 'leader' => $leader, 'audience' => 'all'], $analysis, url('/reports'), 'Super Admin'))->render();
+
+    expect($html)->toContain('Alpha')->toContain('Hi Lead,')->toContain('Contribution KPI')->toContain('10 strategies')->toContain('Add active sellers')
+        ->toContain('Open in Recruits Progress')
+        // "made / delivered ₱X" is turned into sales wording before anyone sees it.
+        ->toContain('Old agents had sales of ₱5.0M')->not->toContain('delivered ₱');
+});
+
+test('Send report: only for those given it (no role by default); "all" needs a leader with an email', function () {
+    fakeAnalysisAnswer();
+    Mail::fake();
+    $team = DB::table('teams')->value('id');
+    $range = ['from' => '2026-01-01', 'to' => '2026-10-11'];
+
+    $this->actingAs($this->leader)->get('/reports/recruits-progress?'.http_build_query($range))
+        ->assertInertia(fn ($page) => $page->where('analysisAudience', null));
+    $this->actingAs($this->leader)->post('/reports/recruits-progress/analysis/send', $range + ['team_id' => $team, 'audience' => 'superadmins']);
+    Mail::assertNothingSent();
+
+    $this->leader->forceFill(['email' => 'not-an-email'])->save();
+    DB::table('agents')->where('user_id', $this->leader->id)->update(['email' => '']);
+    $this->actingAs($this->superadmin)->post('/reports/recruits-progress/analysis/send', $range + ['team_id' => $team, 'audience' => 'all'])
+        ->assertSessionHas('error', fn ($m) => str_contains($m, 'no email address'));
+    Mail::assertNothingSent();
+
+    // The superadmins can still get it.
+    $this->actingAs($this->superadmin)->get('/reports/recruits-progress?'.http_build_query($range + ['team_id' => $team]))
+        ->assertInertia(fn ($page) => $page->where('analysisAudience.leader', null)->where('analysisAudience.superadmins', 1));
+    $this->actingAs($this->superadmin)->post('/reports/recruits-progress/analysis/send', $range + ['team_id' => $team, 'audience' => 'superadmins'])
+        ->assertSessionHas('success');
+    Mail::assertSent(RecruitAnalysisReport::class, 1);
 });

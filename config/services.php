@@ -30,6 +30,14 @@ return [
         'endorsement_template' => env('FIRE_ENDORSEMENT_TEMPLATE', "https://realestatetraining.ph/Agent's%20Endorsement%20Letter.pdf"),
     ],
 
+    // Recruits Progress' AI analysis (RecruitAnalysisService): only group totals are sent, never a person.
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-5.4-mini'),
+        // The numbers are worked out before the call, so the model only writes: no reasoning needed (none / low / medium / high).
+        'reasoning' => env('OPENAI_REASONING', 'none'),
+    ],
+
     // FIRE training certificates by email (FireCertificateService).
     'fire_certificates' => [
         'url' => env('FIRE_CERTIFICATES_URL', 'https://realestatetraining.ph/get-certificates'),

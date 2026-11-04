@@ -15,7 +15,8 @@
    highlight (active markers, badges, the brand line), near-black / charcoal text on white, true near-black surfaces in dark
    mode. .dark is set on <html> by the inline script in app.blade.php (before paint) and kept in sync by MUI's ThemeProvider;
    providers/appTheme.ts mirrors these values. */
-:root {
+:root,
+.lr-print {
     color-scheme: light;
     --lr-text-primary: #0f1419;
     --lr-text-body: #2b313a;
@@ -105,7 +106,8 @@
     --lr-auth-bg: linear-gradient(rgba(12, 14, 17, 0.84), rgba(12, 14, 17, 0.84)), url(/assets/background.png);
 }
 
-:root {
+:root,
+.lr-print {
     /* Paper surfaces (signature pad) stay light in both modes, matching the generated slip they end up on. */
     --lr-paper: #ffffff;
     --lr-paper-ink: #1a3a8a;
@@ -189,6 +191,22 @@ body {
 .dark .lr-light-only,
 html:not(.dark) .lr-dark-only {
     display: none !important;
+}
+
+/* Printouts (the PDF downloads) are drawn off-screen in the light scheme and at the normal text size, whatever the reader uses:
+   the token blocks above also define .lr-print. */
+.lr-print {
+    --lr-text-scale: 1;
+    color: var(--lr-text-body);
+}
+
+.lr-print .lr-dark-only,
+.dark .lr-print .lr-dark-only {
+    display: none !important;
+}
+
+.dark .lr-print .lr-light-only {
+    display: block !important;
 }
 
 /* Inertia's error modal rewrites body.style.overflow on close; html is the lock it can't touch. */

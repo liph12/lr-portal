@@ -389,6 +389,28 @@ class SalesReportService
     }
 
     /**
+     * The selection's sales per month and agent, each row flagged by whether its reservation is on or after $since — one pass
+     * for a range and the months before it together (Recruits Progress' analysis splits it by agent in PHP).
+     *
+     * @return array<int, array{month: string, agent_id: int, recent: bool, sales: int, value: float}>
+     */
+    public function byMonthAndAgent(array $f, string $since): array
+    {
+        // Month and flag as columns first: strict GROUP BY can't match an expression that carries a bound value.
+        $rows = DB::query()->fromSub($this->sales($f), 's')
+            ->selectRaw('SUBSTR(CAST(reservation_date AS CHAR), 1, 7) as month, agent_id, value')
+            ->selectRaw('CASE WHEN reservation_date >= ? THEN 1 ELSE 0 END as recent', [$since]);
+
+        return DataCache::remember('SalesReportService.byMonthAndAgent', [$f, $since], fn () => DB::query()->fromSub($rows, 'r')
+            ->select('month', 'agent_id', 'recent')
+            ->selectRaw('COUNT(*) as sales, COALESCE(SUM(value), 0) as value')
+            ->groupBy('month', 'agent_id', 'recent')
+            ->get()
+            ->map(fn ($r) => ['month' => $r->month, 'agent_id' => (int) $r->agent_id, 'recent' => (bool) $r->recent, 'sales' => (int) $r->sales, 'value' => (float) $r->value])
+            ->all());
+    }
+
+    /**
      * Where each row on the page belongs: its area, and for people their current team. Looked up for the
      * page only (25–100 rows), not inside the grouping query.
      *

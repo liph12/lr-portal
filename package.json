@@ -29,6 +29,8 @@
         "@mui/x-date-pickers": "^9.15.0",
         "dayjs": "^1.11.23",
         "framer-motion": "^12.34.0",
+        "html-to-image": "^1.11.13",
+        "jspdf": "^4.2.1",
         "laravel-echo": "^2.6.1",
         "pusher-js": "^8.6.0",
         "qrcode": "^1.5.4",

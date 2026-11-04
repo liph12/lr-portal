@@ -147,8 +147,12 @@ class LegacyTeamImporter
      */
     private function importTeamMemberships(array $teamIds): void
     {
+        // Legacy has memberships with team id 0, so an empty list can't stand in for "none".
+        if (! $teamIds) {
+            return;
+        }
         $rows = $this->legacy->table('sales_team_members')
-            ->whereIn('teamid', array_keys($teamIds) ?: [0])
+            ->whereIn('teamid', array_keys($teamIds))
             ->orderBy('id')
             ->get(['id', 'teamid', 'memid', 'datejoined', 'dateresigned', 'activeTeam', 'created_at'])
             ->map(fn ($r) => (object) [
@@ -226,8 +230,11 @@ class LegacyTeamImporter
      */
     private function importSubTeamMemberships(array $subTeamIds): void
     {
+        if (! $subTeamIds) {
+            return;
+        }
         $rows = $this->legacy->table('salesteam_subteam_members')
-            ->whereIn('subTeamID', array_keys($subTeamIds) ?: [0])
+            ->whereIn('subTeamID', array_keys($subTeamIds))
             ->orderBy('id')
             ->get(['id', 'subTeamID', 'memID', 'dateresigned', 'created_at'])
             ->map(fn ($r) => (object) [

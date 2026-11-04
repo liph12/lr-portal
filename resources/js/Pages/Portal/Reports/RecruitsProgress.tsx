@@ -1,8 +1,8 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Box, Container, Grid, LinearProgress, Typography } from "@mui/material";
-import { ArrowBackRounded } from "@mui/icons-material";
+import { ArrowBackRounded, PictureAsPdfRounded } from "@mui/icons-material";
 import { GridColDef } from "@mui/x-data-grid";
-import { Link } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 import AppLayout from "../../../components/layouts/AppLayout";
 import SectionTitle from "../../../components/utils/SectionTitle";
 import SectionCard from "../../../components/cards/SectionCard";
@@ -14,56 +14,15 @@ import TableToolbar from "../../../components/utils/tables/TableToolbar";
 import PersonCell from "../../../components/utils/tables/PersonCell";
 import DateRangeField from "../../../components/utils/DateRangeField";
 import ReportScopeHeader, { ReportScopeDetails } from "../../../components/reports/ReportScopeHeader";
-import RecruitsPanel, { StatusBuckets } from "../../../components/recruitment/RecruitsPanel";
+import RecruitsPanel from "../../../components/recruitment/RecruitsPanel";
+import RecruitsAnalysis, { AnalysisGroup, RecruitsAnalysisData, SendAudience, SendTo } from "../../../components/recruitment/RecruitsAnalysis";
+import RecruitsProgressPdf, { Group, ProgressRow, RecruitRow, RecruitsSummary } from "../../../components/recruitment/RecruitsProgressPdf";
 import useServerTable, { ServerPage, TableFilters } from "../../../hooks/useServerTable";
 import { reportPresets } from "../../../helpers/dateRanges";
 import { formatCount, formatPeso } from "../../../helpers/formatNumber";
 import { formatDate } from "../../../helpers/formatDate";
-
-interface Measures {
-    nao_status: StatusBuckets;
-    fire_status: StatusBuckets;
-    overall_status: StatusBuckets;
-    recruits: number;
-    sold: number;
-    conversion: number;
-    // What the new recruits sold; the group's (or the selection's) whole total in the range, old members' too — null for a sponsor.
-    value: number;
-    total_sales?: number | null;
-    trainees: number;
-    nao_finished: number;
-    nao: number;
-    fire_complete: number;
-    fire: number;
-}
-
-interface ProgressRow extends Measures {
-    id: number | string;
-    name: string;
-    detail: string | null;
-    avatar: string | null;
-    // The sponsor's current team (By agent tab).
-    team: string | null;
-}
-
-type Group = "teams" | "sub_teams" | "areas" | "sponsors" | "recruits";
-
-// The Recruits tab: one recruit per row.
-interface RecruitRow {
-    id: number;
-    name: string;
-    detail: string | null;
-    avatar: string | null;
-    sponsor: string | null;
-    team: string | null;
-    sub_team: string | null;
-    area: string | null;
-    signed_up: string;
-    sold: boolean;
-    value: number;
-    nao: number;
-    fire: number;
-}
+import { pagesToPdf } from "../../../helpers/exportPdf";
+import { toast } from "../../../helpers/toast";
 
 interface RecruitsProgressProps {
     filters: TableFilters & { from: string; to: string; group: Group; team_id?: number; sub_team_id?: number; sponsor_id?: number; area?: string };
@@ -72,8 +31,18 @@ interface RecruitsProgressProps {
     scope: ReportScopeDetails | null;
     // The team / sub-team / sponsor clicked into, if any.
     selection: (Omit<ReportScopeDetails, "type"> & { type: "team" | "sub_team" | "area" | "sponsor" | "agent" }) | null;
-    summary: { kpis: Measures; areas: (Measures & { area: string | null; name: string })[]; trend: { month: string; sales: number; value: number }[] };
+    summary: RecruitsSummary;
     rows: ServerPage<ProgressRow>;
+    // The team / sub-team in view, when the reader may have it analysed; the analysis itself only once asked for.
+    analysisFor: AnalysisGroup | null;
+    analysis?: RecruitsAnalysisData;
+    analysisAudience: SendAudience | null;
+}
+
+// Every row of the tab, for the PDF (asked for only then).
+interface PdfRows {
+    data: (ProgressRow | RecruitRow)[];
+    total: number;
 }
 
 const GROUP_LABELS: Record<Group, { tab: string; column: string; search: string }> = {
@@ -83,6 +52,8 @@ const GROUP_LABELS: Record<Group, { tab: string; column: string; search: string 
     sponsors: { tab: "By agent (sponsor)", column: "Sponsor / upline", search: "Search sponsors" },
     recruits: { tab: "Recruits", column: "Recruit", search: "Search recruits" },
 };
+
+const SUBJECT_TYPES: Record<string, string> = { team: "Team", sub_team: "Sub-team", area: "Branch", sponsor: "Sponsor's recruits", agent: "Agent's recruits", developer: "Developer" };
 
 const CHART_LABELS = {
     value: "New recruits' total sales",
@@ -114,15 +85,69 @@ function Percent({ value, caption }: { value: number; caption: string }) {
 }
 
 // Reports › Recruits Progress: how recruits are converting into sellers, and how far the rest are with NAO / FIRE.
-function RecruitsProgress({ filters, groups, scope, selection, summary, rows }: RecruitsProgressProps) {
+function RecruitsProgress({ filters, groups, scope, selection, summary, rows, analysisFor, analysis, analysisAudience }: RecruitsProgressProps) {
     // The header (selection) and the tabs (groups) change with a drill-down, so they reload with the table.
-    const table = useServerTable("rows", rows, filters, ["summary", "selection", "groups"]);
+    const table = useServerTable("rows", rows, filters, ["summary", "selection", "groups", "analysisFor", "analysisAudience"]);
     const { kpis } = summary;
     const label = GROUP_LABELS[filters.group];
     const selected = { team_id: filters.team_id, sub_team_id: filters.sub_team_id, sponsor_id: filters.sponsor_id, area: filters.area };
     const viewQuery = new URLSearchParams(
         Object.entries({ from: filters.from, to: filters.to, ...selected }).filter(([, v]) => v !== undefined && v !== null && v !== "") as [string, string][],
     ).toString();
+
+    // The PDF: fetch every row of the tab, draw the pages off-screen, then capture them.
+    const [pdf, setPdf] = useState<PdfRows | null>(null);
+    const [making, setMaking] = useState(false);
+    const pdfRef = useRef<HTMLDivElement>(null);
+    const subject = selection ? `${selection.name} · ${SUBJECT_TYPES[selection.type]}` : scope ? `${scope.name} · ${SUBJECT_TYPES[scope.type]}` : "All recruits";
+
+    const downloadPdf = () => {
+        setMaking(true);
+        router.reload({
+            only: ["pdfRows"],
+            onSuccess: (page) => setPdf(page.props.pdfRows as PdfRows),
+            onError: () => setMaking(false),
+            onCancel: () => setMaking(false),
+        });
+    };
+
+    useEffect(() => {
+        if (!pdf || !pdfRef.current) return;
+        const pages = Array.from(pdfRef.current.querySelectorAll<HTMLElement>(".lr-pdf-page"));
+        const name = `recruits-progress-${subject.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${filters.from}-${filters.to}.pdf`;
+        // After the fonts and a frame, so the pages are fully laid out before they're captured.
+        document.fonts.ready
+            .then(() => new Promise((resolve) => requestAnimationFrame(resolve)))
+            .then(() => pagesToPdf(pages, name))
+            .catch(() => toast.error("The PDF couldn't be made. Please try again."))
+            .finally(() => {
+                setPdf(null);
+                setMaking(false);
+            });
+    }, [pdf]);
+
+    // The AI analysis: asked for on click; one for another group or range (kept by a partial reload) isn't shown.
+    const [analyzing, setAnalyzing] = useState(false);
+    const shownAnalysis =
+        analysis && analysisFor && analysis.group.type === analysisFor.type && analysis.group.id === analysisFor.id && analysis.facts.range.from === filters.from && analysis.facts.range.to === filters.to
+            ? analysis
+            : null;
+    const analyze = () => {
+        setAnalyzing(true);
+        router.reload({ only: ["analysis"], onFinish: () => setAnalyzing(false) });
+    };
+    // Emails the analysis on the page to the group's leader; only the flash comes back, so the analysis stays on screen.
+    const [sending, setSending] = useState(false);
+    const sendReport = (to: SendTo) => {
+        if (!analysisFor) return;
+        setSending(true);
+        router.post(
+            "/reports/recruits-progress/analysis/send",
+            { from: filters.from, to: filters.to, audience: to, [analysisFor.type === "team" ? "team_id" : "sub_team_id"]: analysisFor.id },
+            { only: ["flash"], preserveScroll: true, preserveState: true, onFinish: () => setSending(false) },
+        );
+    };
+    const groupName = selection && (selection.type === "team" || selection.type === "sub_team") ? selection.name : (scope?.name ?? "");
 
     // Clicking a row narrows the page to that group; the table then goes one level down.
     const open = (row: ProgressRow) => {
@@ -225,7 +250,33 @@ function RecruitsProgress({ filters, groups, scope, selection, summary, rows }: 
 
             <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5, mb: 3 }}>
                 <DateRangeField label="Signed up" value={{ from: filters.from, to: filters.to }} presets={reportPresets()} onChange={(range) => table.setFilters({ ...range })} />
+                <StyledButton
+                    size="small"
+                    variant="outlined"
+                    startIcon={<PictureAsPdfRounded />}
+                    onClick={downloadPdf}
+                    disabled={making}
+                    sx={{ ml: { sm: "auto" }, px: 2, borderRadius: 99, color: "var(--lr-primary)", borderColor: "var(--lr-border)" }}
+                >
+                    {making ? "Making the PDF…" : "Download PDF"}
+                </StyledButton>
             </Box>
+            {pdf && (
+                <div ref={pdfRef}>
+                    <RecruitsProgressPdf
+                        subject={subject}
+                        from={filters.from}
+                        to={filters.to}
+                        summary={summary}
+                        group={groups.length > 0 ? filters.group : null}
+                        groupTitle={label.tab}
+                        columnTitle={label.column}
+                        rows={pdf.data}
+                        total={pdf.total}
+                        analysis={shownAnalysis?.ai && analysisFor ? { data: shownAnalysis, name: groupName, kind: analysisFor.type === "team" ? "team" : "sub-team" } : null}
+                    />
+                </div>
+            )}
             {table.loading && <LinearProgress sx={{ height: 2, mb: 2 }} />}
 
             {/* KPIs */}
@@ -244,6 +295,16 @@ function RecruitsProgress({ filters, groups, scope, selection, summary, rows }: 
                 overall={kpis.overall_status}
                 viewHref={`/reports/recruits?${viewQuery}`}
             />
+
+            {analysisFor && (
+                <RecruitsAnalysis name={groupName} kind={analysisFor.type === "team" ? "team" : "sub-team"} analysis={shownAnalysis}
+                    loading={analyzing}
+                    onAnalyze={analyze}
+                    audience={analysisAudience}
+                    sending={sending}
+                    onSend={sendReport}
+                />
+            )}
 
             {/* Table */}
             {groups.length > 1 && (

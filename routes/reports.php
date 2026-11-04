@@ -10,6 +10,7 @@ Route::prefix('reports')->name('reports.')->group(function () {
     Route::get('/', [ReportsController::class, 'index'])->name('index');
     Route::get('/recruits', [ReportsController::class, 'recruits'])->name('recruits');
     Route::get('/recruits-progress', [ReportsController::class, 'recruitsProgress'])->name('recruits-progress');
+    Route::post('/recruits-progress/analysis/send', [ReportsController::class, 'sendRecruitAnalysis'])->middleware('throttle:10,1')->name('recruits-progress.send-analysis');
     Route::get('/recruits-kpi', [ReportsController::class, 'recruitsKpi'])->name('recruits-kpi');
     Route::get('/{report}', [ReportsController::class, 'show'])
         ->whereIn('report', array_keys(ReportsController::REPORTS))

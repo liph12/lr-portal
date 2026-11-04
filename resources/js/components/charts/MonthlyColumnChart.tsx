@@ -27,6 +27,8 @@ interface MonthlyColumnChartProps {
     bucket?: "month" | "year";
     // Wording for when `sales` / `value` mean something else (e.g. recruits and their sales).
     labels?: { value: string; count: string; valueToggle: string; countToggle: string; dated: string };
+    // One measure only, without the toggle (printouts).
+    metric?: Metric;
 }
 
 const DEFAULT_LABELS = {
@@ -37,9 +39,9 @@ const DEFAULT_LABELS = {
     dated: "by reservation date",
 };
 
-export default function MonthlyColumnChart({ data, bucket = "month", labels = DEFAULT_LABELS }: MonthlyColumnChartProps) {
+export default function MonthlyColumnChart({ data, bucket = "month", labels = DEFAULT_LABELS, metric: fixed }: MonthlyColumnChartProps) {
     const label = (month: string, style: "short" | "long") => (bucket === "year" ? month.slice(0, 4) : formatMonth(month, style));
-    const [metric, setMetric] = useState<Metric>("value");
+    const [metric, setMetric] = useState<Metric>(fixed ?? "value");
     const format = (n: number) => (metric === "value" ? formatPesoCompact(n) : formatCount(n));
 
     const max = useMemo(() => niceMax(Math.max(...data.map((d) => d[metric]), 0)), [data, metric]);
@@ -54,17 +56,19 @@ export default function MonthlyColumnChart({ data, bucket = "month", labels = DE
                 <Typography component="figcaption" variant="body2" sx={{ color: "var(--lr-text-secondary)" }}>
                     {metric === "value" ? labels.value : labels.count} per {bucket}, {labels.dated}
                 </Typography>
-                <ToggleButtonGroup
-                    size="small"
-                    exclusive
-                    value={metric}
-                    onChange={(_, v: Metric | null) => v && setMetric(v)}
-                    aria-label="Chart measure"
-                    sx={{ "& .MuiToggleButton-root": { textTransform: "none", px: 1.5, py: 0.25, fontSize: 12, borderColor: "var(--lr-border)" } }}
-                >
-                    <ToggleButton value="value">{labels.valueToggle}</ToggleButton>
-                    <ToggleButton value="sales">{labels.countToggle}</ToggleButton>
-                </ToggleButtonGroup>
+                {!fixed && (
+                    <ToggleButtonGroup
+                        size="small"
+                        exclusive
+                        value={metric}
+                        onChange={(_, v: Metric | null) => v && setMetric(v)}
+                        aria-label="Chart measure"
+                        sx={{ "& .MuiToggleButton-root": { textTransform: "none", px: 1.5, py: 0.25, fontSize: 12, borderColor: "var(--lr-border)" } }}
+                    >
+                        <ToggleButton value="value">{labels.valueToggle}</ToggleButton>
+                        <ToggleButton value="sales">{labels.countToggle}</ToggleButton>
+                    </ToggleButtonGroup>
+                )}
             </Box>
 
             {total === 0 ? (

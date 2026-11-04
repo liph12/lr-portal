@@ -103,6 +103,57 @@ Sales report / Reports cards, report layout, areas (branches), Recruits, Recruit
   reach, which wins) and show the large `ReportScopeHeader`; "View these recruits" opens Reports › Recruits with the
   same selection. The summary is
   one area × month pass, summed in PHP (each pass over ~20k recruits is ~0.5s).
+  **Download PDF** (button beside the date range): a partial reload of the optional prop `pdfRows` (every row of the tab being
+  viewed, table order, at most `ReportsController::PDF_ROWS` = 500, `{data, total}`), then `components/recruitment/RecruitsProgressPdf`
+  draws A4 landscape pages off-screen — summary tiles + NAO / FIRE / Overall `ShareBar`s, then top branches + sign-ups and sales per
+  month (`MonthlyColumnChart metric=` pins one measure, no toggle), then the table 13 rows a page, numbered — and
+  `helpers/exportPdf.ts` `pagesToPdf` captures each `.lr-pdf-page` as a picture (`html-to-image` → `jspdf`, both MIT, loaded on
+  the first click). Printouts are always light at the normal text size: `.lr-print` shares the light token blocks in `app.css`.
+  Reuse the same pieces for another report's PDF.
+  **AI analysis** (inside one team or sub-team — selected, or a leader's lock; `analysisFor` = `RecruitAnalysisService::groupOf`, else
+  null; permission `report_recruits_ai_analysis`, migration `000063` → every role with Recruits Progress): "Analyze this team" asks for
+  the optional prop `analysis` (`RecruitAnalysisService::analyze`, page component `components/recruitment/RecruitsAnalysis`). The
+  **facts are computed exactly** in PHP: old vs new agents' contribution in the range (new = the selection's recruits,
+  `RecruitProgressService::recruitIds`; `SalesReportService::split` = sales per month with the part sold by a set of agents + sellers
+  each side; share, productivity = sellers ÷ members, per seller), 12 whole months (old / new stacked), a 3-month forecast (half the
+  12-month straight line, half the last-6 average, ± one residual SD) and the target that doubles sales (2 × the last 3 months'
+  average). **OpenAI** (`OpenAiClient`, `services.openai` = `OPENAI_API_KEY` + `OPENAI_MODEL`, default `gpt-5.4-mini`, chat completions
+  with a strict JSON schema) only writes from those totals — summary + highlights, contribution, NAO / FIRE, an outlook per forecast
+  month, 10 strategies (owner, KPI, impact). No names are sent (not even the group's). Cached a day per set of facts; 20 uncached calls
+  per reader an hour; no key / a failure → the numbers with a warning. A request may run ~10–40 s (`set_time_limit(150)`).
+  **Kept lean**: the facts come from one pass over the group's sales (`SalesReportService::byMonthAndAgent`: month × agent × in-range
+  flag, for the range and the 12 trend months together) split old / new in PHP against `recruitIds` (a lean id query) — ~0.2 s, cached
+  (`RecruitAnalysisService.facts`). The model gets `brief()`: ₱ in millions to one decimal, series as rows, field meanings and all
+  instructions in the system message / schema descriptions (a fixed prefix OpenAI can cache), word limits per field;
+  `reasoning_effort` `OPENAI_REASONING` (default `none` — the numbers are already worked out), `verbosity: low`,
+  `max_completion_tokens` 2500. Each call's tokens are logged (`OpenAI team_analysis` in the log). Measured on a 12k-member team:
+  facts 2.9 s → 0.18 s; prompt 1,743 → ~1,140 tokens, answer 1,603 → ~1,020, reasoning 30 → 0.
+  **Precision**: the model never calculates — `derived()` hands it the comparisons (trend vs the 3 months before, forecast vs
+  baseline, gap to target per month, productivity gap in pp and ratio, value-per-seller ratio, new agents' share first / last 3
+  months, extra sellers needed) and `brief()` the NAO / FIRE shares; it once wrote "₱487B" and "65.7% in progress" (really 3.4%)
+  doing its own arithmetic. Facts also carry `capacity` (sellers a month and value per seller over the last 3 months → sellers a
+  month the target needs), shown above the chart. The system prompt sets the house style: figures on every claim (3 significant
+  digits, %, pp, ×, "Oct 2026"), formal third person naming the group as `group` says, verb-first actions with who / when, KPIs
+  "metric: current → target by Mon YYYY" with numbers on both sides. Strategies are re-sorted high → low impact on the server.
+  The outlook is matched to the forecast by order. Prompt ~1,700 tokens, answer ~1,350.
+  **Wording**: "sales" for the amount ("₱X in sales") and the count ("N sales"); never booked / generated / produced / delivered /
+  revenue / output…; agents "made a sale". `wording()` is the guard on every answer, fresh or cached: "made / delivered … ₱X" →
+  "had sales of ₱X", "output" → "sales", a stray subscript digit ("₄89M") → "₱489M". The answer cache key carries
+  `PROMPT_VERSION` — raise it with any prompt change.
+  **Send report** (permission `send_recruits_ai_report`, migration `000064`, given to no role — the superadmin sends; deliberately not
+  `report_*`, which helpers grant wholesale): `POST /reports/recruits-progress/analysis/send` (`SendRecruitAnalysisRequest`,
+  throttled; `ReportsController::sendRecruitAnalysis` → `RecruitAnalysisService::send`) emails the analysis on the page (cached, else
+  written first) to the chosen `audience` (`AUDIENCES`): **superadmins** = every active superadmin with an email, not the leader (the
+  email says "Superadmins only", subject "(superadmins only)"); **all** = the group's leader — `recipient()`: the team's leader or the
+  sub-team's unit manager, account email else agent email; none → an error toast, superadmins-only still works — with every superadmin
+  cc'd. Sent at once (not queued) so failures show. `Mail\RecruitAnalysisReport`,
+  view `mail/recruit-analysis` (inline-styled HTML with the brand's hex values, since mail clients ignore CSS variables): the whole
+  analysis in the body — summary, contribution table + share bar, the 3 months, NAO & FIRE, the 10 strategies, "Open in Recruits
+  Progress". Logged `report.analysis_sent` (with the audience). The page gets `analysisAudience` (`{leader, superadmins}`) and "Send
+  report" opens a dialog to pick the audience (superadmins only by default; "all" disabled without a leader email); the post asks back `only: ['flash']`, so the analysis stays on screen.
+  Once generated, **Download PDF** includes it: three pages after the charts (summary + contribution + NAO / FIRE, the next 3 months,
+  the 10 strategies) — the same component with `print` + `parts` (fixed columns, no buttons); each PDF page's body is scaled down
+  to fit (`Fit` in `RecruitsProgressPdf`, the largest scale whose layout fits) since the AI's text varies in length.
 - **Charts / statistics**: `/{superadmin,admin,staff}/statistics`, guarded by its own `view_statistics` permission (Settings ›
   Roles & permissions › Statistics; migration `000028` gave it to every role that had view_reports) (`StatisticsController` → `StatisticsService`,
   sales dated by `reservation_date`). Client splits (country, gender, age) for both pages come from `App\Support\ClientStats`; ages

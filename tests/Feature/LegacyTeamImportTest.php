@@ -171,3 +171,15 @@ test('duplicate rows merge, unknown agents are left out, a dry run saves nothing
         ->and($first['stats'])->toMatchArray(['duplicates_merged' => 1, 'memberships_without_agent' => 1])
         ->and($again['stats'])->toMatchArray(['already_imported' => 1, 'team_memberships' => 0]);
 });
+
+test('a re-run with no new teams ignores memberships whose legacy team id is 0', function () {
+    ($this->team)(1);
+    ($this->member)(['teamid' => 1, 'memid' => 100, 'isleader' => 1]);
+    ($this->import)();
+
+    ($this->member)(['teamid' => 0, 'memid' => 200]);
+    DB::connection('legacy')->table('salesteam_subteam_members')->insert(['subTeamID' => 0, 'memID' => 300]);
+
+    expect(($this->import)()['stats'])->toMatchArray(['already_imported' => 1, 'team_memberships' => 0, 'sub_team_memberships' => 0])
+        ->and(DB::table('team_agents')->count())->toBe(1);
+});
