@@ -52,6 +52,10 @@ class Agent extends Model
     public const ACTIVITY_DORMANT = 'dormant';
     public const ACTIVITIES = [self::ACTIVITY_ACTIVE, self::ACTIVITY_DORMANT];
     public const DORMANT_AFTER_MONTHS = 6;
+    // FIRE activates an agent who has never sold (replacing the old first-sale gate); no sale within this many months of
+    // that activation also makes them dormant, until a sale or an approved reactivation request restarts the clock. The
+    // general DORMANT_AFTER_MONTHS rule is untouched for everyone who already has a sale.
+    public const FIRE_DEACTIVATE_AFTER_MONTHS = 3;
     // Unit manager by rate: a designation only (keeps their role and dashboard); by dashboard: the Unit Manager role.
     public const UM_BY_RATE = 'rate';
 

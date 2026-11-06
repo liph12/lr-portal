@@ -1,204 +1,88 @@
-import { useState, useEffect } from "react";
-import {
-    Box,
-    Typography,
-    TextField,
-    InputAdornment,
-    IconButton,
-    Avatar,
-} from "@mui/material";
-import { Visibility, VisibilityOff, Person } from "@mui/icons-material";
+import { FormEvent, useState } from "react";
+import { Box, IconButton, InputAdornment, Typography } from "@mui/material";
+import { VisibilityOffRounded, VisibilityRounded } from "@mui/icons-material";
+import { useForm } from "@inertiajs/react";
+import AuthShell from "../../../components/layouts/AuthShell";
 import StyledButton from "../../../components/utils/StyledButton";
+import StyledTextField from "../../../components/utils/StyledTextField";
+import FieldLabel from "../../../components/utils/forms/FieldLabel";
 
-export default function CreatePassword() {
-    const [email, setEmail] = useState("kokoyflores112@gmail.com");
-    const [password, setPassword] = useState("123456");
-    const [confirmPassword, setConfirmPassword] = useState("123456");
+interface CreatePasswordProps {
+    email: string;
+}
+
+const primarySx = {
+    backgroundColor: "var(--lr-primary)",
+    color: "var(--lr-on-primary)",
+    ":hover": { backgroundColor: "var(--lr-primary-hover)" },
+    "&.Mui-disabled": { backgroundColor: "var(--lr-surface-container)", color: "var(--lr-text-secondary)" },
+};
+
+// Last step of forgot-password, reached only once the email was confirmed (PasswordResetController::newPassword).
+function CreatePassword({ email }: CreatePasswordProps) {
     const [showPassword, setShowPassword] = useState(false);
-    const [isPasswordValid, setIsPasswordValid] = useState(false);
+    const { data, setData, post, processing, errors } = useForm({ password: "", password_confirmation: "" });
 
-    const handleTogglePassword = () => setShowPassword((prev) => !prev);
-
-    useEffect(() => {
-        setIsPasswordValid(
-            password.length >= 6 && password === confirmPassword
-        );
-    }, [password, confirmPassword]);
-
-    const handleCreatePassword = () => {
-        // Alert to show password created
-        alert("Password successfully created!");
-        // Redirect to login page
-        window.location.href = "/login";
+    const handleSubmit = (e: FormEvent) => {
+        e.preventDefault();
+        post("/password-reset/new");
     };
 
     return (
-        <Box
-            sx={{
-                height: "100vh",
-                "@supports (height: 100dvh)": { height: "100dvh" },
-                // Self-scrolling: outside AppLayout, and html/body may be overflow-locked
-                overflowY: "auto",
-                backgroundImage: "var(--lr-auth-bg)",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-            }}
-        >
-            <Box
-                sx={{
-                    minHeight: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    px: { xs: 2, sm: 3 },
-                    py: { xs: 4, sm: 6 },
-                }}
-            >
-                <Box sx={{ width: "100%", maxWidth: 500, textAlign: "center" }}>
-                    <Typography
-                        variant="h4"
-                        fontWeight={700}
-                        mb={2}
-                        color="textPrimary"
-                        sx={{
-                            textTransform: "none",
-                            fontSize: { xs: "1.6rem", sm: "2.125rem" },
-                            lineHeight: 1.2,
+        <AuthShell>
+            <Typography sx={{ fontSize: 28, color: "var(--lr-text-primary)" }}>Set a new password</Typography>
+            <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)", mt: 0.5, mb: 3 }}>
+                For <strong>{email}</strong>. Use at least 8 characters, with letters and numbers.
+            </Typography>
+
+            <Box component="form" onSubmit={handleSubmit} noValidate sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Box>
+                    <FieldLabel text="New password" required />
+                    <StyledTextField
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="New password"
+                        value={data.password}
+                        error={errors.password ?? null}
+                        handleChange={(e) => setData("password", e.target.value)}
+                        props={{
+                            slotProps: {
+                                input: {
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton
+                                                size="small"
+                                                edge="end"
+                                                aria-label={showPassword ? "Hide password" : "Show password"}
+                                                onClick={() => setShowPassword((s) => !s)}
+                                                sx={{ color: "var(--lr-text-secondary)" }}
+                                            >
+                                                {showPassword ? <VisibilityOffRounded fontSize="small" /> : <VisibilityRounded fontSize="small" />}
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                },
+                            },
                         }}
-                    >
-                        Create Account Password
-                    </Typography>
-
-                    <Avatar
-                        sx={{
-                            m: "0 auto 30px",
-                            bgcolor: "var(--lr-text-secondary)",
-                            width: 56,
-                            height: 56,
-                        }}
-                    >
-                        <Person fontSize="large" />
-                    </Avatar>
-
-                    <form>
-                        {/* Email Field */}
-                        <Typography textAlign="left" fontWeight={500} mb={1}>
-                            Email <span style={{ color: "red" }}>*</span>
-                        </Typography>
-                        <TextField
-                            fullWidth
-                            variant="filled"
-                            value={email}
-                            disabled
-                            InputProps={{ disableUnderline: true }}
-                            sx={{
-                                mb: 3,
-                                "& .MuiFilledInput-root": {
-                                    borderRadius: 1,
-                                    backgroundColor: "var(--lr-surface-container)",
-                                },
-                            }}
-                        />
-
-                        {/* Password Field */}
-                        <Typography textAlign="left" fontWeight={500} mb={1}>
-                            Password <span style={{ color: "red" }}>*</span>
-                        </Typography>
-                        <TextField
-                            fullWidth
-                            placeholder="Password"
-                            type={showPassword ? "text" : "password"}
-                            variant="filled"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            InputProps={{
-                                disableUnderline: true,
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <IconButton
-                                            onClick={handleTogglePassword}
-                                            edge="end"
-                                        >
-                                            {showPassword ? (
-                                                <VisibilityOff />
-                                            ) : (
-                                                <Visibility />
-                                            )}
-                                        </IconButton>
-                                    </InputAdornment>
-                                ),
-                            }}
-                            sx={{
-                                mb: 3,
-                                "& .MuiFilledInput-root": {
-                                    borderRadius: 1,
-                                    backgroundColor: "var(--lr-surface-container)",
-                                },
-                            }}
-                        />
-
-                        {/* Confirm Password Field */}
-                        <Typography textAlign="left" fontWeight={500} mb={1}>
-                            Confirm Password <span style={{ color: "red" }}>*</span>
-                        </Typography>
-                        <TextField
-                            fullWidth
-                            placeholder="Confirm Password"
-                            type="password"
-                            variant="filled"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            InputProps={{ disableUnderline: true }}
-                            sx={{
-                                mb: 1,
-                                "& .MuiFilledInput-root": {
-                                    borderRadius: 1,
-                                    backgroundColor: "var(--lr-surface-container)",
-                                },
-                            }}
-                        />
-
-                        {/* Error Message */}
-                        {password.length > 0 && password.length < 6 && (
-                            <Typography
-                                color="error"
-                                variant="body2"
-                                textAlign="left"
-                                mb={2}
-                            >
-                                Password must be at least 6 characters.
-                            </Typography>
-                        )}
-
-                        {/* Create Password Button */}
-                        <StyledButton
-                            type="button"
-                            variant="contained"
-                            fullWidth
-                            disabled={!isPasswordValid}
-                            sx={{
-                                mt: 2,
-                                py: 1.5,
-                                backgroundColor: "primary.main",
-                                color: "primary.contrastText",
-                                boxShadow: "none",
-                                "&:hover": { backgroundColor: "primary.dark" },
-                            }}
-                            onClick={handleCreatePassword}
-                        >
-                            create password
-                        </StyledButton>
-                    </form>
-
-                    <Typography
-                        variant="caption"
-                        sx={{ mt: { xs: 5, sm: 8 }, display: "block", color: "var(--lr-text-secondary)" }}
-                    >
-                        LR Registration v3.1 | 2026 © All Rights Reserved
-                    </Typography>
+                    />
                 </Box>
+                <Box>
+                    <FieldLabel text="Confirm new password" required />
+                    <StyledTextField
+                        name="password_confirmation"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Confirm new password"
+                        value={data.password_confirmation}
+                        error={errors.password_confirmation ?? null}
+                        handleChange={(e) => setData("password_confirmation", e.target.value)}
+                    />
+                </Box>
+                <StyledButton type="submit" variant="contained" loading={processing} disabled={!data.password || !data.password_confirmation} sx={primarySx}>
+                    Set new password
+                </StyledButton>
             </Box>
-        </Box>
+        </AuthShell>
     );
 }
+
+export default CreatePassword;

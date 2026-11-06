@@ -7,6 +7,14 @@ tags: [fire, training]
 
 realestatetraining.ph integration: modules, exams, Rent.ph module 12, endorsement letter, certificates. Related: [[registration-onboarding]] · back to [[README|index]].
 
+- **Welcome message**: before anything else on `/fire`, once per agent (`agent_attributes.fire_welcome_watched_at`), Boss Anthony
+  Leuterio's welcome video (`resources/assets/videos/boss-ton-fire-welcome-message.mp4`, a Vite asset import — `WelcomeStep` in
+  `Pages/Portal/Fire/Index.tsx`) — "Continue to FIRE" → `POST /fire/welcome` (`FireTrainingController::welcome`,
+  `FireTrainingService::markWelcomeWatched`) before the endorsement step or the modules show.
+- **Activation**: finishing FIRE (`AgentJourneyService::FIRE_DONE` = 3 passed modules) activates an agent who has never sold —
+  `FireTrainingService::syncPasses` / `submit` call `AgentActivationService::activateOnFireCompletion`, which sets
+  `agent_attributes.fire_activated_at` once and refreshes `AgentActivityService`. Replaces the old "activated with the first
+  sale" gate; see [[registration-onboarding]] (the journey's Activation milestone) and [[management]] (Agent activity).
 - **FIRE** (Filipinohomes Institute of Real Estate — itself the training, so never "FIRE training"; logo `components/fire/FireLogo`,
   white lettering in dark mode; `/fire`, `/fire/{module}`, `/fire/{module}/exam`; `routes/fire.php`, `Portal\FireTrainingController`,
   `FireTrainingService`, pages `Portal/Fire/{Index,Module,Exam}` in `layouts/OnboardingShell`; anyone with an agent record): the

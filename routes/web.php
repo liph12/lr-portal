@@ -3,6 +3,7 @@
 use App\Http\Controllers\Portal\ImpersonationController;
 use App\Http\Controllers\Portal\ViewAsController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\UserController;
 
@@ -20,10 +21,15 @@ Route::middleware('guest')->group(function(){
     Route::post('/register', [RegistrationController::class, 'store'])->name('register.store');
     Route::get('/verify', [UserController::class, 'verify'])->name('verify');
     Route::redirect('/createaccount', '/register')->name('create.account');
-    Route::get('/create-password', [UserController::class, 'createPassword'])->name('create.password');
-    Route::get('/password-reset', [UserController::class, 'passwordReset']);
-    Route::post('/login-attempt', [UserController::class, 'loginAttempt']); 
-    Route::post('/password-reset-verify', [UserController::class, 'passwordResetVerify']); 
+    Route::post('/login-attempt', [UserController::class, 'loginAttempt']);
+
+    // Forgot password: a 6-digit code and a link, either confirms the email, then a new password.
+    Route::get('/password-reset', [PasswordResetController::class, 'show'])->name('password.reset');
+    Route::post('/password-reset/send', [PasswordResetController::class, 'send'])->middleware('throttle:6,1')->name('password.reset.send');
+    Route::get('/password-reset/verify', [PasswordResetController::class, 'verifyLink'])->name('password.reset.link');
+    Route::post('/password-reset/verify', [PasswordResetController::class, 'verifyCode'])->middleware('throttle:12,1')->name('password.reset.verify');
+    Route::get('/password-reset/new', [PasswordResetController::class, 'newPassword'])->name('password.reset.new');
+    Route::post('/password-reset/new', [PasswordResetController::class, 'update'])->name('password.reset.update');
 
 });
 
@@ -51,6 +57,7 @@ Route::middleware(['auth', 'active'])->group(function(){
     require base_path('routes/search.php');
     require base_path('routes/global-partners.php');
     require base_path('routes/nao-approvals.php');
+    require base_path('routes/reactivation-requests.php');
     require base_path('routes/sms.php');
     (require base_path('routes/sales-validation.php'))();
 

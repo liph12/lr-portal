@@ -8,8 +8,11 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 // Sets agents.activity: dormant when activated (else signed up) over 6 months ago and no sale reserved in the last
-// 6 months — a rolling window, so a new sale makes them active again. Valid and pending sales count (a just-recorded
-// sale is pending); invalid and cancelled don't. Roles in Agent::ACTIVITY_EXEMPT_ROLES are always active.
+// 6 months — a rolling window, so a new sale makes them active again. Also dormant when FIRE activated them (because
+// they'd never sold — AgentActivationService::activateOnFireCompletion) FIRE_DEACTIVATE_AFTER_MONTHS ago and they still
+// haven't; that rule drops out the moment they have a first sale, leaving the general one to apply from then on. Valid
+// and pending sales count (a just-recorded sale is pending); invalid and cancelled don't. Roles in
+// Agent::ACTIVITY_EXEMPT_ROLES are always active.
 class AgentActivityService
 {
     private const SALE_TABLES = ['agent_project_transactions', 'agent_rental_transactions', 'agent_brokerage_transactions'];
@@ -48,6 +51,7 @@ class AgentActivityService
         }
 
         $agents = DB::table('agents')->whereIn('id', $agentIds)->get(['id', 'user_id', 'activated_at', 'created_at'])->keyBy('id');
+        $fireActivated = DB::table('agent_attributes')->whereIn('agent_id', $agentIds)->pluck('fire_activated_at', 'agent_id');
         $exempt = DB::table('role_user as ru')->join('roles as r', 'r.id', '=', 'ru.role_id')
             ->whereIn('ru.user_id', $agents->pluck('user_id')->filter())->whereIn('r.name', Agent::ACTIVITY_EXEMPT_ROLES)
             ->pluck('ru.user_id')->flip();
@@ -63,19 +67,23 @@ class AgentActivityService
 
         $today = now()->startOfDay();
 
-        return $agents->map(function ($a) use ($exempt, $lastSale, $today) {
+        return $agents->map(function ($a) use ($exempt, $lastSale, $fireActivated, $today) {
             $activated = $a->activated_at ?? $a->created_at;
             $sale = $lastSale[$a->id] ?? null;
             $start = collect([$activated, $sale])->filter()->max();
             $isExempt = isset($exempt[$a->user_id]);
             $ends = $start && ! $isExempt ? Carbon::parse($start)->addMonths(Agent::DORMANT_AFTER_MONTHS)->startOfDay() : null;
+            // The FIRE rule only applies before a first sale, and only while it's sooner than the general deadline above.
+            $fireEnds = ($fireAt = $fireActivated[$a->id] ?? null) && ! $sale && ! $isExempt
+                ? Carbon::parse($fireAt)->addMonths(Agent::FIRE_DEACTIVATE_AFTER_MONTHS)->startOfDay() : null;
+            $deadline = collect([$ends, $fireEnds])->filter()->min();
 
             return [
                 'activated_at' => $a->activated_at ? substr((string) $a->activated_at, 0, 10) : null,
                 'last_sale' => $sale ? substr((string) $sale, 0, 10) : null,
-                'ends_on' => $ends?->toDateString(),
+                'ends_on' => $deadline?->toDateString(),
                 // Negative once it has run out (dormant for that many days).
-                'days_left' => $ends ? (int) $today->diffInDays($ends, false) : null,
+                'days_left' => $deadline ? (int) $today->diffInDays($deadline, false) : null,
                 'exempt' => $isExempt,
             ];
         })->all();
@@ -96,19 +104,47 @@ class AgentActivityService
     private function dormant(Builder $agents): Builder
     {
         $since = now()->subMonths(Agent::DORMANT_AFTER_MONTHS);
+        $fireSince = now()->subMonths(Agent::FIRE_DEACTIVATE_AFTER_MONTHS);
 
         return $agents
-            ->whereRaw('COALESCE(agents.activated_at, agents.created_at) < ?', [$since->toDateTimeString()])
             ->whereNotExists(fn ($q) => $q->from('role_user as ru')->join('roles as r', 'r.id', '=', 'ru.role_id')
                 ->whereColumn('ru.user_id', 'agents.user_id')->whereIn('r.name', Agent::ACTIVITY_EXEMPT_ROLES))
-            ->where(function ($q) use ($since) {
-                foreach (self::SALE_TABLES as $table) {
-                    $q->whereNotExists(fn ($s) => $s->from('agent_transactions as t')->join("{$table} as c", 'c.agent_transaction_id', '=', 't.id')
-                        ->whereColumn('t.agent_id', 'agents.id')->whereIn('t.sale_status', self::COUNTED_STATUSES)
-                        ->where('c.reservation_date', '>=', $since->toDateString()));
-                }
-                $q->whereNotExists(fn ($s) => $s->from('international_sales as i')->whereColumn('i.agent_id', 'agents.id')
-                    ->whereIn('i.sale_status', self::COUNTED_STATUSES)->where('i.reservation_date', '>=', $since->toDateString()));
+            ->where(function ($q) use ($since, $fireSince) {
+                // The general rule: quiet for DORMANT_AFTER_MONTHS since activation (or sign-up) or the last sale.
+                $q->where(function ($g) use ($since) {
+                    $g->whereRaw('COALESCE(agents.activated_at, agents.created_at) < ?', [$since->toDateTimeString()])
+                        ->where(fn ($w) => $this->noSaleSince($w, $since));
+                })
+                // New agents: FIRE activated them (they'd never sold) FIRE_DEACTIVATE_AFTER_MONTHS ago, still no sale —
+                // the general rule above takes over the moment they have one.
+                ->orWhere(function ($g) use ($fireSince) {
+                    $g->whereExists(fn ($s) => $s->from('agent_attributes as faa')->whereColumn('faa.agent_id', 'agents.id')
+                        ->whereNotNull('faa.fire_activated_at')->where('faa.fire_activated_at', '<', $fireSince->toDateTimeString()))
+                        ->where(fn ($w) => $this->neverSold($w));
+                });
             });
+    }
+
+    private function noSaleSince(Builder $query, Carbon $since): Builder
+    {
+        foreach (self::SALE_TABLES as $table) {
+            $query->whereNotExists(fn ($s) => $s->from('agent_transactions as t')->join("{$table} as c", 'c.agent_transaction_id', '=', 't.id')
+                ->whereColumn('t.agent_id', 'agents.id')->whereIn('t.sale_status', self::COUNTED_STATUSES)
+                ->where('c.reservation_date', '>=', $since->toDateString()));
+        }
+
+        return $query->whereNotExists(fn ($s) => $s->from('international_sales as i')->whereColumn('i.agent_id', 'agents.id')
+            ->whereIn('i.sale_status', self::COUNTED_STATUSES)->where('i.reservation_date', '>=', $since->toDateString()));
+    }
+
+    private function neverSold(Builder $query): Builder
+    {
+        foreach (self::SALE_TABLES as $table) {
+            $query->whereNotExists(fn ($s) => $s->from('agent_transactions as t')->join("{$table} as c", 'c.agent_transaction_id', '=', 't.id')
+                ->whereColumn('t.agent_id', 'agents.id')->whereIn('t.sale_status', self::COUNTED_STATUSES));
+        }
+
+        return $query->whereNotExists(fn ($s) => $s->from('international_sales as i')->whereColumn('i.agent_id', 'agents.id')
+            ->whereIn('i.sale_status', self::COUNTED_STATUSES));
     }
 }

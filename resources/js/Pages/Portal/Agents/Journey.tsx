@@ -8,7 +8,7 @@ import FireLogo from "../../../components/fire/FireLogo";
 import ModuleLogo from "../../../components/fire/ModuleLogo";
 import SpotIcon, { SpotName } from "../../../components/utils/SpotIcon";
 import UserAvatar from "../../../components/utils/user/UserAvatar";
-import ActivationRequestForm from "../../../components/onboarding/ActivationRequestForm";
+import ReactivationRequestForm from "../../../components/onboarding/ReactivationRequestForm";
 import { formatDate } from "../../../helpers/formatDate";
 
 type Status = "done" | "current" | "waiting" | "upcoming";
@@ -21,15 +21,16 @@ interface Milestone {
     detail: string;
     certificates?: number;
     of?: number;
-    // Activation: the latest request for activation sent (null = none yet).
-    activation?: ActivationRequest | null;
+    // Activation, once it needs reactivating: the latest request for reactivation sent (null = none yet).
+    reactivation?: ReactivationRequest | null;
 }
 
-interface ActivationRequest {
+interface ReactivationRequest {
     submitted_at: string;
-    request_form: string;
-    proof_of_transaction: string;
+    file: string;
     notes: string | null;
+    status: "pending" | "approved" | "disapproved";
+    decline_reason: string | null;
 }
 
 interface JourneyProps {
@@ -122,7 +123,7 @@ function JourneyBar({ milestones }: { milestones: Milestone[] }) {
                                 {LABELS[m.key]}
                             </Typography>
                             <Typography variant="caption" sx={{ color: "var(--lr-text-secondary)" }}>
-                                {m.status === "done" ? (m.date ? formatDate(m.date) : "Done") : m.status === "waiting" ? (m.key === "activation" ? "Waiting for activation" : "Waiting for approval") : active ? "Next up" : "Later"}
+                                {m.status === "done" ? (m.date ? formatDate(m.date) : "Done") : m.status === "waiting" ? (m.key === "activation" ? "Needs reactivation" : "Waiting for approval") : active ? "Next up" : "Later"}
                             </Typography>
                         </Box>
                     </Box>
@@ -149,14 +150,11 @@ function nextAction(next: Milestone): { href: string; label: string } | null {
     }
 }
 
-// What activating the LR account takes, and the uploader — or, once sent, what was sent (with a way to send it again).
-function Activation({ request, own, maxFileKb }: { request: ActivationRequest | null; own: boolean; maxFileKb: number }) {
+// Once dormant for lack of a sale since FIRE: the reactivation uploader — or, once sent, what was sent (with a way to
+// send another after a disapproval).
+function Reactivation({ request, own, maxFileKb }: { request: ReactivationRequest | null; own: boolean; maxFileKb: number }) {
     const [resend, setResend] = useState(false);
-    const steps = [
-        "Close your first sale and have it ready for encoding.",
-        "Fill in and sign your request for activation.",
-        "Upload it here with the sale's proof of transaction — the office activates your account and encodes your sale.",
-    ];
+    const pending = request?.status === "pending";
     const file = (href: string, label: string) => (
         <a href={href} target="_blank" rel="noopener" style={{ textDecoration: "none" }}>
             <StyledButton variant="outlined" size="small" endIcon={<OpenInNewRounded />} sx={{ color: "var(--lr-primary)", borderColor: "var(--lr-outline)", backgroundColor: "var(--lr-surface)" }}>
@@ -167,22 +165,11 @@ function Activation({ request, own, maxFileKb }: { request: ActivationRequest | 
 
     return (
         <Box sx={{ mt: 2.5 }}>
-            {own && !request && (
-                <Box component="ol" sx={{ m: 0, mb: 3, pl: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 1.25 }}>
-                    {steps.map((text, i) => (
-                        <Box component="li" key={i} sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
-                            <Box sx={{ width: 26, height: 26, flexShrink: 0, borderRadius: "50%", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 700, color: "var(--lr-on-primary)", backgroundColor: "var(--lr-primary)" }}>{i + 1}</Box>
-                            <Typography variant="body2" sx={{ pt: 0.3, color: "var(--lr-text-body)" }}>
-                                {text}
-                            </Typography>
-                        </Box>
-                    ))}
-                </Box>
-            )}
             {request ? (
                 <Box sx={{ p: 2, borderRadius: 3, border: "1px solid var(--lr-border)", backgroundColor: "var(--lr-surface)" }}>
-                    <Typography variant="body2" sx={{ display: "flex", alignItems: "center", gap: 1, fontWeight: 600, color: "var(--lr-text-primary)" }}>
-                        <HourglassTopRounded sx={{ fontSize: 18, color: "var(--lr-primary)" }} /> Request for activation sent {formatDate(request.submitted_at)}
+                    <Typography variant="body2" sx={{ display: "flex", alignItems: "center", gap: 1, fontWeight: 600, color: pending ? "var(--lr-text-primary)" : "var(--lr-error)" }}>
+                        <HourglassTopRounded sx={{ fontSize: 18, color: pending ? "var(--lr-primary)" : "var(--lr-error)" }} />
+                        {pending ? `Request for reactivation sent ${formatDate(request.submitted_at)}` : `Disapproved — ${request.decline_reason ?? "see your sponsor or the office"}`}
                     </Typography>
                     {request.notes && (
                         <Typography variant="body2" sx={{ mt: 0.75, color: "var(--lr-text-secondary)", whiteSpace: "pre-line" }}>
@@ -190,11 +177,10 @@ function Activation({ request, own, maxFileKb }: { request: ActivationRequest | 
                         </Typography>
                     )}
                     <Box sx={{ mt: 1.5, display: "flex", gap: 1, flexWrap: "wrap" }}>
-                        {file(request.request_form, "Request for activation")}
-                        {file(request.proof_of_transaction, "Proof of transaction")}
-                        {own && !resend && (
+                        {file(request.file, "Supporting file")}
+                        {own && pending === false && !resend && (
                             <StyledButton size="small" onClick={() => setResend(true)} sx={{ color: "var(--lr-primary)" }}>
-                                Send again
+                                Send another
                             </StyledButton>
                         )}
                     </Box>
@@ -202,13 +188,13 @@ function Activation({ request, own, maxFileKb }: { request: ActivationRequest | 
             ) : (
                 !own && (
                     <Typography variant="body2" sx={{ color: "var(--lr-text-secondary)" }}>
-                        No request for activation yet.
+                        No request for reactivation yet.
                     </Typography>
                 )
             )}
-            {own && (!request || resend) && (
+            {own && (!request || (!pending && resend)) && (
                 <Box sx={{ mt: request ? 2.5 : 0 }}>
-                    <ActivationRequestForm maxFileKb={maxFileKb} onCancel={request ? () => setResend(false) : undefined} onSent={() => setResend(false)} />
+                    <ReactivationRequestForm maxFileKb={maxFileKb} onCancel={request ? () => setResend(false) : undefined} onSent={() => setResend(false)} />
                 </Box>
             )}
         </Box>
@@ -285,16 +271,16 @@ function NextStep({ next, name, own, naoDone, maxFileKb }: { next: Milestone; na
         const waiting = next.status === "waiting";
         return card(
             <SpotIcon name="trophy" size={72} />,
-            waiting ? (own ? "Your activation is on its way" : "Activation requested") : own ? "Activate your LR account with your first sale" : `${name}'s activation`,
+            waiting ? (own ? "Your account needs reactivating" : `${name}'s account needs reactivating`) : own ? "Finish FIRE to activate your account" : `${name}'s activation`,
             own
                 ? waiting
-                    ? "Thanks! The office will check your request, activate your account and encode your sale. You'll see it here once it's in."
-                    : "Training done — now it's time to close. Your LR account is activated with your first sale: once it's ready for encoding, send your request for activation together with the sale's proof of transaction."
+                    ? next.detail
+                    : "Your LR account activates automatically the moment you finish FIRE — no need to wait for your first sale."
                 : next.detail,
             undefined,
-            <Activation request={next.activation ?? null} own={own} maxFileKb={maxFileKb} />,
+            waiting ? <Reactivation request={next.reactivation ?? null} own={own} maxFileKb={maxFileKb} /> : undefined,
             // A tall card (the uploader): the trophy stays beside the title.
-            true,
+            waiting,
         );
     }
     if (next.key === "registered") return null;
@@ -450,7 +436,7 @@ function Journey({ journey, own, maxFileKb, certificates }: JourneyProps) {
                             {own ? "Your LR account is active" : `${name}'s LR account is active`}
                         </Typography>
                         <Typography variant="body2" sx={{ mt: 0.5, color: "var(--lr-text-body)" }}>
-                            Activated with {own ? "your" : "their"} first sale{activation.date ? ` on ${formatDate(activation.date)}` : ""}.{own ? " Keep closing — your team is behind you." : ""}
+                            Activated{activation.date ? ` on ${formatDate(activation.date)}` : ""}.{own ? " Keep closing — your team is behind you." : ""}
                         </Typography>
                     </Box>
                 </Box>

@@ -68,11 +68,19 @@ Become a Salesperson / Global Partner sign-up, /welcome steps, NAO + NAO approva
   (first `profile.photo_updated` log) → NAO (approved: `nao_attendance_reviewed_at` + who; webinar: `nao.webinar_finished` log; `yes`
   unreviewed = waiting) → FIRE (`fire_certificates` of 3; "Take FIRE" under the headline and "Start / Continue FIRE training" on the card → `/fire`, on one's own journey) → Activation. The
   first unfinished one is "Next up"; dates come from the data and readable activity-log entries whose subject is the agent.
-  **Activation** (milestone `activation`, done = the first sale): the LR account is activated with the first sale, so until a sale exists its card explains it
-  and uploads a **request for activation** + the sale's **proof of transaction** (+ optional notes) — `components/onboarding/ActivationRequestForm`,
-  `POST /my-journey/activation-request` (`StoreActivationRequestRequest`, `ActivationRequestController`, `ActivationRequestService`,
-  files via `SaleFileStorage` under `activation-requests/`, logged `agent.activation_requested`) → `activation_requests` (migration
-  `000055`, one row per submission, the newest counts; legacy kept it as `members.activationForm`). Sent → the step is "waiting"
-  (files shown, "Send again"); others opening the journey see the files; once done, an "account is active" card. Nobody reviews them in the app yet. The certificates list
-  always shows Rent.ph's Rent Manager on one's own journey — a download once passed, else a link to its exam (`/fire/12`). Linked
-  from the finished NAO screen, the profile menu ("My journey") and the profile page ("Journey").
+  **Activation** (milestone `activation`): done once there's a first sale (legacy agents, or anyone who sold before finishing
+  FIRE), **or** FIRE finished and `agents.activity` isn't dormant — see [[fire]] (`AgentActivationService::activateOnFireCompletion`,
+  replacing the old first-sale-gated flow; `activation_requests` / `ActivationRequestService` are retired but the table stays for
+  history). From there [[management]]'s Agent activity rule applies: no sale within `Agent::FIRE_DEACTIVATE_AFTER_MONTHS` (3) of that
+  activation makes the agent dormant (shows as inactive, never blocks sign-in) — the card then offers **Reactivation Requests**: a
+  supporting file + optional notes (`components/onboarding/ReactivationRequestForm`, `POST /my-journey/reactivation-request`,
+  `StoreReactivationRequestRequest`, `ReactivationRequestController`, `ReactivationRequestService`, files via `SaleFileStorage` under
+  `reactivation-requests/`, logged `agent.reactivation_requested`) → `reactivation_requests` (migration `000066`, one row per
+  submission, status pending/approved/disapproved). A sale still reactivates on its own (`AgentActivityService::refresh` after every
+  recorded sale) — the request is the other way back. **Reactivation Requests** (`/reactivation-requests`, every role,
+  `routes/reactivation-requests.php`, `Portal\ReactivationApprovalController`, `ReactivationRequestService`, page
+  `Portal/ReactivationRequests/Index`): same reach pattern as NAO Approvals (nationwide for the back office, else sponsor + led
+  teams/sub-teams + office areas); approve restarts the window (`AgentActivationService::reactivate`), disapprove needs a reason the
+  agent sees. Shared `auth.reactivation_requests = {pending}` (null = nobody) → menu pseudo-grant `_reactivation_approver` + badge.
+  The certificates list always shows Rent.ph's Rent Manager on one's own journey — a download once passed, else a link to its exam
+  (`/fire/12`). Linked from the finished NAO screen, the profile menu ("My journey") and the profile page ("Journey").

@@ -1,7 +1,7 @@
 import { ReactElement, useState } from "react";
 import { Alert, Box, Grid, LinearProgress, Typography } from "@mui/material";
 import { CheckCircleRounded, ChevronRightRounded, DownloadRounded, PlayCircleOutlineRounded, UploadFileRounded } from "@mui/icons-material";
-import { Link, useForm } from "@inertiajs/react";
+import { Link, router, useForm } from "@inertiajs/react";
 import OnboardingShell from "../../../components/layouts/OnboardingShell";
 import FireLogo from "../../../components/fire/FireLogo";
 import ModuleLogo from "../../../components/fire/ModuleLogo";
@@ -9,16 +9,48 @@ import UserAvatar from "../../../components/utils/user/UserAvatar";
 import StyledButton from "../../../components/utils/StyledButton";
 import UploadPOTForm from "../../../components/utils/forms/UploadPOTForm";
 import { FireModule } from "../../../types/app-data-types";
+import WELCOME_VIDEO from "../../../../assets/videos/boss-ton-fire-welcome-message.mp4";
 
 interface FireIndexProps {
     modules: FireModule[];
     // The training site wants an endorsement letter before this account may start.
     endorsement: boolean;
+    // Seen Boss Anthony Leuterio's welcome message yet — shown once, before anything else on this page.
+    welcomeWatched: boolean;
     error: string | null;
     passScore: number;
     // The letter to download, sign and upload; the upload's size ceiling.
     endorsementTemplate: string;
     maxFileKb: number;
+}
+
+// Shown once, before FIRE opens: Boss Anthony Leuterio's welcome message.
+function WelcomeStep() {
+    const [processing, setProcessing] = useState(false);
+    const continueToFire = () => {
+        setProcessing(true);
+        router.post("/fire/welcome", {}, { onFinish: () => setProcessing(false) });
+    };
+
+    return (
+        <Box sx={{ maxWidth: 1000, mx: "auto" }}>
+            <FireLogo sx={{ width: { xs: 240, sm: 300 }, mb: 2 }} />
+            <Typography component="h1" sx={{ fontSize: { xs: 24, sm: 28 }, fontWeight: 700, letterSpacing: "-0.01em", color: "var(--lr-text-primary)", mb: 2 }}>
+                A welcome message before you begin
+            </Typography>
+            <Box sx={{ borderRadius: 3, overflow: "hidden", border: "1px solid var(--lr-border)", backgroundColor: "#000", mb: 3 }}>
+                <video controls playsInline src={WELCOME_VIDEO} style={{ width: "100%", display: "block", maxHeight: 520 }} />
+            </Box>
+            <StyledButton
+                variant="contained"
+                loading={processing}
+                onClick={continueToFire}
+                sx={{ px: 3, backgroundColor: "var(--lr-primary)", color: "var(--lr-on-primary)", ":hover": { backgroundColor: "var(--lr-primary-hover)" } }}
+            >
+                Continue to FIRE
+            </StyledButton>
+        </Box>
+    );
 }
 
 // Before FIRE opens (for accounts the training site flags): download the endorsement letter, sign it, upload it here.
@@ -88,9 +120,13 @@ function EndorsementStep({ template, maxFileKb }: { template: string; maxFileKb:
 }
 
 // FIRE (Filipinohomes Institute of Real Estate): the modules from realestatetraining.ph, how far the agent is, and each module's status (best score of 10).
-function FireIndex({ modules, endorsement, error, passScore, endorsementTemplate, maxFileKb }: FireIndexProps) {
+function FireIndex({ modules, endorsement, welcomeWatched, error, passScore, endorsementTemplate, maxFileKb }: FireIndexProps) {
     const passed = modules.filter((m) => m.passed).length;
     const next = modules.find((m) => !m.passed);
+
+    if (!welcomeWatched) {
+        return <WelcomeStep />;
+    }
 
     return (
         <Box sx={{ maxWidth: 1000, mx: "auto" }}>

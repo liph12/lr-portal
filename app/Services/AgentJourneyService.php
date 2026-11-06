@@ -14,7 +14,7 @@ class AgentJourneyService
     // FIRE is complete at three certificates (agent_attributes.fire_certificates, as Recruits counts it).
     public const FIRE_DONE = 3;
 
-    public function __construct(private AgentUplineService $uplines, private ActivationRequestService $activations) {}
+    public function __construct(private AgentUplineService $uplines, private ReactivationRequestService $reactivations) {}
 
     /**
      * @return array<string, mixed>
@@ -31,7 +31,7 @@ class AgentJourneyService
             $this->photo($agent),
             $this->nao($agent, $row),
             $this->fire($row),
-            $this->activation($agent),
+            $this->activation($agent, $row),
         ];
         // The first one not done yet is where they are; everything after it comes later.
         $current = null;
@@ -108,7 +108,10 @@ class AgentJourneyService
             ['certificates' => $count, 'of' => self::FIRE_DONE]);
     }
 
-    private function activation(Agent $agent): array
+    // FIRE activates the account (AgentActivationService::activateOnFireCompletion) once it's never sold yet; from
+    // there it's done unless AgentActivityService finds no sale within Agent::FIRE_DEACTIVATE_AFTER_MONTHS and marks the
+    // agent dormant, when a reactivation request (or simply a sale) is the way back.
+    private function activation(Agent $agent, ?object $row): array
     {
         $first = collect([
             DB::table('agent_transactions')->where('agent_id', $agent->id)->min('created_at'),
@@ -118,12 +121,19 @@ class AgentJourneyService
         if ($first) {
             return $this->milestone('activation', 'Activation', 'done', $first, 'Your LR account is active — activated with your first sale.');
         }
-        // The account is activated with the first sale: a request for activation + that sale's proof of transaction.
-        $request = $this->activations->latest($agent);
+        if (! $row?->fire_activated_at) {
+            return $this->milestone('activation', 'Activation', 'todo', null, 'Your LR account activates automatically once you finish FIRE.');
+        }
+        if ($agent->activity !== Agent::ACTIVITY_DORMANT) {
+            return $this->milestone('activation', 'Activation', 'done', $row->fire_activated_at, 'Your LR account is active — activated when you finished FIRE.');
+        }
+        $request = $this->reactivations->latest($agent);
+        $months = Agent::FIRE_DEACTIVATE_AFTER_MONTHS;
+        $detail = $request && $request['status'] === 'pending'
+            ? 'Request for reactivation sent — the office will review it.'
+            : "No sale within {$months} months of finishing FIRE, so your account needs reactivating. Record a sale, or send a request with a supporting file.";
 
-        return $request
-            ? $this->milestone('activation', 'Activation', 'waiting', $request['submitted_at'], 'Request for activation sent — the office will activate your account and encode your sale.', ['activation' => $request])
-            : $this->milestone('activation', 'Activation', 'todo', null, 'Your LR account is activated with your first sale: send your request for activation with the sale\'s proof of transaction.', ['activation' => null]);
+        return $this->milestone('activation', 'Activation', 'waiting', $row->fire_activated_at, $detail, ['reactivation' => $request]);
     }
 
     // When a readable activity-log entry about this agent first happened.

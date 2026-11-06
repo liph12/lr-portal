@@ -87,3 +87,20 @@ test('a sale wakes a dormant agent up; refreshing one agent leaves the rest alon
     $this->artisan('agents:refresh-activity')->assertSuccessful();
     expect(($this->activity)($other))->toBe('dormant');
 });
+
+test('FIRE activates an agent who never sold; no sale within 3 months of that makes them dormant, a sale or it drops out', function () {
+    // created_at well inside the general 6-month window, so only the FIRE rule is in play here.
+    $fired = ($this->agent)('agent', null, '2026-08-01 00:00:00');
+    DB::table('agent_attributes')->insert(['agent_id' => $fired, 'fire_activated_at' => '2026-06-01 00:00:00']); // 4+ months ago
+    $fresh = ($this->agent)('agent', null, '2026-08-01 00:00:00');
+    DB::table('agent_attributes')->insert(['agent_id' => $fresh, 'fire_activated_at' => '2026-09-01 00:00:00']); // under 3 months ago
+    $sold = ($this->agent)('agent', null, '2026-08-01 00:00:00');
+    DB::table('agent_attributes')->insert(['agent_id' => $sold, 'fire_activated_at' => '2026-06-01 00:00:00']);
+    ($this->sale)($sold, '2026-09-01'); // the FIRE rule drops out the moment there's a first sale
+
+    app(AgentActivityService::class)->refresh();
+
+    expect(($this->activity)($fired))->toBe('dormant')
+        ->and(($this->activity)($fresh))->toBe('active')
+        ->and(($this->activity)($sold))->toBe('active');
+});

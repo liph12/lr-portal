@@ -25,10 +25,11 @@ const NO_EDITIONS: { year: number; name: string; is_default: boolean }[] = [];
 export default function usePortalRoutes(): PortalRoute[] {
     const user = useAuthUser();
     const portal = user?.portal ?? null;
-    const permissions = grantedWithLeadership(user?.permissions, user?.leads, user?.portal, user?.office_areas, user?.global_partners, user?.agent_id, user?.nao_approvals).join(",");
+    const permissions = grantedWithLeadership(user?.permissions, user?.leads, user?.portal, user?.office_areas, user?.global_partners, user?.agent_id, user?.nao_approvals, user?.reactivation_requests).join(",");
     // Counters on menu items, by path (e.g. global partners waiting for confirmation).
     const partnersPending = user?.global_partners?.pending ?? 0;
     const naoPending = user?.nao_approvals?.pending ?? 0;
+    const reactivationPending = user?.reactivation_requests?.pending ?? 0;
     const natconEditions = user?.natcon_editions ?? NO_EDITIONS;
     const smsPending = user?.sms_credits?.pending ?? 0;
     const salesPending = user?.sales_validation?.pending ?? 0;
@@ -43,6 +44,7 @@ export default function usePortalRoutes(): PortalRoute[] {
         const badges: Record<string, number> = {
             "/global-partners": partnersPending,
             "/nao-approvals": naoPending,
+            "/reactivation-requests": reactivationPending,
             "/sms": smsPending,
             // The receivings and SMS sit inside Management (its tabs / cards show each); its menu item carries their total.
             ...Object.fromEntries(["/superadmin", "/admin", "/staff"].map((p) => [`${p}/management`, brokerageAwaiting + rentalAwaiting + smsPending])),
@@ -57,7 +59,7 @@ export default function usePortalRoutes(): PortalRoute[] {
 
         // Leaders of a team or sub-team get My Team right after the dashboard.
         return leads ? [routes[0], myTeamRoute as PortalRoute, ...routes.slice(1)].filter(Boolean) : routes;
-    }, [portal, permissions, leads, partnersPending, naoPending, smsPending, salesPending, brokerageAwaiting, rentalAwaiting, natconEditions]);
+    }, [portal, permissions, leads, partnersPending, naoPending, reactivationPending, smsPending, salesPending, brokerageAwaiting, rentalAwaiting, natconEditions]);
 }
 
 // One NATCON item per edition (NATCON 2027, NATCON 2026 …), its boards under /natcon/{year}; the plain NATCON item stays when

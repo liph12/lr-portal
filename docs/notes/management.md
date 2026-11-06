@@ -51,13 +51,18 @@ Management cards / tabs, agents & teams, transfers, designations, editing profil
 - **Agent activity** (`agents.activity`, `Agent::ACTIVITIES` active / dormant — **not** the account status, never blocks
   sign-in): dormant when activated (`agents.activated_at` = legacy `dateactivated`, else `created_at`) over 6 months ago
   and no valid/pending sale (any category, international too) reserved in the last 6 months; rolling, so a sale wakes them
-  up. Roles in `Agent::ACTIVITY_EXEMPT_ROLES` are always active. `AgentActivityService::refresh()` runs daily
-  (`agents:refresh-activity`, scheduled 01:00), after each recorded sale for that agent, and after `legacy:import-members`.
+  up. Roles in `Agent::ACTIVITY_EXEMPT_ROLES` are always active. **Also dormant** (a separate, narrower rule — see [[fire]] /
+  [[registration-onboarding]]): FIRE activated the agent (`agent_attributes.fire_activated_at`, because they'd never sold —
+  `AgentActivationService::activateOnFireCompletion` replaces the old first-sale gate) `Agent::FIRE_DEACTIVATE_AFTER_MONTHS`
+  (3) ago and they still haven't sold; this drops out the moment they have a first sale, leaving the general 6-month rule to
+  apply from then on. `AgentActivityService::refresh()` runs daily (`agents:refresh-activity`, scheduled 01:00), after each
+  recorded sale for that agent, and after `legacy:import-members`.
   **Shown as status, not separately:** everywhere a status is displayed, filtered or counted, an active account whose agent
   is dormant reads `inactive` (`Agent::displayStatus` / `Agent::statusSql()`): Management, Recruits, My Team, profile,
   search, Roles members, Statistics. `users.status` stays `active`, so they can still sign in and record the sale that
-  reactivates them; Management rows also carry `account_status` + `activity`. Setting such an agent **Active**
-  (`UserAccountService::changeStatus`) restarts `activated_at` (logged `user.reactivated`).
+  reactivates them (either rule); Management rows also carry `account_status` + `activity`. Setting such an agent **Active**
+  (`UserAccountService::changeStatus`) restarts `activated_at` (logged `user.reactivated`) — the FIRE-triggered rule instead
+  restarts through **Reactivation Requests** (`ReactivationRequestService` / `AgentActivationService::reactivate`).
 - **Documentation** (`/{superadmin,admin,staff}/documentation`, routes from `routes/documentation.php` called per portal,
   `can:manage,AgentDocument` = permission `manage_documents`; `Portal\DocumentationController`, `AgentDocumentService`):
   agents' requirement documents in `agent_documents` (type `AgentDocument::TYPES`, status `AgentDocument::STATUSES`,

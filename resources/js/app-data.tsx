@@ -15,6 +15,7 @@ import {
     Diversity3Rounded,
     FactCheckRounded,
     HowToRegRounded,
+    LockResetRounded,
     SmsRounded,
     PublicRounded,
     ReceiptLongRounded,
@@ -26,7 +27,7 @@ import { REPORTS } from "./components/reports/reportCatalog";
 import { NATCON_BOARDS } from "./components/natcon/natconCatalog";
 import NatconTrophyIcon from "./components/natcon/NatconTrophyIcon";
 import { MANAGEMENT_SECTIONS } from "./components/management/managementCatalog";
-import { AGENT, BACKOFFICE, LEADER, NAO_APPROVER, PARTNERS, SECRETARY, TEAM_LEADER } from "./helpers/permissions";
+import { AGENT, BACKOFFICE, LEADER, NAO_APPROVER, PARTNERS, REACTIVATION_APPROVER, SECRETARY, TEAM_LEADER } from "./helpers/permissions";
 
 // The dashboard is the same for every role (shared /dashboard routes); Record Your Sale needs a recording permission.
 export const dashboardRoute = {
@@ -164,6 +165,16 @@ export const naoApprovalsRoute = {
     children: [],
 };
 
+// Reactivation requests to review (ReactivationRequestService::reach): agents FIRE activated (never having sold) who then
+// had no sale within Agent::FIRE_DEACTIVATE_AFTER_MONTHS — the same reach as NAO Approvals.
+export const reactivationRequestsRoute = {
+    name: "Reactivation Requests",
+    path: "/reactivation-requests",
+    icon: LockResetRounded,
+    permission: REACTIVATION_APPROVER,
+    children: [],
+};
+
 // SMS Manager (send_sms): texts to groups and typed-in numbers through Semaphore; team leaders pay with credits.
 export const smsRoute = {
     name: "SMS Manager",
@@ -219,6 +230,7 @@ export const useAppRoutes = [
     natconRoute,
     globalPartnersRoute,
     naoApprovalsRoute,
+    reactivationRequestsRoute,
     genealogyRoute,
     {
         name: "Statistics",
@@ -311,6 +323,7 @@ export const adminRoutes = [
     natconRoute,
     globalPartnersRoute,
     naoApprovalsRoute,
+    reactivationRequestsRoute,
     genealogyRoute,
     { name: "Statistics", path: "/admin/statistics", icon: BarChartRounded, permission: "view_statistics", children: [] },
     { name: "Sales validation", path: "/admin/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
@@ -325,6 +338,7 @@ export const staffRoutes = [
     natconRoute,
     globalPartnersRoute,
     naoApprovalsRoute,
+    reactivationRequestsRoute,
     genealogyRoute,
     { name: "Statistics", path: "/staff/statistics", icon: BarChartRounded, permission: "view_statistics", children: [] },
     { name: "Sales validation", path: "/staff/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
@@ -369,6 +383,7 @@ export const memberRoutes = [
     natconRoute,
     globalPartnersRoute,
     naoApprovalsRoute,
+    reactivationRequestsRoute,
     genealogyRoute,
     // Back-office portals reach SMS Manager through Management.
     smsRoute,

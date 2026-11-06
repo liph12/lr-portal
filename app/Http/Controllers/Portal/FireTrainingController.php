@@ -20,21 +20,31 @@ class FireTrainingController extends Controller
     public function index(Request $request)
     {
         $agent = $this->agent($request);
+        $welcomeWatched = $this->fire->welcomeWatched($agent);
         try {
             $member = $this->fire->resolve($agent);
             $modules = $member['requires_endorsement'] ? [] : $this->fire->modules($agent);
             $this->fire->syncPasses($agent, $modules);
         } catch (RuntimeException $e) {
-            return inertia('Portal/Fire/Index', ['modules' => [], 'endorsement' => false, 'error' => $e->getMessage(), 'passScore' => FireTrainingService::PASS_SCORE] + $this->endorsementProps());
+            return inertia('Portal/Fire/Index', ['modules' => [], 'endorsement' => false, 'welcomeWatched' => $welcomeWatched, 'error' => $e->getMessage(), 'passScore' => FireTrainingService::PASS_SCORE] + $this->endorsementProps());
         }
 
         return inertia('Portal/Fire/Index', [
             'modules' => $modules,
             // The training site wants an endorsement letter before this account may start.
             'endorsement' => $member['requires_endorsement'],
+            // Boss Anthony Leuterio's welcome message, shown once before the modules open.
+            'welcomeWatched' => $welcomeWatched,
             'error' => null,
             'passScore' => FireTrainingService::PASS_SCORE,
         ] + $this->endorsementProps());
+    }
+
+    public function welcome(Request $request)
+    {
+        $this->fire->markWelcomeWatched($this->agent($request));
+
+        return redirect()->route('fire.index');
     }
 
     // The signed endorsement letter, before FIRE opens for an account the training site flagged.

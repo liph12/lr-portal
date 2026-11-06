@@ -34,7 +34,7 @@ class FireTrainingService
         return $questions === 10 ? self::PASS_SCORE : (int) ceil($questions * 0.7);
     }
 
-    public function __construct(private ActivityLogger $activity) {}
+    public function __construct(private ActivityLogger $activity, private AgentActivationService $activation) {}
 
     /**
      * The agent's account on the training site, made there if it doesn't exist yet (remembered for a day).
@@ -121,7 +121,29 @@ class FireTrainingService
     {
         // The FIRE count is the site's courses; Rent.ph's module is its own certificate.
         $passed = count(array_filter($modules, fn ($m) => $m['passed'] && $m['id'] !== self::RENT_MODULE));
-        DB::table('agent_attributes')->where('agent_id', $agent->id)->where('fire_certificates', '<', $passed)->update(['fire_certificates' => $passed, 'updated_at' => now()]);
+        $updated = DB::table('agent_attributes')->where('agent_id', $agent->id)->where('fire_certificates', '<', $passed)->update(['fire_certificates' => $passed, 'updated_at' => now()]);
+        if ($updated) {
+            $this->maybeActivate($agent, $passed);
+        }
+    }
+
+    // Shown once, before the agent's first module: Boss Anthony Leuterio's welcome message.
+    public function welcomeWatched(Agent $agent): bool
+    {
+        return (bool) DB::table('agent_attributes')->where('agent_id', $agent->id)->value('fire_welcome_watched_at');
+    }
+
+    public function markWelcomeWatched(Agent $agent): void
+    {
+        DB::table('agent_attributes')->where('agent_id', $agent->id)->update(['fire_welcome_watched_at' => now(), 'updated_at' => now()]);
+    }
+
+    // FIRE done (AgentJourneyService::FIRE_DONE) activates an agent who has never sold.
+    private function maybeActivate(Agent $agent, int $passed): void
+    {
+        if ($passed >= AgentJourneyService::FIRE_DONE) {
+            $this->activation->activateOnFireCompletion($agent);
+        }
     }
 
     /**
@@ -177,6 +199,7 @@ class FireTrainingService
         $totalPassed = (int) ($body['totalPassed'] ?? 0);
 
         DB::table('agent_attributes')->updateOrInsert(['agent_id' => $agent->id], ['fire_certificates' => $totalPassed, 'updated_at' => now()]);
+        $this->maybeActivate($agent, $totalPassed);
         $passed = $score >= self::PASS_SCORE;
         $this->activity->describe('fire.exam_taken', "FIRE module {$moduleId} exam: {$score}/".count($answers).($passed ? ' (passed)' : ''), $agent, ['module' => $moduleId, 'score' => $score, 'total_passed' => $totalPassed]);
 

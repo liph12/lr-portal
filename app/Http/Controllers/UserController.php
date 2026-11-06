@@ -27,21 +27,6 @@ class UserController extends Controller
         return inertia('User/Auth/Verify');
     }
   
-    public function createPassword()
-    {
-        return inertia('User/Auth/CreatePassword');
-    }
-
-    public function passwordReset()
-    {
-        return inertia('User/Auth/PasswordReset');
-    }
-
-    public function passwordResetVerify()
-    {
-        return redirect()->intended(route('create.password'));
-    }
-
     public function loginAttempt(Request $request)
     {
         $data = $request->only('email', 'password');
