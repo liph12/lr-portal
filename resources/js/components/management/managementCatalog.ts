@@ -1,6 +1,6 @@
 import { ElementType } from "react";
 import { SpotName } from "../utils/SpotIcon";
-import { BadgeRounded, Diversity3Rounded, GroupsRounded, KeyRounded, MoveToInboxRounded, SmsRounded, SwapHorizRounded } from "@mui/icons-material";
+import { BadgeRounded, Diversity3Rounded, GroupsRounded, KeyRounded, LockResetRounded, MoveToInboxRounded, SmsRounded, SwapHorizRounded } from "@mui/icons-material";
 
 // Management's sections, in order: its tabs, its cards (Overview) and its menu children.
 export interface ManagementSection {
@@ -25,4 +25,5 @@ export const MANAGEMENT_SECTIONS: ManagementSection[] = [
     { name: "Brokerage receiving", href: () => "/brokerage-receiving", icon: MoveToInboxRounded, art: "inbox", description: "Sign for brokerage commission slips; receiving validates the sale.", permission: ["receive_brokerage_sales"] },
     { name: "Rental receiving", href: () => "/rental-receiving", icon: KeyRounded, art: "key", description: "Sign for Rent.ph rental commission slips; receiving validates the sale.", permission: ["receive_rental_sales"] },
     { name: "SMS Manager", href: () => "/sms", icon: SmsRounded, art: "sms", description: "Text agents, leaders and staff by group or number through Semaphore; team leaders' credit requests.", permission: ["send_sms"] },
+    { name: "Reactivation Requests", href: () => "/reactivation-requests", icon: LockResetRounded, art: "restart", description: "Agents FIRE activated who then had no sale in time: review their file and reactivate or disapprove.", permission: ["change_agent_status"] },
 ];

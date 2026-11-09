@@ -1,10 +1,9 @@
 import { ReactNode, useState } from "react";
-import { Box, ButtonBase, Container, Link as MuiLink, Tooltip, Typography } from "@mui/material";
+import { Box, ButtonBase, Link as MuiLink, Tooltip, Typography } from "@mui/material";
 import { CheckRounded, CloseRounded, OpenInNewRounded } from "@mui/icons-material";
 import { router, useForm } from "@inertiajs/react";
 import { GridColDef } from "@mui/x-data-grid";
-import AppLayout from "../../../components/layouts/AppLayout";
-import SectionTitle from "../../../components/utils/SectionTitle";
+import ReactivationRequestsLayout from "../../../components/management/ReactivationRequestsLayout";
 import StyledButton from "../../../components/utils/StyledButton";
 import StyledTextField from "../../../components/utils/StyledTextField";
 import StatusChip from "../../../components/utils/StatusChip";
@@ -130,15 +129,12 @@ function ReactivationRequests({ submissions, filters, counts, everyone }: Reacti
     ];
 
     return (
-        <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3 } }}>
-            <SectionTitle
-                title="Reactivation Requests"
-                subtitle={
-                    everyone
-                        ? "Agents FIRE activated who then had no sale in time, nationwide. Check each file, then approve or disapprove."
-                        : "Agents FIRE activated who then had no sale in time, within your reach: your recruits, and the team or sub-team you lead. Check each file, then approve or disapprove."
-                }
-            />
+        <>
+            <Typography variant="body2" sx={{ mb: 2, color: "var(--lr-text-secondary)" }}>
+                {everyone
+                    ? "Agents FIRE activated who then had no sale in time, nationwide."
+                    : "Agents FIRE activated who then had no sale in time, within your reach: your recruits, and the team or sub-team you lead."}
+            </Typography>
 
             <Box role="tablist" aria-label="Review status" sx={{ display: "flex", gap: 1, mb: 2, overflowX: "auto", scrollbarWidth: "none" }}>
                 {TABS.map((t) => {
@@ -207,10 +203,10 @@ function ReactivationRequests({ submissions, filters, counts, everyone }: Reacti
                     />
                 </div>
             </FormDialog>
-        </Container>
+        </>
     );
 }
 
-ReactivationRequests.layout = (page: ReactNode) => <AppLayout children={page} />;
+ReactivationRequests.layout = (page: ReactNode) => <ReactivationRequestsLayout children={page} />;
 
 export default ReactivationRequests;

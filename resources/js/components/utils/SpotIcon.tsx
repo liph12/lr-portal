@@ -32,7 +32,8 @@ export type SpotName =
     | "qr-poster"
     | "forms-download"
     | "forms-global"
-    | "buyer-sheet";
+    | "buyer-sheet"
+    | "restart";
 
 // The colours every drawing uses, by role — read from the tile, so a tone (below) can swap them all.
 const TONE: Record<string, string> = {
@@ -389,6 +390,15 @@ function drawing(name: SpotName, g: (c: string) => string): ReactNode {
                     <text x="32" y="26.6" textAnchor="middle" fontSize="13" fontWeight="700" fill={CUT} fontFamily="Inter, Arial, sans-serif">
                         ₱
                     </text>
+                </>
+            );
+        case "restart":
+            // A restart arrow, with a check once it's back on: reactivating a dormant account.
+            return (
+                <>
+                    <path d="M34 15 A14 14 0 1 0 38 24" fill="none" stroke={g("main")} strokeWidth="5" strokeLinecap="round" />
+                    <path d="M34 6 L34 17 L24 13 Z" fill={g("main")} />
+                    <path d="M18 24 L22.5 28.5 L31 19" fill="none" stroke={g("accent")} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
                 </>
             );
     }

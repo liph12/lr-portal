@@ -81,6 +81,9 @@ Become a Salesperson / Global Partner sign-up, /welcome steps, NAO + NAO approva
   `routes/reactivation-requests.php`, `Portal\ReactivationApprovalController`, `ReactivationRequestService`, page
   `Portal/ReactivationRequests/Index`): same reach pattern as NAO Approvals (nationwide for the back office, else sponsor + led
   teams/sub-teams + office areas); approve restarts the window (`AgentActivationService::reactivate`), disapprove needs a reason the
-  agent sees. Shared `auth.reactivation_requests = {pending}` (null = nobody) → menu pseudo-grant `_reactivation_approver` + badge.
+  agent sees. A Management section (`change_agent_status`; [[management]]) for portal roles — `ReactivationRequestsLayout` renders it
+  inside `ManagementLayout` there, or as a page of its own (menu pseudo-grant `_reactivation_approver`) for team leaders, unit
+  managers and sponsors, who have no Management. Shared `auth.reactivation_requests = {pending}` (null = nobody) → badge on
+  Management for portal roles, on the item itself otherwise.
   The certificates list always shows Rent.ph's Rent Manager on one's own journey — a download once passed, else a link to its exam
   (`/fire/12`). Linked from the finished NAO screen, the profile menu ("My journey") and the profile page ("Journey").

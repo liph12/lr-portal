@@ -230,7 +230,6 @@ export const useAppRoutes = [
     natconRoute,
     globalPartnersRoute,
     naoApprovalsRoute,
-    reactivationRequestsRoute,
     genealogyRoute,
     {
         name: "Statistics",
@@ -323,7 +322,6 @@ export const adminRoutes = [
     natconRoute,
     globalPartnersRoute,
     naoApprovalsRoute,
-    reactivationRequestsRoute,
     genealogyRoute,
     { name: "Statistics", path: "/admin/statistics", icon: BarChartRounded, permission: "view_statistics", children: [] },
     { name: "Sales validation", path: "/admin/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },
@@ -338,7 +336,6 @@ export const staffRoutes = [
     natconRoute,
     globalPartnersRoute,
     naoApprovalsRoute,
-    reactivationRequestsRoute,
     genealogyRoute,
     { name: "Statistics", path: "/staff/statistics", icon: BarChartRounded, permission: "view_statistics", children: [] },
     { name: "Sales validation", path: "/staff/sales-validation", icon: FactCheckRounded, permission: "sales_validation", children: [] },

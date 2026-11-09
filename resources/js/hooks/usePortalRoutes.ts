@@ -44,10 +44,12 @@ export default function usePortalRoutes(): PortalRoute[] {
         const badges: Record<string, number> = {
             "/global-partners": partnersPending,
             "/nao-approvals": naoPending,
+            // Only reached directly without a portal (memberRoutes) — portal roles see it, and its badge, inside Management.
             "/reactivation-requests": reactivationPending,
             "/sms": smsPending,
-            // The receivings and SMS sit inside Management (its tabs / cards show each); its menu item carries their total.
-            ...Object.fromEntries(["/superadmin", "/admin", "/staff"].map((p) => [`${p}/management`, brokerageAwaiting + rentalAwaiting + smsPending])),
+            // The receivings, SMS and reactivation requests sit inside Management (its tabs / cards show each); its menu
+            // item carries their total.
+            ...Object.fromEntries(["/superadmin", "/admin", "/staff"].map((p) => [`${p}/management`, brokerageAwaiting + rentalAwaiting + smsPending + reactivationPending])),
             // Sales validation lives in each back-office portal and, for office secretaries, at the shared path.
             ...Object.fromEntries(["/superadmin", "/admin", "/staff", ""].map((p) => [`${p}/sales-validation`, salesPending])),
         };

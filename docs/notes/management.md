@@ -13,8 +13,13 @@ Management cards / tabs, agents & teams, transfers, designations, editing profil
   **`/management` is a card page** (`Pages/Portal/Management/Index`, `can:open,Team` = Management permissions **or** a receiving
   permission; `TeamDirectoryService::overview` counts): one card per section from `components/management/managementCatalog.ts`
   (also the `ManagementLayout` tabs — Overview first — and the menu node's children): Agents, Teams, Sub-teams, Team transfers,
-  **Brokerage receiving, Rental receiving, SMS Manager** (their pages keep their URLs and permissions but render inside `ManagementLayout`;
-  they're no longer sidebar items — the Management item carries their awaiting badge / waiting credit requests). Agents ( by default only agents **on a team** and **fully registered**: filters `membership=no_team|any`,
+  **Brokerage receiving, Rental receiving, SMS Manager, Reactivation Requests** (their pages keep their URLs and permissions but
+  render inside `ManagementLayout`; they're no longer sidebar items for portal roles — the Management item carries their awaiting
+  badge / waiting credit requests / waiting reviews). **Reactivation Requests** is gated by `change_agent_status` (not a receiving
+  permission — it's an agent-status capability) and, unlike the others, is also reachable on its own outside Management
+  (`ReactivationRequestsLayout`: `ManagementLayout` for portal roles, a plain page for team leaders / unit managers / sponsors who
+  have no Management but still review within their reach — same split as `SmsLayout`); see [[fire]] / [[registration-onboarding]].
+  Agents ( by default only agents **on a team** and **fully registered**: filters `membership=no_team|any`,
   `registration=incomplete|any`, shown with `FilterSelect hideAll`; clicking a name opens `AgentDetailDrawer` — the search's `PersonDetails`, from optional prop
   `agentDetail` (`?agent=ID`, `PersonDetailsService`, shared with `/search/users`) + "View profile"), Teams (`/management/teams`),
   Sub-teams, Team transfers. Menu: Management sits right under Dashboard. **Each kind of change is its own permission**
