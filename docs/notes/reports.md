@@ -42,16 +42,91 @@ Sales report / Reports cards, report layout, areas (branches), Recruits, Recruit
   Drill-down: Teams / Sub-teams / Developers rows open that group's top agents (`team_id` / `sub_team_id` /
   `developer_id` filter → `SalesReportService::sales()` scope; teams by the stint covering each reservation date;
   shared `scope` prop names it for the chip).
+- **Property type cards** (View Sales, Reports, Report Builder, and the standalone `/{role}/statistics` page — `SalesReportService::propertyTypeBreakdown` / `StatisticsService::byPropertyType`): "By property type" in the
+  statistics panel (`ReportStatistics` → `components/reports/PropertyTypeCards.tsx`) is a grid of cards (total sales,
+  total units), each **expandable in place** to its own nested unit types (condo → studio, 1BR, 2BR…) — computed
+  together in one query per surface (`property_type_id` + `unit_type` grouped together, reshaped into
+  `{id, name, sales, value, unit_types: [...]}[]`), so expanding is instant, no second request. Sales with no property
+  type recorded are left out of the breakdown entirely (not shown as a "Not specified" card); property type lives on
+  every local category (project, rental, brokerage — `agent_project_transactions` / `agent_rental_transactions` /
+  `agent_brokerage_transactions` `.project_property_type_id`), not project sales only. **Expanding a card is purely
+  local state (`useState`, no filter change) — clicking the card itself no longer narrows the report** (it used to;
+  changed so expand-to-preview and narrow-the-report aren't the same gesture). Narrowing still happens one level
+  down: clicking a **nested unit type row** sets `property_type_id` **and** `unit_type` together in one step
+  (`SalesReportView`'s `onUnitTypeClick={(propertyTypeId, name) => table.drillInto({ property_type_id: propertyTypeId, unit_type: name })}`)
+  — there is no remaining UI to narrow by property type alone without also picking one of its unit types. The
+  standalone Statistics page reuses the same `PropertyTypeCards` component read-only (no `onUnitTypeClick` — that
+  page has no drill-down/filter concept, just a period picker).
+  `ReportScopeHeader`'s drill-down types `property_type` (facts: listed projects of that type) and `unit_type` are
+  unaffected — both can still appear in the breadcrumb trail (`scopeTrail()`), e.g. from `?property_type_id=…` in a
+  saved/shared URL, even though the cards no longer set `property_type_id` without `unit_type` themselves.
+- **Projects tab, inside a developer**: alongside Top agents / Sales (and Top teams / Top sub-teams for readers who see
+  more than their own group), a **Projects** tab ranks just that developer's own projects — `list=projects` remapped onto
+  `view=projects` (not reach-restricted like the team ones, since a project isn't one reader's group). Combines with
+  everything else already filtered (property type, unit type, dates…), so Condominiums → a developer → Projects shows
+  that developer's condo projects only. Picking it keeps the developer scope, unlike clicking a top-level view tab
+  (which resets it). **`SalesReportService::remapList($filters, $groupTabs)`** is the one place this remapping (and the
+  equivalent for `list=teams`/`sub_teams`) happens — `SalesReportController::index` (View Sales), `ReportsController::show`
+  (a single Reports card) and `ReportBuilderController::sales` (always `$groupTabs = true`, unrestricted) all call it
+  and must pass its result's `groupTabs` through to the page as a prop. Skipping it (as `ReportBuilderController::sales`
+  originally did) leaves `list` set but `view` untouched: the card looks selected but the breakdown table keeps
+  ranking by whatever `view` already was.
+  Sales record a typed project name, not a link to one catalogued `developer_projects` row, so two developers reusing
+  a name would merge there (the developer shown alongside tells them apart); its own `project_name` scope narrows
+  further the same way as property type / unit type.
+- **Average price / sqm** (`kpis.price_per_sqm`, both `SalesReportService` and `StatisticsService`): total value ÷ total
+  floor area, a blended rate — not an average of each sale's own price/sqm — and only sales with a floor area recorded
+  (`agent_{project,rental,brokerage}_transactions.floor_area`) count either side. A `StatTile` beside Average deal; narrows
+  with every other filter (so Condominiums → Studio shows that combination's own rate). The same blended rate is also
+  computed per property type **and** per nested unit type (`propertyTypeBreakdown()` / `byPropertyType()`, "Avg. price /
+  sqm" on `PropertyTypeCards`) — `null` (not `0`) when none of that group's sales has a floor area recorded, so the
+  stat is left off the card/row entirely rather than reading as an actual zero rate.
+- **Statistics cards are one per row** (`ReportStatistics`, the standalone `/{role}/statistics` page): every chart card
+  (`CategoryColumnChart` / `ClientAgeChart` / `ShareBar` / `BarList`) is full width (`size={12}`) — bigger to read, not
+  three or two squeezed into a row.
+- **Seller age** (`App\Support\ClientStats::sellerAges`, a sibling of `ages()`: grouped by agent, one age at their last sale
+  in the range, not per sale like the client's — `seller_ages` / `sellerAges` summary key): the selling agent's age band,
+  alongside "By client age" in both `ReportStatistics` and the standalone `/{role}/statistics` page — `ClientAgeChart`
+  takes `subject="seller"` to switch the wording (same component, no duplicate).
+- **Chart style**: the categorical breakdowns (by category, by client country, by property type, by branch, by age —
+  not long ranked lists like Top developers / Top agents, which stay `BarList`) are `components/charts/CategoryColumnChart`:
+  vertical columns, each its own colour cycling the three validated `--lr-series-1..3` tokens (not one ranked hue like
+  `BarList`), with the same `href` / `onClick` drill-down support.
 - **Only active teams are ranked**: a team or sub-team that is paused (`inactive`) or closed (`deactivated`) — or a sub-team of
   such a team — gets no row in any team / sub-team ranking or grouping: `SalesReportService::grouped()` (Reports Top Teams / Top
   Sub-teams, View Sales, Overview, NATCON team boards, My Team sub-team totals), `LeaderboardService` top teams, Global Partners'
   top teams, Recruits Progress' team / sub-team groupings. Their sales still count in every total and for their agents.
-- **Report layout**: the ranked table comes first (name, Area / location, Team where relevant, Total sales — no
-  count / average / share columns); statistics (`components/reports/ReportStatistics.tsx`: tiles, trend, by
-  category, by area, by client country — codes and legacy names merged via `Countries::resolve`, top 10 + Other —
-  by client gender, by client age, by property type, and Top developers (known developers only — no "Unknown developer" row; same on the leaderboards) with % share of project sales when the report includes
-  project sales) sit underneath. A drill-down shows `ReportScopeHeader` (photo, name, facts, total, "Show
-  everyone") under the title instead of a chip; `scope` carries `avatar` + `facts`. People rows (reports, Overview top agents) open that agent's
+- **Report layout — pick a card, see one section** (`SalesReportView`, `components/reports/ReportSectionCards.tsx`): every
+  view (Agents / Teams / Branches / Developers / Projects / …, or — inside a developer / branch — Top agents / Top teams /
+  Top sub-teams / Projects / Sales) is a big clickable card, **Statistics** is one more card alongside them, and only the
+  active card's content renders below (the ranked table — name, Area / location, Team where relevant, Total units
+  (count of sales — unsortable, server-side sort stays `name`/`value` only), Total sales, no average / share columns —
+  **or** `components/reports/ReportStatistics.tsx`: tiles incl. average price / sqm,
+  trend, by category, by area, by client country — codes and legacy names merged via `Countries::resolve`, top 10 + Other
+  — by client gender, by client/seller age, by property type (expandable cards, nested unit types), and Top developers
+  with % share of project sales — **or** the Sales list) — never both the table and every chart stacked at once.
+  `activeSection` is local state (`useState`), seeded from `filters.view`/`filters.list` and re-synced to it on every
+  navigation (a new drill-down, a different view) — only Statistics is purely local, since nothing else changes the
+  filters. A drill-down shows `ReportScopeHeader` (photo, name, facts, total, "Show everyone") — a Reports card's own
+  title/subtitle (name one specific view, e.g. "Top Agents") is hidden while scoped to anything else (checked via the
+  page's unique `backHref` prop, not `scope` itself — My Team / View Sales / Report Builder's own title makes no such
+  claim, so it stays even when scoped).
+  **`insideDeveloper` / `insideBranch` are keyed off `filters.developer_id` / `filters.area` directly, not which scope
+  level is current** — filters combine (a developer, then a property type, then a unit type within it, all at once),
+  so checking only the current level mismatched the active card/table with what was actually being shown.
+  **Drill-down trail**: `SalesReportService::scopeTrail($filters)` walks the combinable scope keys in a fixed priority
+  (`team_id, sub_team_id, area, developer_id, project_name, property_type_id, unit_type, agent_id`) and returns one
+  entry per active key, broadest first — e.g. developer **then** property type **then** unit type, all at once, each
+  carrying its own `type`/`name`/`facts`. `ReportScopeHeader` takes this array (`scope` prop is now `ReportScopeDetails[]`,
+  not a single object): everything but the last entry renders as a small clickable breadcrumb row above the big banner,
+  which always names the *last*/narrowest level; clicking an earlier breadcrumb level (`onNavigate`) clears everything
+  narrower than it, keeping it and anything broader (`SalesReportView`'s `clearScopeAfter`/`clearScopeAll`, wired to
+  `table.drillInto`) — so "show selected developer" stays visible even after narrowing further to a property type or
+  unit type. `SalesReportService::scope($filters)` is the old single-object shape, kept only for the few pages that
+  never combine scopes and read `.type`/`.name` directly instead of handing the array straight to `ReportScopeHeader`
+  — Recruits, Recruits Progress and the dashboard Overview (`ReportsController::recruits()`/`recruitsProgress()`,
+  `DashboardController`) still call `scope()`; View Sales, Reports cards (`ReportsController::show()`), My Team and
+  Report Builder call `scopeTrail()`. People rows (reports, Overview top agents) open that agent's
   sales `/agents/{agent}/sales` with the same dates / status / category; the read-only profile is `/agents/{agent}`
   (`AgentProfileController`, view_reports or team managers; same service with an `agent_id` scope).
   Every sale of one agent: `/agents/{agent}/sales` (`AgentProfileController::sales`, `Pages/Portal/Agents/Sales.tsx`), the
@@ -156,12 +231,40 @@ Sales report / Reports cards, report layout, areas (branches), Recruits, Recruit
   to fit (`Fit` in `RecruitsProgressPdf`, the largest scale whose layout fits) since the AI's text varies in length.
 - **Charts / statistics**: `/{superadmin,admin,staff}/statistics`, guarded by its own `view_statistics` permission (Settings ›
   Roles & permissions › Statistics; migration `000028` gave it to every role that had view_reports) (`StatisticsController` → `StatisticsService`,
-  sales dated by `reservation_date`). Client splits (country, gender, age) for both pages come from `App\Support\ClientStats`; ages
-  outside 18–99 are typos and only counted as `excluded` (`agent_transaction_details.client_age`: legacy `clientAge` via
+  sales dated by `reservation_date`). Client splits (country, gender, age) for both pages come from `App\Support\ClientStats`;
+  country and gender leave sales with nothing recorded out of the breakdown entirely (not shown as a "Not specified" row —
+  `ClientStats::countries`/`genders`); ages outside 18–99 are typos and only counted as `excluded` (`agent_transaction_details.client_age`: legacy `clientAge` via
   `legacy:import-client-ages`, new sales from the birthdate at the reservation date in `SaleRecord`); UI `ClientAgeChart`. Charts are plain MUI in `components/charts/` (`StatTile` — optional `icon`: a large faint watermark in the corner; money on a tile is the whole amount to the centavo, `formatPesoExact`, never `formatPesoCompact`; the figure never wraps: it sizes itself to the card with `helpers/fitText.ts` `fitFontSize` (the card is an inline-size container; also `SalesTotals`);
   `MonthlyColumnChart`, `BarList`, `ShareBar`) — no chart library. Series colours are the validated
   `--lr-series-1..3` tokens in fixed order (light/dark in `app.css`); text always uses text tokens;
   every chart carries a visually hidden data table (`srOnly`). Money: `helpers/formatNumber.ts`.
+- **Report Builder** (superadmin only, `/superadmin/report-builder/{sales,recruits}`, `Portal\SuperAdmin\ReportBuilderController`,
+  menu `reportBuilderRoute` in `useAppRoutes` only): "build a report on the spot instead of opening a fixed one" — the same
+  dynamic, whitelisted breakdown engines as View Sales and Recruits Progress, just unrestricted (a superadmin's reach is the
+  whole system, so no `lock` / `scope` ever narrows it) and with a **CSV export** neither of those pages offers.
+  **Sales** reuses `SalesReportService` and the shared `components/reports/SalesReportView.tsx` as-is (every view: agents,
+  teams, sub_teams, areas, developers, brokerage, rental, unit_managers, team_leaders — "top agents" / "top city" / "top
+  developer" / …, with the same date/status/category filters and drill-down `scope`), adding only an **Export CSV** button
+  via the component's `header` slot. **Recruits & Onboarding** is a new, purpose-built page over `RecruitProgressService`'s
+  existing groupings (teams / sub_teams / areas / sponsors — the recruit-by-recruit listing is left out, a different row
+  shape) with its own date range, search and export. Export streams up to `ReportBuilderController::EXPORT_ROWS` (5,000) rows
+  as CSV (`response()->streamDownload`, one column set per domain) — a spreadsheet ceiling, not a hard limit. No raw/free-form
+  SQL anywhere: every dimension, metric and filter is one of these services' own whitelisted, parameterised views: that's the
+  only safe way to let an admin "build a query."
+- **Ask AI** (Sales tab only, `AskAiReportBar.tsx` above `SalesReportView`, `POST /superadmin/report-builder/ai` →
+  `ReportBuilderController::ask`, `use_ai_report_builder` permission): a free-text request ("condo sales in Cebu last
+  quarter by developer") becomes the same `SalesReportService` filters a user would otherwise set by hand —
+  `ReportBuilderAiService::interpret()` calls OpenAI (`OpenAiClient`, same provider/config as `RecruitAnalysisService`)
+  with a strict schema, but the model only ever returns enums (view/category/status/property type) or **best-guess
+  names** for developer / team / sub-team / branch / agent — never an ID, and never SQL. Each name is resolved
+  server-side against the real tables, reusing existing lookups rather than trusting the model: `GroupSearchService::search()`
+  for team/sub-team/branch (the same reach-aware search behind the navbar), a `Developer` name lookup mirroring the
+  sale-recording picker, and an inline agent lookup mirroring `SearchController::agents()`. A name that matches nothing
+  is **dropped, not guessed**, and surfaces as a warning in the flash toast alongside what was understood. Each request
+  **replaces** the current filters (not merged) and redirects into this same Sales tab — no separate result page, no
+  new report UI. Throttled like `RecruitAnalysisService` (20/hour per user, `RateLimiter`), and gracefully degrades
+  (flash `error`, never a 500) when `OPENAI_API_KEY` is unset or the call fails — the bar shows a muted "not set up
+  yet" state instead (`aiEnabled` prop, `ReportBuilderAiService::configured()`).
 - **Leaderboards** (`components/utils/SalesLeaderboards.tsx`, in `SideRail` under "Online now" on every
   route): gated by the `view_leaderboards` permission (grant it per role in Settings). Data is the
   **optional** shared prop `leaderboards` (`LeaderboardService`), computed only when the panel asks via

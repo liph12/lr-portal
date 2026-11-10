@@ -174,13 +174,7 @@ class ReportsController extends Controller
         // Inside a developer or a branch, its Top teams / Top sub-teams: for readers who see more than their own group — the
         // back office and office secretaries (their branch's members). A leader's lock would only rank their own group.
         $groupTabs = $lock === null || isset($lock['area']);
-        if (in_array($filters['list'], ['teams', 'sub_teams'], true)) {
-            if ($groupTabs && ($filters['developer_id'] || $filters['area'])) {
-                $filters['view'] = $filters['list'];
-            } else {
-                $filters['list'] = null;
-            }
-        }
+        $filters = $this->reports->remapList($filters, $groupTabs);
 
         return inertia('Portal/Reports/Show', [
             'report' => $report,
@@ -191,7 +185,7 @@ class ReportsController extends Controller
             'areaOptions' => $report === 'area-developers' && $lock === null
                 ? collect(config('areas'))->map(fn ($a) => $a['name'])
                 : null,
-            'scope' => fn () => $this->reports->scope($filters),
+            'scope' => fn () => $this->reports->scopeTrail($filters),
             'summary' => fn () => $this->reports->summary($filters),
             // A sale clicked in the Sales tab (?sale=ID), read-only — only one that's in this report and the reader's reach.
             'saleDetail' => fn () => ($sale = (int) $request->query('sale')) && $filters['list'] === 'sales' && $this->reports->containsSale($filters, $sale)

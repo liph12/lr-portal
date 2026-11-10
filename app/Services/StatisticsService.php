@@ -47,6 +47,7 @@ class StatisticsService
             'developers' => $this->topDevelopers($start, $end),
             'propertyTypes' => $this->byPropertyType($start, $end),
             'clients' => $this->clients($start, $end),
+            'sellerAges' => $this->sellerAges($start, $end),
             'team' => $this->team(),
         ];
     }
@@ -80,7 +81,7 @@ class StatisticsService
      */
     private function sales(?CarbonImmutable $start, CarbonImmutable $end): Collection
     {
-        return $this->salesQuery($start, $end)->get(['p.reservation_date', 'p.total_contract_price']);
+        return $this->salesQuery($start, $end)->get(['p.reservation_date', 'p.total_contract_price', 'p.floor_area']);
     }
 
     /**
@@ -90,6 +91,17 @@ class StatisticsService
     {
         $count = $current->count();
         $value = (float) $current->sum('total_contract_price');
+        // Blended rate (total value ÷ total floor area), not an average of each sale's own rate — only sales with a
+        // floor area recorded count either side.
+        $pricePerSqm = function (?Collection $sales) {
+            if (! $sales) {
+                return null;
+            }
+            $withArea = $sales->filter(fn ($s) => $s->floor_area > 0);
+            $area = (float) $withArea->sum('floor_area');
+
+            return $area > 0 ? (float) $withArea->sum('total_contract_price') / $area : null;
+        };
 
         return [
             'sales' => ['value' => $count, 'previous' => $previous?->count()],
@@ -97,6 +109,10 @@ class StatisticsService
             'average_deal' => [
                 'value' => $count ? $value / $count : 0,
                 'previous' => $previous && $previous->count() ? (float) $previous->sum('total_contract_price') / $previous->count() : null,
+            ],
+            'price_per_sqm' => [
+                'value' => $pricePerSqm($current) ?? 0.0,
+                'previous' => $pricePerSqm($previous),
             ],
             'active_users' => [
                 'value' => User::where('status', User::STATUS_ACTIVE)->count(),
@@ -154,18 +170,45 @@ class StatisticsService
     }
 
     /**
-     * @return array<int, array{name: string, sales: int, value: float}>
+     * Property types with each one's own unit types nested inside (the Statistics page's expandable cards). Sales
+     * with no recorded property type / unit type are left out entirely — not shown as "Unspecified".
+     *
+     * @return array<int, array{id: int, name: string, sales: int, value: float, price_per_sqm: ?float, unit_types: array<int, array{name: string, sales: int, value: float, price_per_sqm: ?float}>}>
      */
     private function byPropertyType(?CarbonImmutable $start, CarbonImmutable $end): array
     {
-        return $this->salesQuery($start, $end)
-            ->leftJoin('project_property_types as pt', 'pt.id', '=', 'p.project_property_type_id')
+        // Blended rate (total value ÷ total floor area) per group, like the KPI — only sales with a floor area
+        // recorded count either side, never an average of each sale's own rate; null (not 0) when none is recorded.
+        $sqm = 'COALESCE(SUM(CASE WHEN p.floor_area > 0 THEN p.total_contract_price ELSE 0 END), 0) as sqm_value, COALESCE(SUM(CASE WHEN p.floor_area > 0 THEN p.floor_area ELSE 0 END), 0) as sqm_area';
+        $pricePerSqm = fn ($r) => (float) $r->sqm_area > 0 ? (float) $r->sqm_value / (float) $r->sqm_area : null;
+
+        $types = $this->salesQuery($start, $end)
+            ->join('project_property_types as pt', 'pt.id', '=', 'p.project_property_type_id')
             ->groupBy('p.project_property_type_id', 'pt.name')
-            ->selectRaw('pt.name as name, COUNT(*) as sales, SUM(p.total_contract_price) as value')
+            ->selectRaw("p.project_property_type_id as id, pt.name as name, COUNT(*) as sales, SUM(p.total_contract_price) as value, {$sqm}")
+            ->orderByDesc('sales')
+            ->get();
+
+        $unitTypes = [];
+        $this->salesQuery($start, $end)
+            ->whereNotNull('p.project_property_type_id')
+            ->whereRaw("NULLIF(TRIM(p.unit_type), '') IS NOT NULL")
+            ->groupByRaw("p.project_property_type_id, NULLIF(TRIM(p.unit_type), '')")
+            ->selectRaw("p.project_property_type_id as property_type_id, NULLIF(TRIM(p.unit_type), '') as name, COUNT(*) as sales, SUM(p.total_contract_price) as value, {$sqm}")
             ->orderByDesc('sales')
             ->get()
-            ->map(fn ($r) => ['name' => $r->name ?? 'Unspecified', 'sales' => (int) $r->sales, 'value' => (float) $r->value])
-            ->all();
+            ->each(function ($r) use (&$unitTypes, $pricePerSqm) {
+                $unitTypes[(int) $r->property_type_id][] = ['name' => $r->name, 'sales' => (int) $r->sales, 'value' => (float) $r->value, 'price_per_sqm' => $pricePerSqm($r)];
+            });
+
+        return $types->map(fn ($r) => [
+            'id' => (int) $r->id,
+            'name' => $r->name,
+            'sales' => (int) $r->sales,
+            'value' => (float) $r->value,
+            'price_per_sqm' => $pricePerSqm($r),
+            'unit_types' => $unitTypes[(int) $r->id] ?? [],
+        ])->all();
     }
 
     /**
@@ -184,6 +227,14 @@ class StatisticsService
             'genders' => ClientStats::genders($rows()),
             'ages' => ClientStats::ages($rows()),
         ];
+    }
+
+    // The selling agent's age, not the client's.
+    private function sellerAges(?CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        return ClientStats::sellerAges($this->salesQuery($start, $end)
+            ->join('agents as sag', 'sag.id', '=', 't.agent_id')
+            ->select('t.agent_id', 'sag.birthdate', 'p.reservation_date', 'p.total_contract_price as value'));
     }
 
     /**

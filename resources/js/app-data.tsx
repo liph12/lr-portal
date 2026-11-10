@@ -12,6 +12,7 @@ import {
     SettingsRounded,
     BarChartRounded,
     AssessmentRounded,
+    QueryStatsRounded,
     Diversity3Rounded,
     FactCheckRounded,
     HowToRegRounded,
@@ -213,6 +214,19 @@ export const reportsRoute = {
     })),
 };
 
+// Superadmin only: the same sales / recruits breakdown engines as View Sales and Recruits Progress, unrestricted and
+// exportable — build a report on the spot instead of opening a fixed one.
+export const reportBuilderRoute = {
+    name: "Report Builder",
+    path: "/superadmin/report-builder/sales",
+    icon: QueryStatsRounded,
+    alsoActive: /^\/superadmin\/report-builder(\/.*)?$/,
+    children: [
+        { name: "Sales", path: "/superadmin/report-builder/sales", children: [] },
+        { name: "Recruits & Onboarding", path: "/superadmin/report-builder/recruits", children: [] },
+    ],
+};
+
 // Management: the cards at its base and its sections (managementCatalog) — the same pages in every back-office portal, and
 // the two commission receivings (shared pages with their own permissions). Its badge = slips awaiting receipt.
 const managementRoute = (base: string) => ({
@@ -227,6 +241,7 @@ export const useAppRoutes = [
     dashboardRoute,
     managementRoute("/superadmin/management"),
     reportsRoute,
+    reportBuilderRoute,
     natconRoute,
     globalPartnersRoute,
     naoApprovalsRoute,

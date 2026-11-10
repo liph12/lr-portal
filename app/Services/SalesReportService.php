@@ -23,7 +23,7 @@ class SalesReportService
 
     // What the breakdown table groups by. Developers / brokerage / rental views only make sense for their category;
     // brokerage and rental rank the agents who made those sales.
-    public const VIEWS = ['agents', 'teams', 'sub_teams', 'areas', 'developers', 'brokerage', 'rental', 'unit_managers', 'team_leaders'];
+    public const VIEWS = ['agents', 'teams', 'sub_teams', 'areas', 'developers', 'projects', 'brokerage', 'rental', 'unit_managers', 'team_leaders'];
 
 
     // Views that rank the members of one role by their own (personal) sales.
@@ -68,88 +68,142 @@ class SalesReportService
             'dir' => ($input['dir'] ?? null) === 'asc' ? 'asc' : 'desc',
             'page' => max(1, (int) ($input['page'] ?? 1)),
             'per_page' => in_array((int) ($input['per_page'] ?? 0), self::PER_PAGE, true) ? (int) $input['per_page'] : self::PER_PAGE[0],
-            // Inside a developer: "sales" lists the sales one by one instead of ranking agents.
-            // …or ranks its teams / sub-teams instead of its agents (ReportsController::show allows it per reader).
-            'list' => in_array($input['list'] ?? null, ['sales', 'teams', 'sub_teams'], true) ? $input['list'] : null,
+            // Inside a developer: "sales" lists the sales one by one instead of ranking agents, "projects" ranks its
+            // own projects (a property type / unit type still narrows them) …or "teams" / "sub_teams" rank those
+            // instead of its agents (ReportsController::show / SalesReportController::index remap `list` onto `view`).
+            'list' => in_array($input['list'] ?? null, ['sales', 'teams', 'sub_teams', 'projects'], true) ? $input['list'] : null,
             // Drill-down from a team / sub-team / developer row: only that group's sales (one at a time).
             'team_id' => ($scope = $this->scopeOf($input))['team_id'],
             'sub_team_id' => $scope['sub_team_id'],
             'developer_id' => $scope['developer_id'],
             'area' => $scope['area'],
             'agent_id' => $scope['agent_id'],
+            'property_type_id' => $scope['property_type_id'],
+            'project_name' => $scope['project_name'],
+            'unit_type' => $scope['unit_type'],
         ];
     }
 
+    // Broadest first: every level currently drilled into, so a combination (a developer, then a property type within
+    // it) shows as a trail, not just whichever one ReportScopeHeader's big banner happens to feature (the last one).
+    private const SCOPE_ORDER = ['team_id', 'sub_team_id', 'area', 'developer_id', 'project_name', 'property_type_id', 'unit_type', 'agent_id'];
+
     /**
-     * The group a drill-down is limited to, with a few facts for the page header; null when not drilled down.
+     * The narrowest level drilled into, with a few facts for the page header; null when not drilled down. Recruits /
+     * Recruits Progress / My Sales / Dashboard Overview name a locked reader's own group with this — never more than
+     * one of these levels at once for them, so "the narrowest" is unambiguous. View Sales, Reports and Report
+     * Builder — where a property type / unit type can combine with a developer — use scopeTrail() instead, for the
+     * whole thing as a breadcrumb.
      *
      * @param  array<string, mixed>  $f  normalised filters
      * @return array{type: string, id: int|string, name: string, avatar: ?string, facts: array<int, array{label: string, value: string}>}|null
      */
     public function scope(array $f): ?array
     {
-        if ($f['agent_id'] ?? null) {
-            $agent = DB::table('agents as a')->leftJoin('users as u', 'u.id', '=', 'a.user_id')->where('a.id', $f['agent_id'])->first(['u.name', 'a.avatar', 'a.area']);
+        $trail = $this->scopeTrail($f);
 
-            return ['type' => 'agent', 'id' => $f['agent_id'], 'name' => $agent->name ?? "#{$f['agent_id']}", 'avatar' => $agent->avatar ?? null, 'facts' => [
-                ['label' => 'Branch', 'value' => ($agent->area ?? null) ? Areas::name($agent->area) : '—'],
-            ]];
-        }
-
-        // A developer drill-down names the developer (and the area it's narrowed to, if any).
-        if ($f['developer_id'] ?? null) {
-            return ['type' => 'developer', 'id' => $f['developer_id'], 'name' => (string) (DB::table('developers')->where('id', $f['developer_id'])->value('name') ?? "#{$f['developer_id']}"), 'avatar' => null, 'facts' => [
-                ['label' => 'Projects on file', 'value' => number_format(DB::table('developer_projects')->where('developer_id', $f['developer_id'])->count())],
-                ...(($f['area'] ?? null) ? [['label' => 'Branch', 'value' => Areas::name($f['area'])]] : []),
-            ]];
-        }
-
-        if ($f['area'] ?? null) {
-            $agents = DB::table('agents')->where('agent_type', Agent::TYPE_LOCAL)->whereIn('id', Agent::fullyRegisteredIds())->where('area', $f['area'])->count();
-
-            return ['type' => 'area', 'id' => $f['area'], 'name' => Areas::name($f['area']), 'avatar' => null, 'facts' => [
-                ['label' => 'Agents in this branch', 'value' => number_format($agents)],
-            ]];
-        }
-
-        if ($f['team_id'] ?? null) {
-            $team = DB::table('teams as g')->leftJoin('agents as l', 'l.id', '=', 'g.agent_id')->leftJoin('users as lu', 'lu.id', '=', 'l.user_id')
-                ->where('g.id', $f['team_id'])->first(['g.name', 'g.logo', 'g.status', 'lu.name as leader', 'l.area']);
-
-            return ['type' => 'team', 'id' => $f['team_id'], 'name' => $team->name ?? "#{$f['team_id']}", 'avatar' => $team->logo ?? null, 'facts' => [
-                ['label' => 'Team leader', 'value' => $team->leader ?? '—'],
-                ['label' => 'Branch', 'value' => ($team->area ?? null) ? Areas::name($team->area) : '—'],
-                ['label' => 'Active members', 'value' => number_format(DB::table('team_agents')->where('team_id', $f['team_id'])->where('status', 'active')->count())],
-                ['label' => 'Status', 'value' => ucfirst((string) ($team->status ?? '—'))],
-            ]];
-        }
-
-        if ($f['sub_team_id'] ?? null) {
-            $sub = DB::table('sub_teams as g')->leftJoin('teams as t', 't.id', '=', 'g.team_id')
-                ->leftJoin('agents as l', 'l.id', '=', 'g.agent_id')->leftJoin('users as lu', 'lu.id', '=', 'l.user_id')
-                ->where('g.id', $f['sub_team_id'])->first(['g.name', 'g.logo', 't.name as team', 'lu.name as leader', 'l.area']);
-
-            return ['type' => 'sub_team', 'id' => $f['sub_team_id'], 'name' => $sub->name ?? "#{$f['sub_team_id']}", 'avatar' => $sub->logo ?? null, 'facts' => [
-                ['label' => 'Team', 'value' => $sub->team ?? '—'],
-                ['label' => 'Leader', 'value' => $sub->leader ?? '—'],
-                ['label' => 'Branch', 'value' => ($sub->area ?? null) ? Areas::name($sub->area) : '—'],
-                ['label' => 'Active members', 'value' => number_format(DB::table('sub_team_agents')->where('sub_team_id', $f['sub_team_id'])->where('status', 'active')->count())],
-            ]];
-        }
-
-        return null;
+        return $trail ? end($trail) : null;
     }
 
     /**
-     * @return array{team_id: ?int, sub_team_id: ?int, developer_id: ?int, area: ?string, agent_id: ?int}
+     * The drill-down trail for the page header: one entry per level currently filtered into, broadest first, with a
+     * few facts on each; empty when nothing is drilled down.
+     *
+     * @param  array<string, mixed>  $f  normalised filters
+     * @return array<int, array{type: string, id: int|string, name: string, avatar: ?string, facts: array<int, array{label: string, value: string}>}>
+     */
+    public function scopeTrail(array $f): array
+    {
+        $trail = [];
+        foreach (self::SCOPE_ORDER as $key) {
+            if ($f[$key] ?? null) {
+                $trail[] = $this->scopeLevel($key, $f);
+            }
+        }
+
+        return $trail;
+    }
+
+    /**
+     * @return array{type: string, id: int|string, name: string, avatar: ?string, facts: array<int, array{label: string, value: string}>}
+     */
+    private function scopeLevel(string $key, array $f): array
+    {
+        return match ($key) {
+            'agent_id' => (function () use ($f) {
+                $agent = DB::table('agents as a')->leftJoin('users as u', 'u.id', '=', 'a.user_id')->where('a.id', $f['agent_id'])->first(['u.name', 'a.avatar', 'a.area']);
+
+                return ['type' => 'agent', 'id' => $f['agent_id'], 'name' => $agent->name ?? "#{$f['agent_id']}", 'avatar' => $agent->avatar ?? null, 'facts' => [
+                    ['label' => 'Branch', 'value' => ($agent->area ?? null) ? Areas::name($agent->area) : '—'],
+                ]];
+            })(),
+            // A property type drill-down (clicked from "By property type"): every category with one recorded — condo,
+            // house and lot, etc. — not just project sales.
+            'property_type_id' => (function () use ($f) {
+                $name = (string) (DB::table('project_property_types')->where('id', $f['property_type_id'])->value('name') ?? "#{$f['property_type_id']}");
+                $projects = DB::table('developer_projects')->where('project_property_type_id', $f['property_type_id'])->count();
+
+                return ['type' => 'property_type', 'id' => $f['property_type_id'], 'name' => $name, 'avatar' => null, 'facts' => [
+                    ['label' => 'Listed projects of this type', 'value' => number_format($projects)],
+                ]];
+            })(),
+            // A project drill-down (clicked from the Projects view or "By property type" → Projects): named only,
+            // since sales record it as typed text, not one catalogued project.
+            'project_name' => ['type' => 'project', 'id' => $f['project_name'], 'name' => $f['project_name'], 'avatar' => null, 'facts' => []],
+            // A unit type drill-down (clicked from "By unit type"): also typed text, named only.
+            'unit_type' => ['type' => 'unit_type', 'id' => $f['unit_type'], 'name' => $f['unit_type'], 'avatar' => null, 'facts' => []],
+            // A developer drill-down names the developer (and the area it's narrowed to, if any).
+            'developer_id' => ['type' => 'developer', 'id' => $f['developer_id'], 'name' => (string) (DB::table('developers')->where('id', $f['developer_id'])->value('name') ?? "#{$f['developer_id']}"), 'avatar' => null, 'facts' => [
+                ['label' => 'Projects on file', 'value' => number_format(DB::table('developer_projects')->where('developer_id', $f['developer_id'])->count())],
+                ...(($f['area'] ?? null) ? [['label' => 'Branch', 'value' => Areas::name($f['area'])]] : []),
+            ]],
+            'area' => (function () use ($f) {
+                $agents = DB::table('agents')->where('agent_type', Agent::TYPE_LOCAL)->whereIn('id', Agent::fullyRegisteredIds())->where('area', $f['area'])->count();
+
+                return ['type' => 'area', 'id' => $f['area'], 'name' => Areas::name($f['area']), 'avatar' => null, 'facts' => [
+                    ['label' => 'Agents in this branch', 'value' => number_format($agents)],
+                ]];
+            })(),
+            'team_id' => (function () use ($f) {
+                $team = DB::table('teams as g')->leftJoin('agents as l', 'l.id', '=', 'g.agent_id')->leftJoin('users as lu', 'lu.id', '=', 'l.user_id')
+                    ->where('g.id', $f['team_id'])->first(['g.name', 'g.logo', 'g.status', 'lu.name as leader', 'l.area']);
+
+                return ['type' => 'team', 'id' => $f['team_id'], 'name' => $team->name ?? "#{$f['team_id']}", 'avatar' => $team->logo ?? null, 'facts' => [
+                    ['label' => 'Team leader', 'value' => $team->leader ?? '—'],
+                    ['label' => 'Branch', 'value' => ($team->area ?? null) ? Areas::name($team->area) : '—'],
+                    ['label' => 'Active members', 'value' => number_format(DB::table('team_agents')->where('team_id', $f['team_id'])->where('status', 'active')->count())],
+                    ['label' => 'Status', 'value' => ucfirst((string) ($team->status ?? '—'))],
+                ]];
+            })(),
+            'sub_team_id' => (function () use ($f) {
+                $sub = DB::table('sub_teams as g')->leftJoin('teams as t', 't.id', '=', 'g.team_id')
+                    ->leftJoin('agents as l', 'l.id', '=', 'g.agent_id')->leftJoin('users as lu', 'lu.id', '=', 'l.user_id')
+                    ->where('g.id', $f['sub_team_id'])->first(['g.name', 'g.logo', 't.name as team', 'lu.name as leader', 'l.area']);
+
+                return ['type' => 'sub_team', 'id' => $f['sub_team_id'], 'name' => $sub->name ?? "#{$f['sub_team_id']}", 'avatar' => $sub->logo ?? null, 'facts' => [
+                    ['label' => 'Team', 'value' => $sub->team ?? '—'],
+                    ['label' => 'Leader', 'value' => $sub->leader ?? '—'],
+                    ['label' => 'Branch', 'value' => ($sub->area ?? null) ? Areas::name($sub->area) : '—'],
+                    ['label' => 'Active members', 'value' => number_format(DB::table('sub_team_agents')->where('sub_team_id', $f['sub_team_id'])->where('status', 'active')->count())],
+                ]];
+            })(),
+        };
+    }
+
+    /**
+     * @return array{team_id: ?int, sub_team_id: ?int, developer_id: ?int, area: ?string, agent_id: ?int, property_type_id: ?int, project_name: ?string, unit_type: ?string}
      */
     // Filters combine: an area's developers, then one developer's agents in that area; or a leader's team + a developer.
     private function scopeOf(array $input): array
     {
         $area = $input['area'] ?? null;
         $scope = ['area' => is_string($area) && array_key_exists($area, config('areas')) ? $area : null];
-        foreach (['team_id', 'sub_team_id', 'developer_id', 'agent_id'] as $key) {
+        foreach (['team_id', 'sub_team_id', 'developer_id', 'agent_id', 'property_type_id'] as $key) {
             $scope[$key] = (int) ($input[$key] ?? 0) > 0 ? (int) $input[$key] : null;
+        }
+        foreach (['project_name', 'unit_type'] as $key) {
+            $value = trim((string) ($input[$key] ?? ''));
+            $scope[$key] = $value !== '' ? $value : null;
         }
 
         return $scope;
@@ -194,6 +248,36 @@ class SalesReportService
         return $this->filters(array_diff_key($input, array_flip(['team_id', 'sub_team_id', 'area', 'agent_id'])) + $lock);
     }
 
+    /**
+     * Inside a developer or a branch, its own Top teams / Top sub-teams / Projects card remaps `list` onto `view`
+     * (so the breakdown table actually groups by it), without losing the developer/branch scope the way picking a
+     * different view tab would. Shared by View Sales, a single Reports card and Report Builder — every caller that
+     * offers these cards must run its filters through this before reading `view`/`list`, or the breakdown silently
+     * keeps ranking by whatever `view` already was while the card looks selected.
+     *
+     * @param  array<string, mixed>  $filters  normalised filters (SalesReportService::filters()/lockedFilters())
+     * @return array<string, mixed>
+     */
+    public function remapList(array $filters, bool $groupTabs): array
+    {
+        if (in_array($filters['list'], ['teams', 'sub_teams'], true)) {
+            if ($groupTabs && ($filters['developer_id'] || $filters['area'])) {
+                $filters['view'] = $filters['list'];
+            } else {
+                $filters['list'] = null;
+            }
+        } elseif ($filters['list'] === 'projects') {
+            // Its own projects, not reach-restricted — a project isn't one reader's group the way a team is.
+            if ($filters['developer_id']) {
+                $filters['view'] = 'projects';
+            } else {
+                $filters['list'] = null;
+            }
+        }
+
+        return $filters;
+    }
+
     // Count and value per category for the same filters but every category, so all three totals stay visible while one is picked.
     // Cached until the data changes (DataCache).
     public function categoryTotals(array $f): array
@@ -236,7 +320,9 @@ class SalesReportService
         $previous = ['from' => $from->subDays($days)->toDateString(), 'to' => $from->subDay()->toDateString()] + $f;
 
         $totals = fn (array $filters) => DB::query()->fromSub($this->sales($filters), 's')
-            ->selectRaw('COUNT(*) as sales, COALESCE(SUM(value), 0) as value, COUNT(DISTINCT agent_id) as agents')
+            ->selectRaw('COUNT(*) as sales, COALESCE(SUM(value), 0) as value, COUNT(DISTINCT agent_id) as agents,
+                COALESCE(SUM(CASE WHEN floor_area > 0 THEN value ELSE 0 END), 0) as sqm_value,
+                COALESCE(SUM(CASE WHEN floor_area > 0 THEN floor_area ELSE 0 END), 0) as sqm_area')
             ->first();
         $now = $totals($f);
         $before = $totals($previous);
@@ -253,6 +339,12 @@ class SalesReportService
                     'previous' => $before->sales ? (float) $before->value / $before->sales : null,
                 ],
                 'agents' => ['value' => (int) $now->agents, 'previous' => (int) $before->agents],
+                // Blended rate (total value ÷ total floor area), not an average of each sale's own rate — only sales
+                // with a floor area recorded count either side.
+                'price_per_sqm' => [
+                    'value' => (float) $now->sqm_area > 0 ? (float) $now->sqm_value / (float) $now->sqm_area : 0.0,
+                    'previous' => (float) $before->sqm_area > 0 ? (float) $before->sqm_value / (float) $before->sqm_area : null,
+                ],
             ],
             'bucket' => $bucket,
             'trend' => $this->trend($f, $from, $to, $byYear),
@@ -277,16 +369,56 @@ class SalesReportService
             'client_countries' => ClientStats::countries($this->sales($f)),
             'client_genders' => ClientStats::genders($this->sales($f)),
             'client_ages' => ClientStats::ages($this->sales($f)),
-            'property_types' => DB::query()->fromSub($this->sales($f), 's')
-                ->leftJoin('project_property_types as pt', 'pt.id', '=', 's.property_type_id')
-                ->groupBy('s.property_type_id', 'pt.name')
-                ->selectRaw('pt.name as name, COUNT(*) as sales, COALESCE(SUM(s.value), 0) as value')
-                ->orderByDesc('value')
-                ->get()
-                ->map(fn ($r) => ['name' => $r->name ?? 'Not specified', 'sales' => (int) $r->sales, 'value' => (float) $r->value])
-                ->all(),
+            'seller_ages' => ClientStats::sellerAges(DB::query()->fromSub($this->sales($f), 's')
+                ->join('agents as sag', 'sag.id', '=', 's.agent_id')
+                ->select('s.agent_id', 'sag.birthdate', 's.reservation_date', 's.value')),
+            // Sales with no recorded property type / unit type are left out entirely — not shown as "Not specified".
+            // Each property type carries its own unit types nested inside (Statistics' expandable cards).
+            'property_types' => $this->propertyTypeBreakdown($f),
             'comparison' => ['from' => $previous['from'], 'to' => $previous['to']],
         ];
+    }
+
+    /**
+     * Property types with each one's own unit types nested inside — the Statistics panel's cards, expandable to a
+     * property type's own breakdown (condo → studio, 1BR, …) without a second request.
+     *
+     * @return array<int, array{id: int, name: string, sales: int, value: float, price_per_sqm: ?float, unit_types: array<int, array{name: string, sales: int, value: float, price_per_sqm: ?float}>}>
+     */
+    private function propertyTypeBreakdown(array $f): array
+    {
+        // Blended rate (total value ÷ total floor area) per group, like the KPI — only sales with a floor area
+        // recorded count either side, never an average of each sale's own rate; null (not 0) when none is recorded.
+        $sqm = 'COALESCE(SUM(CASE WHEN s.floor_area > 0 THEN s.value ELSE 0 END), 0) as sqm_value, COALESCE(SUM(CASE WHEN s.floor_area > 0 THEN s.floor_area ELSE 0 END), 0) as sqm_area';
+        $pricePerSqm = fn ($r) => (float) $r->sqm_area > 0 ? (float) $r->sqm_value / (float) $r->sqm_area : null;
+
+        $types = DB::query()->fromSub($this->sales($f), 's')
+            ->join('project_property_types as pt', 'pt.id', '=', 's.property_type_id')
+            ->groupBy('s.property_type_id', 'pt.name')
+            ->selectRaw("s.property_type_id as id, pt.name as name, COUNT(*) as sales, COALESCE(SUM(s.value), 0) as value, {$sqm}")
+            ->orderByDesc('value')
+            ->get();
+
+        $unitTypes = [];
+        DB::query()->fromSub($this->sales($f), 's')
+            ->whereNotNull('s.property_type_id')
+            ->whereRaw("NULLIF(TRIM(s.unit_type), '') IS NOT NULL")
+            ->groupByRaw("s.property_type_id, NULLIF(TRIM(s.unit_type), '')")
+            ->selectRaw("s.property_type_id as property_type_id, NULLIF(TRIM(s.unit_type), '') as name, COUNT(*) as sales, COALESCE(SUM(s.value), 0) as value, {$sqm}")
+            ->orderByDesc('value')
+            ->get()
+            ->each(function ($r) use (&$unitTypes, $pricePerSqm) {
+                $unitTypes[(int) $r->property_type_id][] = ['name' => $r->name, 'sales' => (int) $r->sales, 'value' => (float) $r->value, 'price_per_sqm' => $pricePerSqm($r)];
+            });
+
+        return $types->map(fn ($t) => [
+            'id' => (int) $t->id,
+            'name' => $t->name,
+            'sales' => (int) $t->sales,
+            'value' => (float) $t->value,
+            'price_per_sqm' => $pricePerSqm($t),
+            'unit_types' => $unitTypes[(int) $t->id] ?? [],
+        ])->all();
     }
 
     /**
@@ -332,6 +464,7 @@ class SalesReportService
             'area' => $context[$r->key]['area'] ?? null,
             'team' => $f['view'] === 'sub_teams' ? ($r->detail ?? null) : ($context[$r->key]['team'] ?? null),
             'value' => (float) $r->value,
+            'sales' => (int) $r->sales,
         ]);
     }
 
@@ -504,6 +637,15 @@ class SalesReportService
         if ($f['developer_id'] ?? null) {
             $sales = DB::query()->fromSub($sales, 'd')->where('developer_id', $f['developer_id']);
         }
+        if ($f['property_type_id'] ?? null) {
+            $sales = DB::query()->fromSub($sales, 'pt')->where('property_type_id', $f['property_type_id']);
+        }
+        if ($f['project_name'] ?? null) {
+            $sales = DB::query()->fromSub($sales, 'pn')->where('project_name', $f['project_name']);
+        }
+        if ($f['unit_type'] ?? null) {
+            $sales = DB::query()->fromSub($sales, 'ut')->where('unit_type', $f['unit_type']);
+        }
 
         // A team's (sub-team's) sales: those whose agent was on it at the reservation date.
         foreach (['team_id' => ['team_agents', 'team_id'], 'sub_team_id' => ['sub_team_agents', 'sub_team_id']] as $key => [$table, $column]) {
@@ -564,8 +706,9 @@ class SalesReportService
             ->when($f['encoded_by'] ?? null, fn ($q, $at) => $q->where('t.created_at', '<=', $at))
             ->selectRaw('? as category', [$category])
             ->selectRaw('COALESCE(t.agent_id, ra.id) as agent_id')
-            ->addSelect('t.id as sale_id', 'c.reservation_date', 'c.total_contract_price as value', 'c.project_property_type_id as property_type_id')
+            ->addSelect('t.id as sale_id', 'c.reservation_date', 'c.total_contract_price as value', 'c.project_property_type_id as property_type_id', 'c.unit_type', 'c.floor_area')
             ->selectRaw($category === 'project' ? 'c.developer_id' : 'NULL as developer_id')
+            ->selectRaw($category === 'brokerage' ? 'NULL as project_name' : 'c.project_name')
             ->selectRaw($category === 'brokerage' ? 'c.brokerage_area_id' : 'NULL as brokerage_area_id')
             ->leftJoin('agent_transaction_details as cd', 'cd.agent_transaction_id', '=', 't.id')
             ->addSelect('cd.client_country', 'cd.client_gender', 'cd.client_age');
@@ -625,6 +768,12 @@ class SalesReportService
             'developers' => $s()->leftJoin('developers as g0', 'g0.id', '=', 's.developer_id')
                 ->groupBy('s.developer_id', 'g0.name')
                 ->selectRaw('COALESCE(s.developer_id, 0) as `key`, g0.name as name, NULL as detail, NULL as avatar'),
+            // Grouped by name only (sales don't yet link to one catalogued developer_projects row): two developers who
+            // happen to reuse a project name would merge here — the developer shown alongside tells them apart.
+            'projects' => $s()->whereNotNull('s.project_name')->where('s.project_name', '<>', '')
+                ->leftJoin('developers as g0', 'g0.id', '=', 's.developer_id')
+                ->groupBy('s.project_name', 'g0.name')
+                ->selectRaw('s.project_name as `key`, s.project_name as name, g0.name as detail, NULL as avatar'),
             // Agents, rental and brokerage all rank people; rental / brokerage are just limited to their category.
             default => $s()->leftJoin('agents as g0', 'g0.id', '=', 's.agent_id')
                 ->leftJoin('users as gu', 'gu.id', '=', 'g0.user_id')

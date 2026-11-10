@@ -1,4 +1,4 @@
-import { PaymentsRounded, PeopleAltRounded, ReceiptLongRounded, SellRounded } from "@mui/icons-material";
+import { PaymentsRounded, PeopleAltRounded, ReceiptLongRounded, SellRounded, SquareFootRounded } from "@mui/icons-material";
 import { ReactNode, useState } from "react";
 import { Box, Container, Grid, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { router, usePage } from "@inertiajs/react";
@@ -8,7 +8,9 @@ import SectionCard from "../../components/cards/SectionCard";
 import StatTile from "../../components/charts/StatTile";
 import MonthlyColumnChart from "../../components/charts/MonthlyColumnChart";
 import BarList from "../../components/charts/BarList";
+import CategoryColumnChart from "../../components/charts/CategoryColumnChart";
 import ShareBar from "../../components/charts/ShareBar";
+import PropertyTypeCards from "../../components/reports/PropertyTypeCards";
 import UserStatusChip from "../../components/utils/user/UserStatusChip";
 import ClientAgeChart from "../../components/reports/ClientAgeChart";
 import { formatCount, formatPeso, formatPesoCompact, formatPesoExact } from "../../helpers/formatNumber";
@@ -108,14 +110,27 @@ function Statistics({ stats }: { stats: StatsSummary }) {
                             caption={`of ${formatCount(kpis.active_users.total)} accounts`}
                         />
                     </Grid>
+                    <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+                        <StatTile icon={SquareFootRounded}
+                            label="Average price / sqm"
+                            value={`${formatPesoExact(kpis.price_per_sqm.value)}/sqm`}
+                            current={kpis.price_per_sqm.value}
+                            previous={kpis.price_per_sqm.previous}
+                            comparisonLabel={period.comparison}
+                        />
+                    </Grid>
                 </Grid>
+
+                <SectionCard title="By property type" subtitle="Total sales and units — expand one to see its unit types (condo → studio, 1BR, 2BR…)">
+                    <PropertyTypeCards items={stats.propertyTypes} emptyText="No sales in this period yet." />
+                </SectionCard>
 
                 <SectionCard title="Sales over time" subtitle={period.label}>
                     <MonthlyColumnChart data={stats.monthly} />
                 </SectionCard>
 
                 <Grid container spacing={3}>
-                    <Grid size={{ xs: 12, md: 6 }}>
+                    <Grid size={12}>
                         <SectionCard title="Top developers" subtitle="By total contract value">
                             <BarList
                                 caption="Top developers by contract value"
@@ -130,24 +145,9 @@ function Statistics({ stats }: { stats: StatsSummary }) {
                             />
                         </SectionCard>
                     </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
-                        <SectionCard title="Sales by property type" subtitle="Number of sales">
-                            <BarList
-                                caption="Sales by property type"
-                                items={stats.propertyTypes.map((t) => ({
-                                    name: t.name,
-                                    value: t.sales,
-                                    detail: formatPesoCompact(t.value),
-                                    tooltip: `${t.name}: ${salesWord(t.sales)}, ${formatPeso(t.value)}`,
-                                }))}
-                                formatValue={formatCount}
-                                emptyText="No sales in this period yet."
-                            />
-                        </SectionCard>
-                    </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
+                    <Grid size={12}>
                         <SectionCard title="Clients by country" subtitle="Total contract value">
-                            <BarList
+                            <CategoryColumnChart
                                 caption="Total project sales by the client's country"
                                 items={stats.clients.countries.map((c) => ({ name: c.name, value: c.value, detail: salesWord(c.sales) }))}
                                 formatValue={formatPesoCompact}
@@ -155,7 +155,7 @@ function Statistics({ stats }: { stats: StatsSummary }) {
                             />
                         </SectionCard>
                     </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
+                    <Grid size={12}>
                         <SectionCard title="Clients by gender" subtitle="Share of sales in this period">
                             <ShareBar
                                 caption="Project sales by the client's gender"
@@ -170,7 +170,12 @@ function Statistics({ stats }: { stats: StatsSummary }) {
                             </SectionCard>
                         </Box>
                     </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
+                    <Grid size={12}>
+                        <SectionCard title="Sellers by age" subtitle="The agent who recorded the sale; ages 18–99 only">
+                            <ClientAgeChart ages={stats.sellerAges} subject="seller" />
+                        </SectionCard>
+                    </Grid>
+                    <Grid size={12}>
                         <SectionCard title="Team" subtitle="All accounts, any period">
                             <BarList
                                 caption="Users by role"

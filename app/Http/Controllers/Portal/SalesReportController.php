@@ -25,10 +25,16 @@ class SalesReportController extends Controller
         $input = in_array($request->query('view'), $views, true) ? $request->query() : ['view' => 'agents'] + $request->query();
         $filters = $this->reports->lockedFilters($input, $lock);
 
+        // Inside a developer or a branch, its own Top teams / Top sub-teams / Projects, without losing that scope the
+        // way picking a different view tab would (ReportsController::show / ReportBuilderController::sales mirror this).
+        $groupTabs = $lock === null || isset($lock['area']);
+        $filters = $this->reports->remapList($filters, $groupTabs);
+
         return inertia('Portal/Dashboard/Reports/Index', [
             'filters' => $filters,
             'scopeLocked' => $lock !== null,
-            'scope' => fn () => $this->reports->scope($filters),
+            'groupTabs' => $groupTabs,
+            'scope' => fn () => $this->reports->scopeTrail($filters),
             'summary' => fn () => $this->reports->summary($filters),
             // A sale clicked in the Sales tab (?sale=ID), read-only — only one that's in this report and the reader's reach.
             'saleDetail' => fn () => ($sale = (int) $request->query('sale')) && $filters['list'] === 'sales' && $this->reports->containsSale($filters, $sale)

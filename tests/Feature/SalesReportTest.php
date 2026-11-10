@@ -67,9 +67,9 @@ test('the report totals valid local sales of every category in the date range, w
             ->where('summary.trend.2', ['month' => '2026-03', 'sales' => 1, 'value' => 10_000_000])
             ->where('summary.categories', fn ($c) => collect($c)->pluck('sales', 'category')->all() == ['project' => 2, 'brokerage' => 1, 'rental' => 1])
             ->where('breakdown.total', 2)
-            // Only the name, where they belong and the total: no count, average or share.
+            // Name, where they belong, the total and how many sales make it up — no average or share.
             ->where('breakdown.data.0', fn ($r) => $r['name'] === 'Ana Reyes' && (float) $r['value'] === 16_000_000.0 && $r['team'] === 'Alpha'
-                && ! $r->has('sales') && ! $r->has('average') && ! $r->has('share')));
+                && $r['sales'] === 2 && ! $r->has('average') && ! $r->has('share')));
 });
 
 test('global partners and international sales are left out: they get statistics of their own', function () {
@@ -146,9 +146,9 @@ test('clicking a team shows its top agents, counting each sale for the team the 
     // Alpha: Ana's 10M project + 6M brokerage, and Ben's 4M project from 2 Apr (before he moved).
     ($this->report)($range + ['view' => 'agents', 'team_id' => $this->alpha])
         ->assertInertia(fn ($page) => $page
-            ->where('scope.type', 'team')
-            ->where('scope.name', 'Alpha')
-            ->where('scope.facts', fn ($facts) => collect($facts)->pluck('value', 'label')->get('Team leader') === 'Ana Reyes')
+            ->where('scope.0.type', 'team')
+            ->where('scope.0.name', 'Alpha')
+            ->where('scope.0.facts', fn ($facts) => collect($facts)->pluck('value', 'label')->get('Team leader') === 'Ana Reyes')
             ->where('summary.kpis.value.value', 20_000_000)
             ->where('breakdown.total', 2)
             ->where('breakdown.data', fn ($rows) => collect($rows)->pluck('value', 'name')->map(fn ($v) => (float) $v)->all() == ['Ana Reyes' => 16_000_000.0, 'Ben Cruz' => 4_000_000.0]));
@@ -170,9 +170,28 @@ test('clicking a developer shows the agents who sold its projects', function () 
     ($this->report)(['from' => '2026-01-01', 'to' => '2026-10-11', 'view' => 'agents', 'developer_id' => 10])
         ->assertInertia(fn ($page) => $page
             ->where('filters.category', 'project')
-            ->where('scope.name', 'Cebu Landmasters')
+            ->where('scope.0.name', 'Cebu Landmasters')
             ->where('summary.kpis.value.value', 14_000_000)
             ->where('breakdown.data.0.name', 'Ana Reyes'));
+});
+
+test('inside a developer, the Projects tab ranks its own projects, narrowed by property type too', function () {
+    $range = ['from' => '2026-01-01', 'to' => '2026-10-11'];
+    ($this->report)($range + ['developer_id' => 10, 'list' => 'projects'])
+        ->assertInertia(fn ($page) => $page
+            ->where('filters.view', 'projects')
+            ->where('filters.list', 'projects')
+            ->where('breakdown.total', 1)
+            ->where('breakdown.data.0.name', 'Mivela')
+            ->where('breakdown.data.0.detail', 'Cebu Landmasters')
+            ->where('breakdown.data.0.value', 14_000_000));
+
+    DB::table('project_property_types')->insert(['id' => 1, 'name' => 'Condominiums']);
+    $ana1 = DB::table('agent_project_transactions')->where('developer_id', 10)->where('total_contract_price', 10_000_000)->first();
+    DB::table('agent_project_transactions')->where('id', $ana1->id)->update(['project_property_type_id' => 1]);
+
+    ($this->report)($range + ['developer_id' => 10, 'property_type_id' => 1, 'list' => 'projects'])
+        ->assertInertia(fn ($page) => $page->where('breakdown.data.0.value', 10_000_000));
 });
 
 test('sales by area, and clicking an area shows its top agents', function () {
@@ -187,8 +206,8 @@ test('sales by area, and clicking an area shows its top agents', function () {
 
     ($this->report)($range + ['view' => 'agents', 'area' => 'metro-manila'])
         ->assertInertia(fn ($page) => $page
-            ->where('scope.name', 'Metro Manila')
-            ->where('scope.facts.0', ['label' => 'Agents in this branch', 'value' => '1'])
+            ->where('scope.0.name', 'Metro Manila')
+            ->where('scope.0.facts.0', ['label' => 'Agents in this branch', 'value' => '1'])
             ->where('breakdown.total', 1)
             ->where('breakdown.data.0.name', 'Ben Cruz'));
 });
@@ -241,13 +260,54 @@ test('statistics split sales by client country, client gender and property type'
     ]);
     DB::table('project_property_types')->insert(['id' => 1, 'name' => 'Condominiums']);
     DB::table('agent_project_transactions')->update(['project_property_type_id' => 1]);
+    DB::table('agent_project_transactions')->where('agent_transaction_id', $ids[0])->update(['unit_type' => 'Studio']);
+    DB::table('agent_project_transactions')->where('agent_transaction_id', '!=', $ids[0])->update(['unit_type' => '2 Bedrooms']);
 
     ($this->report)(['from' => '2026-01-01', 'to' => '2026-10-11'])
         ->assertInertia(fn ($page) => $page
-            // "PH" (new form) and "Philippines" (legacy) are one country; unset ones are "Not specified".
-            ->where('summary.client_countries', fn ($rows) => collect($rows)->pluck('sales', 'name')->all() == ['Philippines' => 2, 'United States' => 1, 'Not specified' => 1])
-            ->where('summary.client_genders', fn ($rows) => collect($rows)->pluck('sales', 'name')->all() == ['Male' => 1, 'Female' => 1, 'Not specified' => 2])
-            ->where('summary.property_types', fn ($rows) => collect($rows)->pluck('sales', 'name')->all() == ['Condominiums' => 2, 'Not specified' => 2]));
+            // "PH" (new form) and "Philippines" (legacy) are one country; sales with none recorded are left out.
+            ->where('summary.client_countries', fn ($rows) => collect($rows)->pluck('sales', 'name')->all() == ['Philippines' => 2, 'United States' => 1])
+            ->where('summary.client_genders', fn ($rows) => collect($rows)->pluck('sales', 'name')->all() == ['Male' => 1, 'Female' => 1])
+            ->where('summary.property_types', fn ($rows) => collect($rows)->pluck('sales', 'name')->all() == ['Condominiums' => 2])
+            ->where('summary.property_types.0.unit_types', fn ($rows) => collect($rows)->pluck('sales', 'name')->all() == ['Studio' => 1, '2 Bedrooms' => 1]));
+});
+
+test('clicking a property type, then a unit type, narrows the whole report to both', function () {
+    DB::table('project_property_types')->insert([['id' => 1, 'name' => 'Condominiums'], ['id' => 2, 'name' => 'House & Lot']]);
+    // $this->ana's two in-range project sales: a condo studio and a condo 2BR; $this->ben's is a house and lot.
+    $ana1 = DB::table('agent_project_transactions')->where('developer_id', 10)->where('total_contract_price', 10_000_000)->first();
+    $ben1 = DB::table('agent_project_transactions')->where('developer_id', 10)->where('total_contract_price', 4_000_000)->first();
+    DB::table('agent_project_transactions')->where('id', $ana1->id)->update(['project_property_type_id' => 1, 'unit_type' => 'Studio']);
+    DB::table('agent_project_transactions')->where('id', $ben1->id)->update(['project_property_type_id' => 2, 'unit_type' => '2 Bedrooms']);
+
+    $range = ['from' => '2026-01-01', 'to' => '2026-10-11'];
+    $this->actingAs($this->superadmin)->get('/dashboard/view-sales?'.http_build_query($range + ['property_type_id' => 1]))
+        ->assertInertia(fn ($page) => $page
+            ->where('scope.0.type', 'property_type')->where('scope.0.name', 'Condominiums')
+            ->where('summary.property_types.0.unit_types', fn ($rows) => collect($rows)->pluck('sales', 'name')->all() == ['Studio' => 1])
+            ->where('summary.kpis.sales.value', 1));
+
+    $this->actingAs($this->superadmin)->get('/dashboard/view-sales?'.http_build_query($range + ['unit_type' => '2 Bedrooms']))
+        ->assertInertia(fn ($page) => $page
+            ->where('scope.0.type', 'unit_type')->where('scope.0.name', '2 Bedrooms')
+            ->where('summary.kpis.sales.value', 1));
+});
+
+test('average price per square metre is total value over total floor area, only for sales with one recorded', function () {
+    // ana's 10M project sale: 100 sqm (₱100,000/sqm). ben's 4M project sale and ana's 6M brokerage sale: no floor area —
+    // left out of the metric, though they still count in every other total.
+    DB::table('project_property_types')->insert(['id' => 1, 'name' => 'Condominiums']);
+    $ana1 = DB::table('agent_project_transactions')->where('developer_id', 10)->where('total_contract_price', 10_000_000)->first();
+    DB::table('agent_project_transactions')->where('id', $ana1->id)->update(['floor_area' => 100, 'project_property_type_id' => 1, 'unit_type' => 'Studio']);
+    $ben1 = DB::table('agent_project_transactions')->where('developer_id', 10)->where('total_contract_price', 4_000_000)->first();
+    DB::table('agent_project_transactions')->where('id', $ben1->id)->update(['project_property_type_id' => 1]);
+
+    ($this->report)(['from' => '2026-01-01', 'to' => '2026-10-11'])
+        ->assertInertia(fn ($page) => $page
+            ->where('summary.kpis.price_per_sqm.value', 100_000)
+            // The same blended rate, nested per property type and per unit type — ben's floor-area-less sale doesn't dilute it.
+            ->where('summary.property_types.0.price_per_sqm', 100_000)
+            ->where('summary.property_types.0.unit_types.0.price_per_sqm', 100_000));
 });
 
 test('top developers show each one\'s share of project sales, also inside a team', function () {
@@ -287,7 +347,7 @@ test('client age bands count only believable ages (18–99) and say how many wer
             ->where('stats.clients.ages.counted', 1)
             ->where('stats.clients.ages.rows.1.sales', 1)
             ->where('stats.clients.countries', fn ($c) => collect($c)->pluck('sales', 'name')->get('Philippines') === 2)
-            ->has('stats.clients.genders', 3));
+            ->has('stats.clients.genders', 2));
 });
 
 test('agents without an area count in the totals but never show as an "Unassigned" area', function () {
@@ -305,7 +365,7 @@ test('agents without an area count in the totals but never show as an "Unassigne
 
     // The old "unassigned" drill-down is gone: it's ignored, not a scope.
     ($this->report)($range + ['view' => 'agents', 'area' => 'unassigned'])
-        ->assertInertia(fn ($page) => $page->where('scope', null)->where('breakdown.total', 2));
+        ->assertInertia(fn ($page) => $page->where('scope', [])->where('breakdown.total', 2));
 });
 
 test('Top Team Leaders ranks team leaders by their own sales, like Top Unit Managers', function () {
@@ -337,8 +397,8 @@ test('Developers by Area: pick an area to rank its developers, then open one to 
 
     // Opening Cebu Landmasters from Cebu: the agents who sold it in Cebu, named in the header with the area.
     $this->actingAs($this->superadmin)->get("/reports/top-agents?{$range}&area=cebu&developer_id=10")
-        ->assertInertia(fn ($page) => $page->where('scope.type', 'developer')
-            ->where('scope.facts', fn ($facts) => collect($facts)->pluck('value', 'label')->get('Branch') === 'Cebu')
+        ->assertInertia(fn ($page) => $page->where('scope.1.type', 'developer')
+            ->where('scope.1.facts', fn ($facts) => collect($facts)->pluck('value', 'label')->get('Branch') === 'Cebu')
             ->where('breakdown.data', fn ($rows) => collect($rows)->pluck('name')->all() === ['Ana Reyes'])
             ->where('summary.kpis.value.value', 10_000_000));
 });
@@ -367,7 +427,7 @@ test('inside a developer, the Sales tab lists its sales one by one for the same 
     $base = '/reports/top-agents?from=2026-01-01&to=2026-10-11&developer_id=10';
 
     // Top agents by default: no list sent.
-    $this->actingAs($this->superadmin)->get($base)->assertInertia(fn ($page) => $page->where('saleList', null)->where('scope.type', 'developer'));
+    $this->actingAs($this->superadmin)->get($base)->assertInertia(fn ($page) => $page->where('saleList', null)->where('scope.0.type', 'developer'));
 
     // Valid project sales of Cebu Landmasters in range: Ana's 10M (Mar 10) and Ben's 4M (Apr 2) — newest first.
     $this->actingAs($this->superadmin)->get("{$base}&list=sales")
@@ -514,7 +574,7 @@ test('inside a branch the back office can rank its teams and sub-teams too', fun
 
     // Cebu: Ana's 10M project + 6M brokerage, on Alpha. Ben (Davao) isn't counted.
     $this->actingAs($this->superadmin)->get("/reports/top-agents?{$range}&area=cebu&list=teams")
-        ->assertInertia(fn ($page) => $page->where('groupTabs', true)->where('filters.view', 'teams')->where('scope.type', 'area')
+        ->assertInertia(fn ($page) => $page->where('groupTabs', true)->where('filters.view', 'teams')->where('scope.0.type', 'area')
             ->where('breakdown.total', 1)
             ->where('breakdown.data.0', fn ($r) => $r['name'] === 'Alpha' && (float) $r['value'] === 16_000_000.0));
     // A team clicked inside the branch: its agents in that branch.

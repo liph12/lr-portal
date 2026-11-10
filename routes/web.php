@@ -76,6 +76,7 @@ Route::middleware(['auth', 'active'])->group(function(){
         require base_path('routes/superadmin/superadmin-dashboard.php');
         require base_path('routes/superadmin/superadmin-management.php');
         require base_path('routes/superadmin/superadmin-statistics.php');
+        require base_path('routes/superadmin/superadmin-report-builder.php');
         require base_path('routes/superadmin/superadmin-accounting.php');
         require base_path('routes/superadmin/superadmin-documentation.php');
         require base_path('routes/superadmin/superadmin-sales-validation.php');

@@ -31,7 +31,7 @@ class MyTeamController extends Controller
         return inertia('Portal/MyTeam/Index', [
             ...$this->shared($request, $current),
             'filters' => $filters,
-            'scope' => fn () => $this->reports->scope($filters),
+            'scope' => fn () => $this->reports->scopeTrail($filters),
             'summary' => fn () => $this->reports->summary($filters),
             'breakdown' => function () use ($filters) {
                 $page = $this->reports->breakdown($filters);

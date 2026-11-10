@@ -55,11 +55,21 @@ test('the statistics page summarises project sales for the last 12 months by def
             ->where('stats.monthly.11', ['month' => '2026-10', 'sales' => 2, 'value' => 43_000_000])
             ->where('stats.monthly.0', ['month' => '2025-11', 'sales' => 0, 'value' => 0])
             ->where('stats.developers.0', ['name' => 'Cebu Landmasters', 'sales' => 2, 'value' => 43_000_000])
-            ->where('stats.propertyTypes.0', ['name' => 'Condominiums', 'sales' => 2, 'value' => 25_000_000])
+            ->where('stats.propertyTypes.0', ['id' => $this->condo, 'name' => 'Condominiums', 'sales' => 2, 'value' => 25_000_000, 'price_per_sqm' => null, 'unit_types' => []])
             // Commission status isn't a statistic.
             ->missing('stats.commission')
             ->where('stats.kpis.active_users', ['value' => 1, 'total' => 1])
             ->where('stats.team.byStatus', fn ($s) => collect($s)->pluck('status')->all() === ['active', 'inactive']));
+});
+
+test('average price per square metre is nested per property type and unit type too', function () {
+    ($this->sale)('Cebu Landmasters', $this->condo, 20_000_000, '2026-10-01');
+    DB::table('agent_project_transactions')->where('total_contract_price', 20_000_000)->update(['floor_area' => 200, 'unit_type' => '2 Bedrooms']);
+
+    $this->actingAs($this->superadmin)->get('/superadmin/statistics')
+        ->assertInertia(fn ($page) => $page
+            ->where('stats.propertyTypes.0.price_per_sqm', 100_000)
+            ->where('stats.propertyTypes.0.unit_types.0.price_per_sqm', 100_000));
 });
 
 test('this year and all time narrow or widen the window', function () {

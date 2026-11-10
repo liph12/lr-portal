@@ -119,15 +119,15 @@ test('view sales shows a team leader only their team, and can\'t be widened', fu
     $this->actingAs($this->leaderUser)->get('/dashboard/view-sales?from=2026-09-01&to=2026-09-30')
         ->assertInertia(fn ($page) => $page->component('Portal/Dashboard/Reports/Index')
             ->where('scopeLocked', true)
-            ->where('scope.name', 'Alpha')
+            ->where('scope.0.name', 'Alpha')
             ->where('summary.kpis.value.value', 7_000_000));
 
     $this->actingAs($this->leaderUser)->get("/dashboard/view-sales?from=2026-09-01&to=2026-09-30&team_id={$this->other}&area=cebu")
-        ->assertInertia(fn ($page) => $page->where('scope.name', 'Alpha')->where('summary.kpis.value.value', 7_000_000));
+        ->assertInertia(fn ($page) => $page->where('scope.0.name', 'Alpha')->where('summary.kpis.value.value', 7_000_000));
 
     // A unit manager gets their sub-team; someone who leads nothing (and can't read reports) gets nothing.
     $this->actingAs($this->umUser)->get('/dashboard/view-sales?from=2026-09-01&to=2026-09-30')
-        ->assertInertia(fn ($page) => $page->where('scope.name', 'Alpha Unit'));
+        ->assertInertia(fn ($page) => $page->where('scope.0.name', 'Alpha Unit'));
     [$nobody] = ($this->person)('No Body', 'agent');
     $this->actingAs($nobody)->get('/dashboard/view-sales')->assertForbidden();
 });
@@ -139,14 +139,14 @@ test('report reach follows who you are, even when your role has view_reports', f
 
     // Team leader: their team only, on View Sales and on every report.
     $this->actingAs($this->leaderUser->fresh())->get("/dashboard/view-sales{$range}")
-        ->assertInertia(fn ($page) => $page->where('scopeLocked', true)->where('scope.name', 'Alpha')->where('summary.kpis.value.value', 7_000_000));
+        ->assertInertia(fn ($page) => $page->where('scopeLocked', true)->where('scope.0.name', 'Alpha')->where('summary.kpis.value.value', 7_000_000));
     $this->actingAs($this->leaderUser->fresh())->get("/reports/top-agents{$range}&team_id={$this->other}")
         ->assertInertia(fn ($page) => $page->where('scopeLocked', true)->where('summary.kpis.value.value', 7_000_000));
 
     // A plain agent: only their own sales.
     $memberUser = User::find(DB::table('agents')->where('id', $this->member)->value('user_id'));
     $this->actingAs($memberUser->fresh())->get("/dashboard/view-sales{$range}")
-        ->assertInertia(fn ($page) => $page->where('scope.type', 'agent')->where('summary.kpis.value.value', 7_000_000)->where('breakdown.total', 1));
+        ->assertInertia(fn ($page) => $page->where('scope.0.type', 'agent')->where('summary.kpis.value.value', 7_000_000)->where('breakdown.total', 1));
     $this->actingAs($memberUser->fresh())->get("/agents/{$this->outsider}")->assertForbidden();
     $this->actingAs($memberUser->fresh())->get("/agents/{$this->member}")->assertOk();
 

@@ -30,7 +30,8 @@ return [
         'endorsement_template' => env('FIRE_ENDORSEMENT_TEMPLATE', "https://realestatetraining.ph/Agent's%20Endorsement%20Letter.pdf"),
     ],
 
-    // Recruits Progress' AI analysis (RecruitAnalysisService): only group totals are sent, never a person.
+    // Recruits Progress' AI analysis (RecruitAnalysisService: only group totals are sent, never a person) and Report
+    // Builder's Ask AI (ReportBuilderAiService: free-text filters, names resolved locally — never an ID or SQL from the model).
     'openai' => [
         'key' => env('OPENAI_API_KEY'),
         'model' => env('OPENAI_MODEL', 'gpt-5.4-mini'),

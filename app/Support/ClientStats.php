@@ -19,7 +19,8 @@ final class ClientStats
     private const TOP_COUNTRIES = 10;
 
     /**
-     * Top countries by value ("PH" and legacy "Philippines" merged), the rest as "Other countries".
+     * Top countries by value ("PH" and legacy "Philippines" merged), the rest as "Other countries". Sales with no
+     * recorded country are left out entirely — not shown as "Not specified".
      *
      * @return array<int, array{name: string, code: ?string, sales: int, value: float}>
      */
@@ -32,10 +33,12 @@ final class ClientStats
             ->get()
             ->each(function ($r) use (&$merged) {
                 ['name' => $name, 'code' => $code] = Countries::resolve($r->raw);
-                $key = $name ?? 'Not specified';
-                $merged[$key] ??= ['name' => $key, 'code' => $code, 'sales' => 0, 'value' => 0.0];
-                $merged[$key]['sales'] += (int) $r->sales;
-                $merged[$key]['value'] += (float) $r->value;
+                if ($name === null) {
+                    return;
+                }
+                $merged[$name] ??= ['name' => $name, 'code' => $code, 'sales' => 0, 'value' => 0.0];
+                $merged[$name]['sales'] += (int) $r->sales;
+                $merged[$name]['value'] += (float) $r->value;
             });
 
         usort($merged, fn ($a, $b) => $b['value'] <=> $a['value']);
@@ -50,13 +53,14 @@ final class ClientStats
     }
 
     /**
-     * Always Male, Female, Not specified (in that order, so each keeps its colour).
+     * Always Male, Female (in that order, so each keeps its colour). Sales with no recorded gender are left out
+     * entirely — not shown as "Not specified".
      *
      * @return array<int, array{name: string, sales: int, value: float}>
      */
     public static function genders(Builder $sales): array
     {
-        $rows = ['Male' => ['name' => 'Male', 'sales' => 0, 'value' => 0.0], 'Female' => ['name' => 'Female', 'sales' => 0, 'value' => 0.0], 'Not specified' => ['name' => 'Not specified', 'sales' => 0, 'value' => 0.0]];
+        $rows = ['Male' => ['name' => 'Male', 'sales' => 0, 'value' => 0.0], 'Female' => ['name' => 'Female', 'sales' => 0, 'value' => 0.0]];
 
         DB::query()->fromSub($sales, 's')
             ->groupBy('s.client_gender')
@@ -66,8 +70,11 @@ final class ClientStats
                 $key = match (strtolower(trim((string) $r->gender))) {
                     'male', 'm' => 'Male',
                     'female', 'f' => 'Female',
-                    default => 'Not specified',
+                    default => null,
                 };
+                if ($key === null) {
+                    return;
+                }
                 $rows[$key]['sales'] += (int) $r->sales;
                 $rows[$key]['value'] += (float) $r->value;
             });
@@ -110,5 +117,51 @@ final class ClientStats
     public static function isValidAge(?int $age): bool
     {
         return $age !== null && $age >= self::MIN_AGE && $age <= self::MAX_AGE;
+    }
+
+    /**
+     * Age bands of the *selling* agent, not the client — grouped by agent (one age each, at their last sale in range),
+     * weighted by how many sales and how much value they brought in. $sales must expose agent_id, birthdate,
+     * reservation_date and value.
+     *
+     * @return array{rows: array<int, array{name: string, sales: int, value: float}>, counted: int, excluded: int}
+     */
+    public static function sellerAges(Builder $sales): array
+    {
+        $rows = collect(self::AGE_BANDS)->mapWithKeys(fn ($label) => [$label => ['name' => $label, 'sales' => 0, 'value' => 0.0]])->all();
+        $excluded = 0;
+
+        DB::query()->fromSub($sales, 's')
+            ->groupBy('s.agent_id', 's.birthdate')
+            ->selectRaw('s.agent_id, s.birthdate, COUNT(*) as sales, COALESCE(SUM(s.value), 0) as value, MAX(s.reservation_date) as last_sale')
+            ->get()
+            ->each(function ($r) use (&$rows, &$excluded) {
+                $age = self::ageAt($r->birthdate, $r->last_sale);
+                if (! self::isValidAge($age)) {
+                    $excluded += (int) $r->sales;
+
+                    return;
+                }
+                $label = self::AGE_BANDS[max(array_filter(array_keys(self::AGE_BANDS), fn ($from) => $from <= $age))];
+                $rows[$label]['sales'] += (int) $r->sales;
+                $rows[$label]['value'] += (float) $r->value;
+            });
+
+        $rows = array_values($rows);
+
+        return ['rows' => $rows, 'counted' => array_sum(array_column($rows, 'sales')), 'excluded' => $excluded];
+    }
+
+    // Whole years between a birthdate and a date, as of that date — null if either is missing or unparsable.
+    private static function ageAt(?string $birthdate, ?string $on): ?int
+    {
+        if (! $birthdate || ! $on) {
+            return null;
+        }
+        try {
+            return (int) \Illuminate\Support\Carbon::parse($birthdate)->diffInYears(\Illuminate\Support\Carbon::parse($on));
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

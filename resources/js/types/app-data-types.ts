@@ -219,17 +219,28 @@ export interface StatsSummary {
         sales: { value: number; previous: number | null };
         contract_value: { value: number; previous: number | null };
         average_deal: { value: number; previous: number | null };
+        price_per_sqm: { value: number; previous: number | null };
         active_users: { value: number; total: number };
     };
     monthly: { month: string; sales: number; value: number }[];
     developers: { name: string; sales: number; value: number }[];
-    propertyTypes: { name: string; sales: number; value: number }[];
+    // Each property type carries its own unit types nested inside, for the expandable cards (condo → studio, 1BR…).
+    propertyTypes: {
+        id: number;
+        name: string;
+        sales: number;
+        value: number;
+        price_per_sqm: number | null;
+        unit_types: { name: string; sales: number; value: number; price_per_sqm: number | null }[];
+    }[];
     // Clients of the period's project sales.
     clients: {
         countries: { name: string; code: string | null; sales: number; value: number }[];
         genders: { name: string; sales: number; value: number }[];
         ages: ClientAges;
     };
+    // The selling agent's age, not the client's.
+    sellerAges: ClientAges;
     team: {
         byRole: { name: string; users: number }[];
         byStatus: { status: UserStatus; users: number }[];
